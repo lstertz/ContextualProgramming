@@ -1,2 +1,5 @@
 ﻿obj/Debug
 .vs
+Tests/bin/Debug
+Tests/obj/Debug/net6.0
+bin/Debug/net6.0
