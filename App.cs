@@ -52,12 +52,16 @@ public static class App
         List<Type> contexts = new();
         List<Type> behaviors = new();
 
-        Type[] types = Assembly.GetExecutingAssembly().GetTypes();
-        for (int c = 0, count = types.Length; c < count; c++)
-            if (types[c].GetCustomAttribute<ContextAttribute>(true) != null)
-                contexts.Add(types[c]);
-            else if (types[c].GetCustomAttribute<BehaviorAttribute>(true) != null)
-                behaviors.Add(types[c]);
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+        for (int c = 0, count = assemblies.Length; c < count; c++)
+        {
+            Type[] types = assemblies[c].GetTypes();
+            for (int cc = 0, cCount = types.Length; cc < cCount; cc++)
+                if (types[cc].GetCustomAttribute<ContextAttribute>(true) != null)
+                    contexts.Add(types[cc]);
+                else if (types[cc].GetCustomAttribute<BehaviorAttribute>(true) != null)
+                    behaviors.Add(types[cc]);
+        }
 
         for (int c = 0, count = contexts.Count; c < count; c++)
             RegisterContext(contexts[c]);
