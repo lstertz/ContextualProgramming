@@ -1,46 +1,93 @@
 ﻿namespace ContextualProgramming;
 
 /// <summary>
-/// Declares a property of a behavior (<see cref="BehaviorAttribute"/>) as being a 
-/// dependency of the behavior.
+/// Declares a dependency of a behavior (<see cref="BehaviorAttribute"/>) for 
+/// a type of context.
 /// </summary>
-/// <remarks>The decorated property must be a <see cref="Context"/> or 
-/// of a interface. An interface dependency will only be fulfilled if a <see cref="Context"/> 
-/// that implements that interface is instantiated.
-/// </remarks>
-[AttributeUsage(AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
-public class DependencyAttribute : Attribute
+public abstract class DependencyAttribute : Attribute
 {
     /// <summary>
-    /// Denotes the source of the dependency.
+    /// The type of the context that the behavior is dependent upon.
     /// </summary>
-    public DependencySource Source { get; }
+    public Type ContextType { get; init; }
 
     /// <summary>
-    /// Constructs a new dependency.
+    /// Whether the dependency is fulfilled by the dependent behavior during the 
+    /// behavior's construction.
     /// </summary>
-    /// <param name="source">The source of the dependency.</param>
-    public DependencyAttribute(DependencySource source) => (Source) = source;
+    public bool IsSelfFulfilled { get; init; }
+
+    /// <summary>
+    /// The name that identifies the dependency for all operations within the behavior.
+    /// </summary>
+    public string Name { get; init; }
+
+    /// <summary>
+    /// The type of the dependency.
+    /// </summary>
+    public DependencyType Type { get; init; }
+
+
+    /// <summary>
+    /// Constructs a new unique dependency attribute.
+    /// </summary>
+    /// <param name="type"><see cref="Type"/></param>
+    /// <param name="name"><see cref="Name"/></param>
+    /// <param name="contextType"><see cref="ContextType"/></param>
+    /// <param name="isSelfFulfilled"><see cref="IsSelfFulfilled"/></param>
+    protected DependencyAttribute(DependencyType type, string name, Type contextType, 
+        bool isSelfFulfilled)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", nameof(name));
+        }
+
+        if (contextType is null)
+        {
+            throw new ArgumentNullException(nameof(contextType));
+        }
+
+        Type = type;
+        Name = name;
+        ContextType = contextType;
+        IsSelfFulfilled = isSelfFulfilled;
+    }
 }
 
+
 /// <summary>
-/// Defines the possible sources of dependencies.
+/// Declares a unique dependency of a behavior (<see cref="BehaviorAttribute"/>) for the 
+/// specified type of context.
 /// </summary>
-public enum DependencySource
+/// <typeparam name="T">The type of the dependency, a type of a context.</typeparam>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
+public class DependencyAttribute<T> : DependencyAttribute
 {
     /// <summary>
-    /// The dependent will create its dependency itself at some point during its 
-    /// initialization or construction.
+    /// Constructs a new unique dependency attribute.
     /// </summary>
-    Self,
+    /// <param name="type"><see cref="DependencyAttribute.Type"/></param>
+    /// <param name="name"><see cref="DependencyAttribute.Name"/></param>
+    /// <param name="isSelfFulfilled"><see cref="DependencyAttribute.IsSelfFulfilled"/></param>
+    public DependencyAttribute(DependencyType type, string name, bool isSelfFulfilled = false) :
+        base(type, name, typeof(T), isSelfFulfilled) { }
+}
+
+
+/// <summary>
+/// The types of dependencies.
+/// </summary>
+public enum DependencyType
+{
     /// <summary>
-    /// The dependent will expect the dependency to be fulfilled, but the provided dependency
-    /// may be shared among other instances of the same type of dependent.
+    /// A shared dependency, meaning that the dependency may fulfill the requirements of 
+    /// more than one of the same type of behavior.
     /// </summary>
     Shared,
     /// <summary>
-    /// The dependent will expect the dependency to be fulfilled, but the provided dependency
-    /// can not be shared among other instances of the same type of dependent.
+    /// A unique dependency, meaning that the dependency may fulfill the requirements of 
+    /// only one of the same type of behavior.
     /// </summary>
     Unique
 }
