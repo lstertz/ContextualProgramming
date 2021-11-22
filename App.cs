@@ -10,23 +10,23 @@ namespace ContextualProgramming;
 public static class App
 {
     /// <summary>
-    /// Details of each registered Context type.
+    /// Details of each registered context type.
     /// </summary>
     private static readonly HashSet<Type> ContextInfos = new();
 
     /// <summary>
-    /// All currently contextualized Context instances, keyed by their class type.
+    /// All currently contextualized context instances, keyed by their class type.
     /// </summary>
     private static readonly Dictionary<Type, HashSet<object>> Contexts = new();
 
     /// <summary>
-    /// A mapping of Contexts instances to the Behavior instances that created them, 
+    /// A mapping of contexts instances to the behavior instances that created them, 
     /// as self-fulfilled dependencies.
     /// </summary>
     private static readonly Dictionary<object, object> ContextBehaviors = new();
 
     /// <summary>
-    /// A mapping of Context types to the Behavior types that depend upon them.
+    /// A mapping of context types to the behavior types that depend upon them.
     /// </summary>
     private static readonly Dictionary<Type, List<Type>> ContextDependents = new();
 
@@ -37,7 +37,7 @@ public static class App
 
     /// <summary>
     /// Initializes the contextual execution of the application by registering all 
-    /// declared Contexts (<see cref="ContextAttribute"/>) and all 
+    /// declared bontexts (<see cref="ContextAttribute"/>) and all 
     /// declared Behaviors (<see cref="BehaviorAttribute"/>).
     /// </summary>
     /// <remarks>
@@ -79,14 +79,14 @@ public static class App
 
 
     /// <summary>
-    /// Contextualizes a new Context, including it as part of the app's contextual state.
+    /// Contextualizes a new context, including it as part of the app's contextual state.
     /// </summary>
-    /// <typeparam name="T">The Type of the Context.</typeparam>
-    /// <param name="context">The Context to be registered.</param>
-    /// <exception cref="ArgumentNullException">Thrown if the provided Context 
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context to be registered.</param>
+    /// <exception cref="ArgumentNullException">Thrown if the provided context 
     /// instance is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the provided instance is 
-    /// not a Context instance.</exception>
+    /// not a context instance.</exception>
     public static void Contextualize<T>(T context)
     {
         if (context == null)
@@ -107,18 +107,18 @@ public static class App
 
     
     /// <summary>
-    /// Registers a Type as a Behavior Type with its dependency information.
+    /// Registers a type as a behavior type with its dependency information.
     /// </summary>
-    /// <param name="type">The Type to be registered as a Behavior.</param>
-    /// <param name="selfDependencyProperties">A list of PropertyInfo for holding the Behavior's 
+    /// <param name="type">The type to be registered as a behavior.</param>
+    /// <param name="selfDependencyProperties">A list of property info for holding the behavior's 
     /// self-fulfilled dependency property information.</param>
-    /// <param name="sharedDependencies">A list of the Context types that this Behavior 
+    /// <param name="sharedDependencies">A list of the context types that this behavior 
     /// has as shared dependencies.</param>
-    /// <param name="uniqueDependencies">A list of the Context types that this Behavior 
+    /// <param name="uniqueDependencies">A list of the context types that this behavior 
     /// has as unique dependencies.</param>
-    /// <exception cref="InvalidOperationException">Thrown if the Behavior 
+    /// <exception cref="InvalidOperationException">Thrown if the behavior 
     /// does not have a parameterless constructor or declares dependencies 
-    /// that aren't Contexts.</exception>
+    /// that aren't contexts.</exception>
     private static void RegisterBehavior(Type type,
         ref List<PropertyInfo> selfDependencyProperties,
         ref List<Type> sharedDependencies,
@@ -201,12 +201,12 @@ public static class App
     }
 
     /// <summary>
-    /// Registers a Type as a Context with its relevant details.
+    /// Registers a type as a context with its relevant details.
     /// </summary>
-    /// <param name="type">The Type to be registered as a Context.</param>
+    /// <param name="type">The type to be registered as a context.</param>
     private static void RegisterContext(Type type)
     {
         ContextInfos.Add(type);
-        // TODO :: Collect relevant details from the Context, likely property info.
+        // TODO :: Collect relevant details from the context, likely property info.
     }
 }
