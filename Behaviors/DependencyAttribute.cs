@@ -9,13 +9,12 @@ public abstract class DependencyAttribute : Attribute
     /// <summary>
     /// The type of the context that the behavior is dependent upon.
     /// </summary>
-    public Type ContextType { get; init; }
+    public Type Type { get; init; }
 
     /// <summary>
-    /// Whether the dependency is fulfilled by the dependent behavior during the 
-    /// behavior's construction.
+    /// Specifies how the dependency is to be fulfilled.
     /// </summary>
-    public bool IsSelfFulfilled { get; init; }
+    public Fulfillment Fulfillment { get; init; }
 
     /// <summary>
     /// The name that identifies the dependency for all operations within the behavior.
@@ -23,20 +22,20 @@ public abstract class DependencyAttribute : Attribute
     public string Name { get; init; }
 
     /// <summary>
-    /// The type of the dependency.
+    /// Specifies how the dependency is to be bound to the behavior.
     /// </summary>
-    public DependencyType Type { get; init; }
+    public Binding Binding { get; init; }
 
 
     /// <summary>
-    /// Constructs a new unique dependency attribute.
+    /// Constructs a new dependency attribute.
     /// </summary>
-    /// <param name="type"><see cref="Type"/></param>
+    /// <param name="type"><see cref="Binding"/></param>
+    /// <param name="fulfillment"><see cref="Fulfillment"/></param>
     /// <param name="name"><see cref="Name"/></param>
-    /// <param name="contextType"><see cref="ContextType"/></param>
-    /// <param name="isSelfFulfilled"><see cref="IsSelfFulfilled"/></param>
-    protected DependencyAttribute(DependencyType type, string name, Type contextType, 
-        bool isSelfFulfilled)
+    /// <param name="contextType"><see cref="Type"/></param>
+    protected DependencyAttribute(Binding type, Fulfillment fulfillment, 
+        string name, Type contextType)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -48,16 +47,16 @@ public abstract class DependencyAttribute : Attribute
             throw new ArgumentNullException(nameof(contextType));
         }
 
-        Type = type;
+        Binding = type;
         Name = name;
-        ContextType = contextType;
-        IsSelfFulfilled = isSelfFulfilled;
+        Fulfillment = fulfillment;
+        Type = contextType;
     }
 }
 
 
 /// <summary>
-/// Declares a unique dependency of a behavior (<see cref="BehaviorAttribute"/>) for the 
+/// Declares a dependency of a behavior (<see cref="BehaviorAttribute"/>) for the 
 /// specified type of context.
 /// </summary>
 /// <typeparam name="T">The type of the dependency, a type of a context.</typeparam>
@@ -65,28 +64,52 @@ public abstract class DependencyAttribute : Attribute
 public class DependencyAttribute<T> : DependencyAttribute
 {
     /// <summary>
-    /// Constructs a new unique dependency attribute.
+    /// Constructs a new dependency attribute.
     /// </summary>
-    /// <param name="type"><see cref="DependencyAttribute.Type"/></param>
+    /// <param name="binding"><see cref="DependencyAttribute.Binding"/></param>
     /// <param name="name"><see cref="DependencyAttribute.Name"/></param>
-    /// <param name="isSelfFulfilled"><see cref="DependencyAttribute.IsSelfFulfilled"/></param>
-    public DependencyAttribute(DependencyType type, string name, bool isSelfFulfilled = false) :
-        base(type, name, typeof(T), isSelfFulfilled) { }
+    /// <param name="fulfillment"><see cref="DependencyAttribute.Fulfillment"/></param>
+    public DependencyAttribute(Binding binding, Fulfillment fulfillment, 
+        string name) : base(binding, fulfillment, name, typeof(T)) { }
 }
 
 
 /// <summary>
-/// The types of dependencies.
+/// The different means by which a dependency is expected to be fulfilled for a behavior.
 /// </summary>
-public enum DependencyType
+public enum Fulfillment
 {
     /// <summary>
-    /// A shared dependency, meaning that the dependency may fulfill the requirements of 
+    /// The dependency will automatically be satisfied by a default instance of the context.
+    /// </summary>
+    //Default,  // Not currently supported.
+    /// <summary>
+    /// The dependency can only be fulfilled by an existing qualifying context.
+    /// </summary>
+    //Existing,  // Not currently supported.
+    /// <summary>
+    /// The dependency will be fulfilled by an existing qualifying context, if one exists, 
+    /// otherwise it is expected to be created by the dependent behavior during its construction.
+    /// </summary>
+    //ExistingOrSelfCreated,  // Not currently supported.
+    /// <summary>
+    /// The dependency is expected to be created by the dependent behavior during its construction.
+    /// </summary>
+    SelfCreated
+}
+
+/// <summary>
+/// The different ways that a dependency can be bound to a behavior.
+/// </summary>
+public enum Binding
+{
+    /// <summary>
+    /// A shared binding, meaning that the dependency may fulfill the requirements of 
     /// more than one of the same type of behavior.
     /// </summary>
-    Shared,
+    //Shared,  // Not currently supported.
     /// <summary>
-    /// A unique dependency, meaning that the dependency may fulfill the requirements of 
+    /// A unique binding, meaning that the dependency may fulfill the requirements of 
     /// only one of the same type of behavior.
     /// </summary>
     Unique
