@@ -30,27 +30,27 @@ public abstract class DependencyAttribute : Attribute
     /// <summary>
     /// Constructs a new dependency attribute.
     /// </summary>
-    /// <param name="type"><see cref="Binding"/></param>
+    /// <param name="binding"><see cref="Binding"/></param>
     /// <param name="fulfillment"><see cref="Fulfillment"/></param>
     /// <param name="name"><see cref="Name"/></param>
-    /// <param name="contextType"><see cref="Type"/></param>
-    protected DependencyAttribute(Binding type, Fulfillment fulfillment, 
-        string name, Type contextType)
+    /// <param name="type"><see cref="Type"/></param>
+    protected DependencyAttribute(Binding binding, Fulfillment fulfillment, 
+        string name, Type type)
     {
         if (string.IsNullOrEmpty(name))
         {
             throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", nameof(name));
         }
 
-        if (contextType is null)
+        if (type is null)
         {
-            throw new ArgumentNullException(nameof(contextType));
+            throw new ArgumentNullException(nameof(type));
         }
 
-        Binding = type;
+        Binding = binding;
         Name = name;
         Fulfillment = fulfillment;
-        Type = contextType;
+        Type = type;
     }
 }
 
