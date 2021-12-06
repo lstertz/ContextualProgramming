@@ -7,9 +7,9 @@
 public abstract class DependencyAttribute : Attribute
 {
     /// <summary>
-    /// The type of the context that the behavior is dependent upon.
+    /// Specifies how the dependency is to be bound to the behavior.
     /// </summary>
-    public Type Type { get; init; }
+    public Binding Binding { get; init; }
 
     /// <summary>
     /// Specifies how the dependency is to be fulfilled.
@@ -22,9 +22,9 @@ public abstract class DependencyAttribute : Attribute
     public string Name { get; init; }
 
     /// <summary>
-    /// Specifies how the dependency is to be bound to the behavior.
+    /// The type of the context that the behavior is dependent upon.
     /// </summary>
-    public Binding Binding { get; init; }
+    public Type Type { get; init; }
 
 
     /// <summary>
