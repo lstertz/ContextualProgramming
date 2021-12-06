@@ -1,7 +1,7 @@
-﻿namespace Tests.Contexts
+﻿namespace Tests.Contexts;
+
+[Context]
+public class ContextA
 {
-    [Context]
-    public class ContextA
-    {
-    }
+
 }
