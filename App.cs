@@ -10,6 +10,17 @@ namespace ContextualProgramming;
 public static class App
 {
     /// <summary>
+    /// The types of all dependencies of all behavior types.
+    /// </summary>
+    private static readonly Dictionary<Type, Type[]> BehDepTypes = new();
+
+    /// <summary>
+    /// The names and their dependency indices for the self-created 
+    /// dependencies of all behavior types.
+    /// </summary>
+    private static readonly Dictionary<Type, Dictionary<string, int>> BehSelfCreatedDeps = new();
+
+    /// <summary>
     /// Details of each registered context type.
     /// </summary>
     private static readonly HashSet<Type> ContextInfos = new();
@@ -21,7 +32,7 @@ public static class App
 
     /// <summary>
     /// A mapping of contexts instances to the behavior instances that created them, 
-    /// as self-fulfilled dependencies.
+    /// as self-created dependencies.
     /// </summary>
     private static readonly Dictionary<object, object> ContextBehaviors = new();
 
@@ -30,14 +41,12 @@ public static class App
     /// </summary>
     private static readonly Dictionary<Type, List<Type>> ContextDependents = new();
 
-    private static readonly Dictionary<Type, PropertyInfo[]> BehaviorSelfDepProperties = new();
-    private static readonly Dictionary<Type, Type[]> BehaviorSharedDependencies = new();
-    private static readonly Dictionary<Type, Type[]> BehaviorUniqueDependencies = new();
+
 
 
     /// <summary>
     /// Initializes the contextual execution of the application by registering all 
-    /// declared bontexts (<see cref="ContextAttribute"/>) and all 
+    /// declared contexts (<see cref="ContextAttribute"/>) and all 
     /// declared Behaviors (<see cref="BehaviorAttribute"/>).
     /// </summary>
     /// <remarks>
@@ -45,10 +54,6 @@ public static class App
     /// </remarks>
     public static void Initialize()
     {
-        List<PropertyInfo> selfDependencyProperties = new();
-        List<Type> sharedDependencies = new();
-        List<Type> uniqueDependencies = new();
-
         List<Type> contexts = new();
         List<Type> behaviors = new();
 
@@ -67,15 +72,8 @@ public static class App
             RegisterContext(contexts[c]);
 
         for (int c = 0, count = behaviors.Count; c < count; c++)
-            RegisterBehavior(behaviors[c], ref selfDependencyProperties, 
-                ref sharedDependencies, ref uniqueDependencies);
+            RegisterBehavior(behaviors[c]);
     }
-
-
-    // Future reference, for creating instances with dependencies:
-    // object o = FormatterServices.GetUninitializedObject(types[c]);
-    // Set properties using o as instance.
-    // Run o's constructor through constructor info.
 
 
     /// <summary>
@@ -105,99 +103,47 @@ public static class App
         // TODO :: Fulfill behavior dependencies when possible.
     }
 
-    
+
     /// <summary>
     /// Registers a type as a behavior type with its dependency information.
     /// </summary>
     /// <param name="type">The type to be registered as a behavior.</param>
-    /// <param name="selfDependencyProperties">A list of property info for holding the behavior's 
-    /// self-fulfilled dependency property information.</param>
-    /// <param name="sharedDependencies">A list of the context types that this behavior 
-    /// has as shared dependencies.</param>
-    /// <param name="uniqueDependencies">A list of the context types that this behavior 
-    /// has as unique dependencies.</param>
-    /// <exception cref="InvalidOperationException">Thrown if the behavior 
-    /// does not have a parameterless constructor or declares dependencies 
-    /// that aren't contexts.</exception>
-    private static void RegisterBehavior(Type type,
-        ref List<PropertyInfo> selfDependencyProperties,
-        ref List<Type> sharedDependencies,
-        ref List<Type> uniqueDependencies)
+    /// <exception cref="InvalidOperationException">Thrown if a dependency of 
+    /// the behavior is not a context.</exception>
+    private static void RegisterBehavior(Type type)
     {
-        static void RegisterDependent(Type context, Type dependentBehavior)
+        IEnumerable<DependencyAttribute> attrs =
+            type.GetCustomAttributes<DependencyAttribute>(true);
+        Type[] depTypes = new Type[attrs.Count()];
+        Dictionary<string, int> selfCreatedDeps = new();
+
+        int depIndex = 0;
+        foreach (DependencyAttribute attr in attrs)
         {
-            if (!ContextDependents.ContainsKey(context))
-                ContextDependents.Add(context, new());
+            Type t = attr.Type;
+            if (!ContextInfos.Contains(t))
+                throw new InvalidOperationException($"The dependency named {attr.Name} of type" +
+                    $"{t} for the behavior of type {type.FullName} is not defined as a context.");
 
-            ContextDependents[context].Add(dependentBehavior);
-        }
-
-        selfDependencyProperties.Clear();
-        sharedDependencies.Clear();
-        uniqueDependencies.Clear();
-
-        PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance |
-            BindingFlags.Public | BindingFlags.NonPublic);
-        for (int p = 0, pCount = properties.Length; p < pCount; p++)
-        {
-            PropertyInfo property = properties[p];
-            DependencyAttribute? depAttr = property
-                .GetCustomAttribute<DependencyAttribute>(true);
-            if (depAttr == null)
-                continue;
-
-            Type pType = properties[p].PropertyType;
-            switch (depAttr.Source)
+            depTypes[depIndex] = t;
+            switch (attr.Fulfillment)
             {
-                case DependencySource.Self:
-                    selfDependencyProperties.Add(property);
-                    break;
-                case DependencySource.Shared:
-                    sharedDependencies.Add(pType);
-                    break;
-                case DependencySource.Unique:
-                    uniqueDependencies.Add(pType);
+                case Fulfillment.SelfCreated:
+                    selfCreatedDeps.Add(attr.Name, depIndex);
                     break;
                 default:
                     break;
             }
+
+            List<Type> dependents = ContextDependents.GetValueOrDefault(t, new());
+            if (!dependents.Contains(type))
+                dependents.Add(type);
+
+            depIndex++;
         }
 
-        if (selfDependencyProperties.Count > 0)
-            BehaviorSelfDepProperties.Add(type, selfDependencyProperties.ToArray());
-        if (sharedDependencies.Count > 0)
-        {
-            BehaviorSharedDependencies.Add(type, sharedDependencies.ToArray());
-            for (int sd = 0, sdCount = sharedDependencies.Count; sd < sdCount; sd++)
-                RegisterDependent(sharedDependencies[sd], type);
-        }
-        if (uniqueDependencies.Count > 0)
-        {
-            BehaviorUniqueDependencies.Add(type, uniqueDependencies.ToArray());
-            for (int ud = 0, udCount = uniqueDependencies.Count; ud < udCount; ud++)
-                RegisterDependent(uniqueDependencies[ud], type);
-        }
-
-        if (sharedDependencies.Count > 0 || uniqueDependencies.Count > 0)
-            return;  // TODO :: Check to see if the required dependencies exist.
-
-        object? behavior = Activator.CreateInstance(type, true);
-        if (behavior == null)
-            throw new InvalidOperationException($"The Behavior {type.FullName} " +
-                $"could not be constructed as there was no parameterless constructor, " +
-                $"as is expected of a Behavior.");
-
-        for (int sdi = 0, sdiCount = selfDependencyProperties.Count; sdi < sdiCount; sdi++)
-        {
-            object? context = selfDependencyProperties[sdi].GetValue(behavior);
-            if (context == null)
-                throw new InvalidOperationException($"The property " +
-                    $"{selfDependencyProperties[sdi].Name} of the Behavior {type.FullName} " +
-                    $"was not assigned a Context after construction, " +
-                    $"as is expected of a self-fulfilled dependency.");
-
-            ContextBehaviors.Add(context, behavior);
-        }
+        BehDepTypes.Add(type, depTypes);
+        BehSelfCreatedDeps.Add(type, selfCreatedDeps);
     }
 
     /// <summary>
