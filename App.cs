@@ -95,7 +95,9 @@ public static class App
             throw new InvalidOperationException($"The provided instance, {context}, " +
                 $"of type {type.FullName} cannot be contextualized as it is not a Context.");
 
-        Contexts.GetValueOrDefault(type, new()).Add(context);
+        if (!Contexts.ContainsKey(type))
+            Contexts[type].Add(new());
+        Contexts[type].Add(context);
 
         // TODO :: Fulfill behavior dependencies when possible.
     }
@@ -111,7 +113,9 @@ public static class App
             throw new InvalidOperationException($"The provided instance, {context}, " +
                 $"of type {type.FullName} cannot be contextualized as it is not a Context.");
 
-        Contexts.GetValueOrDefault(type, new()).Add(context);
+        if (!Contexts.ContainsKey(type))
+            Contexts[type].Add(new());
+        Contexts[type].Add(context);
 
         // TODO :: Fulfill behavior dependencies when possible.
     }
