@@ -31,7 +31,7 @@ public static class App
     private static readonly Dictionary<Type, HashSet<object>> Contexts = new();
 
     /// <summary>
-    /// A mapping of contexts instances to the behavior instances that created them, 
+    /// A mapping of context instances to the behavior instances that created them, 
     /// as self-created dependencies.
     /// </summary>
     private static readonly Dictionary<object, object> ContextBehaviors = new();
@@ -96,8 +96,25 @@ public static class App
                 $"of type {type.FullName} cannot be contextualized as it is not a Context.");
 
         if (!Contexts.ContainsKey(type))
-            Contexts.Add(type, new());
+            Contexts[type].Add(new());
+        Contexts[type].Add(context);
 
+        // TODO :: Fulfill behavior dependencies when possible.
+    }
+
+    /// <inheritdoc cref="Contextualize{T}(T)"/>
+    private static void Contextualize(object context)
+    {
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        Type type = context.GetType();
+        if (!ContextInfos.Contains(type))
+            throw new InvalidOperationException($"The provided instance, {context}, " +
+                $"of type {type.FullName} cannot be contextualized as it is not a Context.");
+
+        if (!Contexts.ContainsKey(type))
+            Contexts[type].Add(new());
         Contexts[type].Add(context);
 
         // TODO :: Fulfill behavior dependencies when possible.
@@ -144,6 +161,64 @@ public static class App
 
         BehDepTypes.Add(type, depTypes);
         BehSelfCreatedDeps.Add(type, selfCreatedDeps);
+
+        // Only self-created dependencies are currently supported, so the Behavior can be created.
+        ConstructorInfo[] constructors = type.GetConstructors(
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | 
+            BindingFlags.FlattenHierarchy);
+        if (constructors.Length == 0)
+            throw new InvalidOperationException($"Behavior of type {type.FullName} does not " +
+                $"have a valid constructor.");
+
+        ConstructorInfo constructor = constructors[0]; // Assume one constructor for now.
+        ParameterInfo[] parameters = constructor.GetParameters();
+        if (parameters.Length != depTypes.Length)
+            throw new InvalidOperationException($"The default constructor for the behavior " +
+                $"of type {type.FullName} is not valid for its dependencies.");
+
+        Type[] orderedDepTypes = new Type[depTypes.Length];
+        for (int pc = 0, pCount = parameters.Length; pc < pCount; pc++)
+        {
+            ParameterInfo parameterInfo = parameters[pc];
+            string? parameterName = parameterInfo.Name;
+
+            if (parameterName == null)
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {type.FullName} is not valid for its dependencies.");
+
+            if (!selfCreatedDeps.ContainsKey(parameterName))
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {type.FullName} is not valid for its dependencies.");
+
+            if (depTypes[selfCreatedDeps[parameterName]].Equals(parameterInfo.ParameterType))
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {type.FullName} is not valid for its dependencies.");
+
+            if (!parameterInfo.IsOut)
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {type.FullName} is not valid for its dependencies.");
+
+            orderedDepTypes[pc] = parameterInfo.ParameterType;
+        }
+
+        object[] arguments = new object[depTypes.Length];
+        object behavior = constructor.Invoke(arguments);
+
+        for (int c = 0, count = arguments.Length; c < count; c++)
+        {
+            try
+            {
+                Contextualize(arguments[c]);
+            }
+            catch (ArgumentNullException)
+            {
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {type.FullName} did not construct an expected dependency of " +
+                    $"type {orderedDepTypes[c]}.");
+            }
+
+            ContextBehaviors.Add(arguments[c], behavior);
+        }
     }
 
     /// <summary>
@@ -153,6 +228,6 @@ public static class App
     private static void RegisterContext(Type type)
     {
         ContextInfos.Add(type);
-        // TODO :: Collect relevant details from the context, likely property info.
+        // TODO :: Collect relevant details from the context, likely context value information.
     }
 }
