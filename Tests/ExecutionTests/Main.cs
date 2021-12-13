@@ -30,4 +30,4 @@ Console.WriteLine("Contextualized an instance of Context A.");
 if (GetContexts<ContextA>().Length == 2)
     Console.WriteLine("Confirmed contextualization of a second Context A.");
 else
-    Console.WriteLine("Failed to validate the contetualization of a second Context A.");
+    Console.WriteLine("Failed to validate the contextualization of a second Context A.");
