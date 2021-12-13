@@ -31,7 +31,7 @@ public static class App
     private static readonly Dictionary<Type, HashSet<object>> Contexts = new();
 
     /// <summary>
-    /// A mapping of contexts instances to the behavior instances that created them, 
+    /// A mapping of context instances to the behavior instances that created them, 
     /// as self-created dependencies.
     /// </summary>
     private static readonly Dictionary<object, object> ContextBehaviors = new();
@@ -95,10 +95,23 @@ public static class App
             throw new InvalidOperationException($"The provided instance, {context}, " +
                 $"of type {type.FullName} cannot be contextualized as it is not a Context.");
 
-        if (!Contexts.ContainsKey(type))
-            Contexts.Add(type, new());
+        Contexts.GetValueOrDefault(type, new()).Add(context);
 
-        Contexts[type].Add(context);
+        // TODO :: Fulfill behavior dependencies when possible.
+    }
+
+    /// <inheritdoc cref="Contextualize{T}(T)"/>
+    private static void Contextualize(object context)
+    {
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        Type type = context.GetType();
+        if (!ContextInfos.Contains(type))
+            throw new InvalidOperationException($"The provided instance, {context}, " +
+                $"of type {type.FullName} cannot be contextualized as it is not a Context.");
+
+        Contexts.GetValueOrDefault(type, new()).Add(context);
 
         // TODO :: Fulfill behavior dependencies when possible.
     }
@@ -153,6 +166,6 @@ public static class App
     private static void RegisterContext(Type type)
     {
         ContextInfos.Add(type);
-        // TODO :: Collect relevant details from the context, likely property info.
+        // TODO :: Collect relevant details from the context, likely context value information.
     }
 }
