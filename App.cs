@@ -149,6 +149,23 @@ public static class App
         // TODO :: Fulfill behavior dependencies when possible.
     }
 
+    /// <summary>
+    /// Decontextualizes the provided context, removing it from the app's contextual state.
+    /// </summary>
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context to be deregistered.</param>
+    public static void Decontextualize<T>(T context)
+    {
+        if (context == null)
+            throw new ArgumentNullException(nameof(context));
+
+        if (!Contexts.ContainsKey(typeof(T)))
+            return;
+
+        Contexts[typeof(T)].Remove(context);
+        ContextBehaviors.Remove(context);
+    }
+
 
     /// <summary>
     /// Registers a type as a behavior type with its dependency information.

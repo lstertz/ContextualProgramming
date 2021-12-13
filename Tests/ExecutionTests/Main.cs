@@ -1,6 +1,5 @@
 ﻿global using ContextualProgramming;
 global using static ContextualProgramming.App;
-
 using Tests.Contexts;
 
 
@@ -22,6 +21,8 @@ if (GetContext<ContextA>() != null && GetContexts<ContextA>().Length == 1)
 else
     Console.WriteLine("Failed to validate the existence of one Context A.");
 
+ContextA? initializedContextA = GetContext<ContextA>();
+
 
 // Validate contextualization of a second context.
 Contextualize(new ContextA());
@@ -31,3 +32,13 @@ if (GetContexts<ContextA>().Length == 2)
     Console.WriteLine("Confirmed contextualization of a second Context A.");
 else
     Console.WriteLine("Failed to validate the contextualization of a second Context A.");
+
+
+// Validate the decontextualization of the first context, and destruction of its behavior.
+Decontextualize(initializedContextA);
+Console.WriteLine("Decontextualized the initialized instance of Context A.");
+
+if (GetContext<ContextA>() != null && GetContexts<ContextA>().Length == 1)
+    Console.WriteLine("Confirmed only one Context A exists.");
+else
+    Console.WriteLine("Failed to validate the existence of a single Context A.");
