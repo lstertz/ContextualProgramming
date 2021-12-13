@@ -77,6 +77,35 @@ public static class App
 
 
     /// <summary>
+    /// Provides the first found context of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type of context to be retrieved.</typeparam>
+    /// <returns>The first found context of the specified type, 
+    /// or null if there is no such context.</returns>
+    public static T? GetContext<T>() where T : class
+    {
+        if (Contexts.ContainsKey(typeof(T)))
+            return Contexts[typeof(T)].FirstOrDefault() as T;
+        
+        return null;
+    }
+
+    /// <summary>
+    /// Provides all contexts of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type of contexts to be retrieved.</typeparam>
+    /// <returns>All contexts of the specified type, or an empty array if 
+    /// there are no such contexts.</returns>
+    public static T[] GetContexts<T>() where T : class
+    {
+        if (Contexts.ContainsKey(typeof(T)))
+            return Contexts[typeof(T)].Cast<T>().ToArray();
+
+        return Array.Empty<T>();
+    }
+
+
+    /// <summary>
     /// Contextualizes a new context, including it as part of the app's contextual state.
     /// </summary>
     /// <typeparam name="T">The type of the context.</typeparam>
