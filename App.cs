@@ -85,7 +85,7 @@ public static class App
     /// instance is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the provided instance is 
     /// not a context instance.</exception>
-    public static void Contextualize<T>(T context)
+    public static void Contextualize<T>(T context) where T : class
     {
         if (context == null)
             throw new ArgumentNullException(nameof(context));
@@ -96,7 +96,7 @@ public static class App
                 $"of type {type.FullName} cannot be contextualized as it is not a Context.");
 
         if (!Contexts.ContainsKey(type))
-            Contexts[type].Add(new());
+            Contexts.Add(type, new());
         Contexts[type].Add(context);
 
         // TODO :: Fulfill behavior dependencies when possible.
@@ -114,7 +114,7 @@ public static class App
                 $"of type {type.FullName} cannot be contextualized as it is not a Context.");
 
         if (!Contexts.ContainsKey(type))
-            Contexts[type].Add(new());
+            Contexts.Add(type, new());
         Contexts[type].Add(context);
 
         // TODO :: Fulfill behavior dependencies when possible.
