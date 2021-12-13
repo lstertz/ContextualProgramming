@@ -13,5 +13,15 @@ public class BehaviorA
     public BehaviorA(out ContextA contextA)
     {
         contextA = new ContextA();
+
+        Console.WriteLine("Behavior A has been created.");
+    }
+
+    /// <summary>
+    /// Handles the destruction of test behavior A.
+    /// </summary>
+    ~BehaviorA()
+    {
+        Console.WriteLine("Behavior A has been destroyed.");
     }
 }
