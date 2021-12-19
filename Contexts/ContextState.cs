@@ -1,10 +1,12 @@
-﻿namespace ContextualProgramming
+﻿using ContextualProgramming.Internal;
+
+namespace ContextualProgramming
 {
     /// <summary>
     /// Encapsulates a value to be used within a context (<see cref="ContextAttribute"/>).
     /// </summary>
     /// <typeparam name="T">The type of value encapsulated.</typeparam>
-    public class ContextState<T> : IEquatable<ContextState<T>>
+    public class ContextState<T> : IBindableState, IEquatable<ContextState<T>>
     {
         public static implicit operator ContextState<T>(T? value) => new ContextState<T>(value);
         public static implicit operator T?(ContextState<T> contextValue) => contextValue._value;
@@ -18,8 +20,23 @@
         /// <summary>
         /// The encapsulated value of the context value.
         /// </summary>
-        public T? Value { get => _value; set => _value = value; }
+        public T? Value 
+        {
+            get => _value; 
+            set
+            {
+                if (_value == null && value == null)
+                    return;
+                else if (_value != null && _value.Equals(value))
+                    return;
+
+                _value = value;
+                _onChange?.Invoke();
+            }
+        }
         private T? _value;
+
+        private Action _onChange;
 
 
         /// <summary>
@@ -30,6 +47,13 @@
         {
             _value = value;
         }
+
+        /// <inheritdoc/>
+        void IBindableState.Bind(Action onChange)
+        {
+            _onChange = onChange;
+        }
+
 
         /// <inheritdoc/>
         public override bool Equals(object? other)

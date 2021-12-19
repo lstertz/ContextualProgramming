@@ -1,3 +1,4 @@
+using ContextualProgramming.Internal;
 using NUnit.Framework;
 
 namespace Tests
@@ -167,6 +168,7 @@ namespace Tests
         }
         #endregion
 
+        #region Value Setting
         [Test]
         public void Set_ValueSets()
         {
@@ -183,8 +185,61 @@ namespace Tests
             Assert.AreEqual(newValue, implicitResult);
         }
 
-        // TODO :: Invokes on changed value.
+        [Test]
+        public void Set_ValueChangeWillNotify()
+        {
+            bool wasNotified = false;
 
+            ContextState<int> contextState = 10;
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = 11;
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Set_ValueChangeWillNotify_FromNull()
+        {
+            bool wasNotified = false;
+
+            ContextState<string> contextState = new(null);
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = "Test";
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Set_ValueChangeWillNotify_ToNull()
+        {
+            bool wasNotified = false;
+
+            ContextState<string> contextState = new("Test");
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = null;
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Set_ValueUnchangedDoesNotNotify()
+        {
+            bool wasNotified = false;
+
+            int value = 10;
+            ContextState<int> contextState = value;
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = value;
+
+            Assert.IsFalse(wasNotified);
+        }
+        #endregion
+
+        #region GetHashCode
         [Test]
         public void GetHashCode_NonNullValue()
         {
@@ -201,5 +256,6 @@ namespace Tests
 
             Assert.AreEqual(0, contextState.GetHashCode());
         }
+        #endregion
     }
 }
