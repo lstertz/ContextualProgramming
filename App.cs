@@ -4,7 +4,7 @@ namespace ContextualProgramming;
 
 /// <summary>
 /// Handles the state and behavior of the running application by managing 
-/// registered Contexts (<see cref="ContextAttribute"/>) and the resulting behaviors 
+/// registered contexts (<see cref="ContextAttribute"/>) and the resulting behaviors 
 /// (<see cref="BehaviorAttribute"/>).
 /// </summary>
 public static class App
