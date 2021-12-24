@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using ContextualProgramming.Internal;
+using System.Reflection;
 
 namespace ContextualProgramming;
 
@@ -9,6 +10,26 @@ namespace ContextualProgramming;
 /// </summary>
 public static class App
 {
+    /// <summary>
+    /// Represents a record of a change for a property of a context.
+    /// </summary>
+    private class ContextChange
+    {
+        /// <summary>
+        /// The context that was changed.
+        /// </summary>
+        public object Context { get; set; }
+
+        /// <summary>
+        /// The name of the property that was changed.
+        /// </summary>
+        public string PropertyName { get; set; }
+
+        public ContextChange(object context, string propertyName) => (Context, PropertyName) = 
+            (EnsureNonNullable(context), EnsureNonNullable(propertyName));
+    }
+
+
     /// <summary>
     /// The types of all dependencies of all behavior types.
     /// </summary>
@@ -37,11 +58,20 @@ public static class App
     private static readonly Dictionary<object, object> ContextBehaviors = new();
 
     /// <summary>
+    /// A mapping of context types to their properties that can be bound when 
+    /// new instances are contextualized.
+    /// </summary>
+    private static readonly Dictionary<Type, PropertyInfo[]> ContextBindableProperties = new();
+
+    /// <summary>
+    /// A record of context changes that have occurred since the last evaluation.
+    /// </summary>
+    private static readonly List<ContextChange> ContextChanges = new();
+
+    /// <summary>
     /// A mapping of context types to the behavior types that depend upon them.
     /// </summary>
     private static readonly Dictionary<Type, List<Type>> ContextDependents = new();
-
-
 
 
     /// <summary>
@@ -146,6 +176,14 @@ public static class App
             Contexts.Add(type, new());
         Contexts[type].Add(context);
 
+        PropertyInfo[] bindableProperties = ContextBindableProperties[type];
+        for (int c = 0, count = bindableProperties.Length; c < count; c++)
+        {
+            int contextIndex = c;
+            (bindableProperties[c].GetValue(context) as IBindableState)?.Bind(() =>
+                ContextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
+        }
+
         // TODO :: Fulfill behavior dependencies when possible.
     }
 
@@ -161,6 +199,10 @@ public static class App
 
         if (!Contexts.ContainsKey(typeof(T)))
             return;
+
+        PropertyInfo[] bindableProperties = ContextBindableProperties[context.GetType()];
+        for (int c = 0, count = bindableProperties.Length; c < count; c++)
+            (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
 
         Contexts[typeof(T)].Remove(context);
         ContextBehaviors.Remove(context);
@@ -274,6 +316,19 @@ public static class App
     private static void RegisterContext(Type type)
     {
         ContextInfos.Add(type);
-        // TODO :: Collect relevant details from the context, likely context value information.
+
+        PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance |
+            BindingFlags.Public | BindingFlags.NonPublic);
+        List<PropertyInfo> bindableProperties = new();
+        for (int c = 0, count = properties.Length; c < count; c++)
+            if (typeof(IBindableState).IsAssignableFrom(properties[c].PropertyType))
+                bindableProperties.Add(properties[c]);
+
+        ContextBindableProperties.Add(type, bindableProperties.ToArray());
     }
+
+
+    private static T EnsureNonNullable<T>(T value)
+        => value == null ? throw new ArgumentNullException(nameof(value)) : value;
+
 }
