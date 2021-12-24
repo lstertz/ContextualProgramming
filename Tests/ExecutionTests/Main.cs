@@ -22,6 +22,8 @@ else
     Console.WriteLine("Failed to validate the existence of one Context A.");
 
 ContextA? initializedContextA = GetContext<ContextA>();
+if (initializedContextA != null)
+    initializedContextA.State.Value = 1;
 
 
 // Validate contextualization of a second context.
@@ -42,3 +44,6 @@ if (GetContext<ContextA>() != null && GetContexts<ContextA>().Length == 1)
     Console.WriteLine("Confirmed only one Context A exists.");
 else
     Console.WriteLine("Failed to validate the existence of a single Context A.");
+
+if (initializedContextA != null)
+    initializedContextA.State.Value = 2;
