@@ -5,9 +5,104 @@ namespace Tests
 {
     public class ContextStateTests
     {
+        #region Binding
+        [Test]
+        public void Binding_BindStateToNull_ThrowsException()
+        {
+            ContextState<int> contextState = 10;
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+            Assert.Throws<ArgumentNullException>(() =>
+                (contextState as IBindableState)?.Bind(null));
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+        }
+
+        [Test]
+        public void Binding_BoundState_ValueChangeWillNotify()
+        {
+            bool wasNotified = false;
+
+            ContextState<int> contextState = 10;
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = 11;
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_ValueChangeWillNotify_FromNull()
+        {
+            bool wasNotified = false;
+
+            ContextState<string> contextState = new(null);
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = "Test";
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_ValueChangeWillNotify_ToNull()
+        {
+            bool wasNotified = false;
+
+            ContextState<string> contextState = new("Test");
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = null;
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_ValueUnchangedDoesNotNotify()
+        {
+            bool wasNotified = false;
+
+            int value = 10;
+            ContextState<int> contextState = value;
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = value;
+
+            Assert.IsFalse(wasNotified);
+        }
+
+        [Test]
+        public void Binding_ReboundState_ValueChangeWillNotify()
+        {
+            bool wasNotified = false;
+
+            int value = 10;
+            ContextState<int> contextState = value;
+            (contextState as IBindableState)?.Bind(() => wasNotified = false);
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextState.Value = 11;
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Binding_UnboundState_ValueChangeDoesNotNotify()
+        {
+            bool wasNotified = false;
+
+            int value = 10;
+            ContextState<int> contextState = value;
+            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            (contextState as IBindableState)?.Unbind();
+
+            contextState.Value = 11;
+
+            Assert.IsFalse(wasNotified);
+        }
+        #endregion
+
         #region Construction
         [Test]
-        public void Construct_ImplicitInt()
+        public void Construction_ImplicitInt()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -20,7 +115,7 @@ namespace Tests
         }
 
         [Test]
-        public void Construct_ImplicitString()
+        public void Construction_ImplicitString()
         {
             string value = "Test";
             ContextState<string> contextState = value;
@@ -33,7 +128,7 @@ namespace Tests
         }
 
         [Test]
-        public void Construct_NewInt()
+        public void Construction_NewInt()
         {
             int value = 10;
             ContextState<int> contextState = new(value);
@@ -46,7 +141,7 @@ namespace Tests
         }
 
         [Test]
-        public void Construct_NewString()
+        public void Construction_NewString()
         {
             string value = "Test";
             ContextState<string> contextState = new(value);
@@ -61,7 +156,7 @@ namespace Tests
 
         #region Equality
         [Test]
-        public void EqualOperator_ContextState()
+        public void Equality_EqualOperator_ContextState()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -72,7 +167,7 @@ namespace Tests
         }
 
         [Test]
-        public void EqualOperator_Int()
+        public void Equality_EqualOperator_Int()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -82,7 +177,7 @@ namespace Tests
         }
 
         [Test]
-        public void EqualOperator_Null()
+        public void Equality_EqualOperator_Null()
         {
             ContextState<string>? contextState = null;
 
@@ -91,7 +186,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equals_ContextState()
+        public void Equality_Equals_ContextState()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -106,7 +201,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equals_DifferentTypes()
+        public void Equality_Equals_DifferentTypes()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -117,7 +212,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equals_Int()
+        public void Equality_Equals_Int()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -129,7 +224,7 @@ namespace Tests
             Assert.IsFalse(11.Equals(contextState));
         }
         [Test]
-        public void Equals_Null()
+        public void Equality_Equals_Null()
         {
             ContextState<int> contextState = 10;
 
@@ -137,7 +232,7 @@ namespace Tests
         }
 
         [Test]
-        public void InequalOperator_ToContextState()
+        public void Equality_InequalOperator_ToContextState()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -148,7 +243,7 @@ namespace Tests
         }
 
         [Test]
-        public void InequalOperator_ToInt()
+        public void Equality_InequalOperator_ToInt()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -158,84 +253,13 @@ namespace Tests
         }
 
         [Test]
-        public void InequalOperator_ToNull()
+        public void Equality_InequalOperator_ToNull()
         {
             string value = "Test";
             ContextState<string> contextState = value;
 
             Assert.IsTrue(null != contextState);
             Assert.IsTrue(contextState != null);
-        }
-        #endregion
-
-        #region Value Setting
-        [Test]
-        public void Set_ValueSets()
-        {
-            int value = 10;
-            ContextState<int> contextState = value;
-
-            int newValue = 11;
-            contextState.Value = newValue;
-
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
-
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
-        }
-
-        [Test]
-        public void Set_ValueChangeWillNotify()
-        {
-            bool wasNotified = false;
-
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = 11;
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void Set_ValueChangeWillNotify_FromNull()
-        {
-            bool wasNotified = false;
-
-            ContextState<string> contextState = new(null);
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = "Test";
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void Set_ValueChangeWillNotify_ToNull()
-        {
-            bool wasNotified = false;
-
-            ContextState<string> contextState = new("Test");
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = null;
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void Set_ValueUnchangedDoesNotNotify()
-        {
-            bool wasNotified = false;
-
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = value;
-
-            Assert.IsFalse(wasNotified);
         }
         #endregion
 
@@ -255,6 +279,24 @@ namespace Tests
             ContextState<string> contextState = new(null);
 
             Assert.AreEqual(0, contextState.GetHashCode());
+        }
+        #endregion
+
+        #region Value Setting
+        [Test]
+        public void ValueSetting_ValueSets()
+        {
+            int value = 10;
+            ContextState<int> contextState = value;
+
+            int newValue = 11;
+            contextState.Value = newValue;
+
+            int directResult = contextState.Value;
+            int implicitResult = contextState;
+
+            Assert.AreEqual(newValue, directResult);
+            Assert.AreEqual(newValue, implicitResult);
         }
         #endregion
     }
