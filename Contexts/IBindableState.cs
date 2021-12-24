@@ -10,10 +10,15 @@
         /// Binds the state to the provided action.
         /// </summary>
         /// <remarks>
-        /// Binding is only expected to be performed once.
-        /// </remarks>
+        /// Any previous binding will be replaced.
+        /// To unbind without a replacement, use <see cref="Unbind"/>.</remarks>
         /// <param name="onChange">The action to be invoked whenever the value 
         /// of the state changes.</param>
         void Bind(Action onChange);
+
+        /// <summary>
+        /// Unbinds te state from any previously bound action.
+        /// </summary>
+        void Unbind();
     }
 }

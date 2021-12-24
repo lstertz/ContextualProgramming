@@ -36,7 +36,7 @@ namespace ContextualProgramming
         }
         private T? _value;
 
-        private Action _onChange;
+        private Action? _onChange;
 
 
         /// <summary>
@@ -51,7 +51,17 @@ namespace ContextualProgramming
         /// <inheritdoc/>
         void IBindableState.Bind(Action onChange)
         {
+            if (onChange == null)
+                throw new ArgumentNullException($"The binding action cannot be null. " +
+                    $"If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
+
             _onChange = onChange;
+        }
+
+        /// <inheritdoc/>
+        void IBindableState.Unbind()
+        {
+            _onChange = null;
         }
 
 
