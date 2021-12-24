@@ -215,13 +215,14 @@ namespace Tests
         public void Equality_Equals_Int()
         {
             int value = 10;
+            int comparedValue = 11;
             ContextState<int> contextState = value;
 
             Assert.IsTrue(contextState.Equals(value));
-            Assert.IsFalse(contextState.Equals(11));
+            Assert.IsFalse(contextState.Equals(comparedValue));
 
             Assert.IsTrue(value.Equals(contextState));
-            Assert.IsFalse(11.Equals(contextState));
+            Assert.IsFalse(comparedValue.Equals(contextState));
         }
         [Test]
         public void Equality_Equals_Null()

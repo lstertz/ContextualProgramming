@@ -17,7 +17,7 @@
         void Bind(Action onChange);
 
         /// <summary>
-        /// Unbinds te state from any previously bound action.
+        /// Unbinds the state from any previously bound action.
         /// </summary>
         void Unbind();
     }
