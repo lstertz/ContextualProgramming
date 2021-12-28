@@ -264,7 +264,7 @@ namespace Tests
         }
         #endregion
 
-        #region GetHashCode
+        #region Get Hash Code
         [Test]
         public void GetHashCode_NonNullValue()
         {
