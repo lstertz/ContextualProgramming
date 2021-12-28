@@ -104,12 +104,12 @@ public abstract class Evaluator
 /// <inheritdoc/>
 /// <typeparam name="TContextAttribute">The type of attribute that defines a context.</typeparam>
 /// <typeparam name="TBehaviorAttribute">The type of attribute that defines a behavior.</typeparam>
-/// <typeparam name="TDependencyAttribute">The type of attribute that defines 
+/// <typeparam name="TBaseDependencyAttribute">The base type of attribute that defines 
 /// a dependency of a behavior.</typeparam>
-public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribute> : Evaluator
+public class Evaluator<TContextAttribute, TBehaviorAttribute, TBaseDependencyAttribute> : Evaluator
     where TContextAttribute : ContextAttribute
     where TBehaviorAttribute : BehaviorAttribute
-    where TDependencyAttribute : DependencyAttribute
+    where TBaseDependencyAttribute : DependencyAttribute
 {
     /// <summary>
     /// A mapping of each behavior to its constructor.
