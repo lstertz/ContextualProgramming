@@ -1,5 +1,5 @@
-using NUnit.Framework;
 using NSubstitute;
+using NUnit.Framework;
 using System.Reflection;
 using Tests.Constructs;
 
