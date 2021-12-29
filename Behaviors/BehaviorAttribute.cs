@@ -6,6 +6,11 @@
 /// the app's contextual state.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
-public class BehaviorAttribute : Attribute
+public abstract class BaseBehaviorAttribute : Attribute
+{
+}
+
+/// <inheritdoc/>
+public class BehaviorAttribute : BaseBehaviorAttribute
 {
 }

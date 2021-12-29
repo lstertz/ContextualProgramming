@@ -108,7 +108,11 @@
           "dependencies": {
             "Microsoft.NET.Test.Sdk": {
               "target": "Package",
-              "version": "[16.11.0, )"
+              "version": "[17.0.0, )"
+            },
+            "NSubstitute": {
+              "target": "Package",
+              "version": "[4.2.2, )"
             },
             "NUnit": {
               "target": "Package",
@@ -116,7 +120,7 @@
             },
             "NUnit3TestAdapter": {
               "target": "Package",
-              "version": "[4.0.0, )"
+              "version": "[4.2.0, )"
             },
             "coverlet.collector": {
               "target": "Package",
