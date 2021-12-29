@@ -18,7 +18,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\ContextualProgramming.csproj" />
+		<ProjectReference Include="..\ContextualProgramming.csproj">
+		  <ReferenceOutputAssembly>True</ReferenceOutputAssembly>
+		</ProjectReference>
 	</ItemGroup>
 
 </Project>
