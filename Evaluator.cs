@@ -24,8 +24,13 @@ public abstract class Evaluator
         if (_isInitialized)
             return;
 
-        InitializeContextTypes();
-        InitializeBehaviorTypes();
+        string executingAssemblyName = Assembly.GetExecutingAssembly().GetName().FullName;
+        IEnumerable<Assembly> assembliesToEvaluate = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(a => a.GetReferencedAssemblies().Select(name => name.FullName)
+            .Contains(executingAssemblyName));
+
+        InitializeContextTypes(assembliesToEvaluate);
+        InitializeBehaviorTypes(assembliesToEvaluate);
 
         _isInitialized = true;
     }
@@ -34,13 +39,17 @@ public abstract class Evaluator
     /// Evaluates all assemblies and their types to determine all behaviors 
     /// to be known by this evaluator.
     /// </summary>
-    protected abstract void InitializeBehaviorTypes();
+    /// <param name="assembliesToEvaluate">The assemblies whose types should 
+    /// be evaluated for behavior types.</param>
+    protected abstract void InitializeBehaviorTypes(IEnumerable<Assembly> assembliesToEvaluate);
 
     /// <summary>
     /// Evaluates all assemblies and their types to determine all contexts 
     /// to be known by this evaluator.
     /// </summary>
-    protected abstract void InitializeContextTypes();
+    /// <param name="assembliesToEvaluate">The assemblies whose types should 
+    /// be evaluated for context types.</param>
+    protected abstract void InitializeContextTypes(IEnumerable<Assembly> assembliesToEvaluate);
 
     /// <summary>
     /// Validates that the evaluator has been initialized.
@@ -156,17 +165,16 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
 
 
     /// <inheritdoc/>
-    protected override void InitializeBehaviorTypes()
+    protected override void InitializeBehaviorTypes(IEnumerable<Assembly> assembliesToEvaluate)
     {
-        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-        for (int c = 0, count = assemblies.Length; c < count; c++)
+        foreach(Assembly assembly in assembliesToEvaluate)
         {
-            Type[] types = assemblies[c].GetTypes();
-            for (int cc = 0, cCount = types.Length; cc < cCount; cc++)
-                if (CacheBehaviorType(types[cc]))
+            Type[] types = assembly.GetTypes();
+            for (int c = 0, count = types.Length; c < count; c++)
+                if (CacheBehaviorType(types[c]))
                 {
-                    CacheBehaviorDependencies(types[cc]);
-                    CacheBehaviorConstructors(types[cc]);
+                    CacheBehaviorDependencies(types[c]);
+                    CacheBehaviorConstructors(types[c]);
                 }
         }
 
@@ -174,16 +182,15 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
     }
 
     /// <inheritdoc/>
-    protected override void InitializeContextTypes()
+    protected override void InitializeContextTypes(IEnumerable<Assembly> assembliesToEvaluate)
     {
-        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-        for (int c = 0, count = assemblies.Length; c < count; c++)
+        foreach (Assembly assembly in assembliesToEvaluate)
         {
-            Type[] types = assemblies[c].GetTypes();
-            for (int cc = 0, cCount = types.Length; cc < cCount; cc++)
+            Type[] types = assembly.GetTypes();
+            for (int c = 0, count = types.Length; c < count; c++)
             {
-                CacheContextType(types[cc]);
-                CacheBindableStateInfos(types[cc]);
+                CacheContextType(types[c]);
+                CacheBindableStateInfos(types[c]);
             }
         }
     }
@@ -311,14 +318,14 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
     /// not a type of context known to this evaluator.</exception>
     private void CacheBehaviorDependencies(Type behaviorType)
     {
-        IEnumerable<DependencyAttribute> attrs =
-            behaviorType.GetCustomAttributes<DependencyAttribute>(true);
+        IEnumerable<TDependencyAttribute> attrs =
+            behaviorType.GetCustomAttributes<TDependencyAttribute>(true);
 
         Type[] depTypes = new Type[attrs.Count()];
         Dictionary<string, int> selfCreatedDeps = new();
 
         int depIndex = 0;
-        foreach (DependencyAttribute attr in attrs)
+        foreach (TDependencyAttribute attr in attrs)
         {
             Type t = attr.Type;
             if (!_contextTypes.Contains(t))
