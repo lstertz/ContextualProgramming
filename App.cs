@@ -5,11 +5,30 @@ namespace ContextualProgramming;
 
 /// <summary>
 /// Handles the state and behavior of the running application by managing 
-/// registered contexts (<see cref="ContextAttribute"/>) and the resulting behaviors 
-/// (<see cref="BehaviorAttribute"/>).
+/// registered contexts and the resulting behaviors within an encapsulated environment.
 /// </summary>
-public static class App
+public class App
 {
+    /// <summary>
+    /// Encapsulates an instance of a behavior with its contexts.
+    /// </summary>
+    private class BehaviorInstance
+    {
+        /// <summary>
+        /// The encapsulated behavior instance.
+        /// </summary>
+        public object Behavior { get; set; }
+
+        /// <summary>
+        /// The contexts (dependencies) of the encapsulated behavior.
+        /// </summary>
+        public object[] Contexts { get; set; }
+
+
+        public BehaviorInstance(object behavior, object[] contexts) => (Behavior, Contexts) =
+            (EnsureNonNullable(behavior), EnsureNonNullable(contexts));
+    }
+
     /// <summary>
     /// Represents a record of a change for a property of a context.
     /// </summary>
@@ -25,113 +44,82 @@ public static class App
         /// </summary>
         public string PropertyName { get; set; }
 
-        public ContextChange(object context, string propertyName) => (Context, PropertyName) = 
+        public ContextChange(object context, string propertyName) => (Context, PropertyName) =
             (EnsureNonNullable(context), EnsureNonNullable(propertyName));
     }
 
 
     /// <summary>
-    /// The types of all dependencies of all behavior types.
+    /// The evaluator that finds and validates the contexts and behaviors of this environment.
     /// </summary>
-    private static readonly Dictionary<Type, Type[]> BehDepTypes = new();
+    public Evaluator Evaluator { get; private set; }
 
-    /// <summary>
-    /// The names and their dependency indices for the self-created 
-    /// dependencies of all behavior types.
-    /// </summary>
-    private static readonly Dictionary<Type, Dictionary<string, int>> BehSelfCreatedDeps = new();
-
-    /// <summary>
-    /// Details of each registered context type.
-    /// </summary>
-    private static readonly HashSet<Type> ContextInfos = new();
 
     /// <summary>
     /// All currently contextualized context instances, keyed by their class type.
     /// </summary>
-    private static readonly Dictionary<Type, HashSet<object>> Contexts = new();
+    private readonly Dictionary<Type, HashSet<object>> _contexts = new();
 
     /// <summary>
-    /// A mapping of context instances to the behavior instances that created them, 
+    /// A mapping of context instances to the behavior instances that created them 
     /// as self-created dependencies.
     /// </summary>
-    private static readonly Dictionary<object, object> ContextBehaviors = new();
-
-    /// <summary>
-    /// A mapping of context types to their properties that can be bound when 
-    /// new instances are contextualized.
-    /// </summary>
-    private static readonly Dictionary<Type, PropertyInfo[]> ContextBindableProperties = new();
+    private readonly Dictionary<object, BehaviorInstance> _contextBehaviors = new();
 
     /// <summary>
     /// A record of context changes that have occurred since the last evaluation.
     /// </summary>
-    private static readonly List<ContextChange> ContextChanges = new();
+    private static readonly List<ContextChange> _contextChanges = new();
+
+    private bool _isInitialized = false;
+
 
     /// <summary>
-    /// A mapping of context types to the behavior types that depend upon them.
+    /// Constructs a new app with the default evaluator, 
+    /// <see cref="Evaluator{TContextAttribute, TBehaviorAttribute, TBaseDependencyAttribute}"/>.
     /// </summary>
-    private static readonly Dictionary<Type, List<Type>> ContextDependents = new();
-
+    public App()
+    {
+        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute, DependencyAttribute>();
+    }
 
     /// <summary>
-    /// Initializes the contextual execution of the application by registering all 
-    /// declared contexts (<see cref="ContextAttribute"/>) and all 
-    /// declared Behaviors (<see cref="BehaviorAttribute"/>).
+    /// Constructs a new app with the provided evaluator.
+    /// </summary>
+    /// <param name="evaluator">The evaluator to be used by the new app.</param>
+    public App(Evaluator evaluator)
+    {
+        Evaluator = evaluator;
+    }
+
+    /// <summary>
+    /// Initializes the contextual execution within the environment by registering all 
+    /// contexts and behaviors found by the default <see cref="Evaluator"/>.
     /// </summary>
     /// <remarks>
     /// Behaviors without any dependencies will be instantiated.
     /// </remarks>
-    public static void Initialize()
+    public void Initialize()
     {
-        List<Type> contexts = new();
-        List<Type> behaviors = new();
+        Evaluator.Initialize();
 
-        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-        for (int c = 0, count = assemblies.Length; c < count; c++)
-        {
-            Type[] types = assemblies[c].GetTypes();
-            for (int cc = 0, cCount = types.Length; cc < cCount; cc++)
-                if (types[cc].GetCustomAttribute<ContextAttribute>(true) != null)
-                    contexts.Add(types[cc]);
-                else if (types[cc].GetCustomAttribute<BehaviorAttribute>(true) != null)
-                    behaviors.Add(types[cc]);
-        }
+        Type[] initializationBehaviors = Evaluator.GetInitializationBehaviorTypes();
+        for (int c = 0, count = initializationBehaviors.Length; c < count; c++)
+            InstantiateBehavior(initializationBehaviors[c]);
 
-        for (int c = 0, count = contexts.Count; c < count; c++)
-            RegisterContext(contexts[c]);
-
-        for (int c = 0, count = behaviors.Count; c < count; c++)
-            RegisterBehavior(behaviors[c]);
-    }
-
-
-    /// <summary>
-    /// Provides the first found context of the specified type.
-    /// </summary>
-    /// <typeparam name="T">The type of context to be retrieved.</typeparam>
-    /// <returns>The first found context of the specified type, 
-    /// or null if there is no such context.</returns>
-    public static T? GetContext<T>() where T : class
-    {
-        if (Contexts.ContainsKey(typeof(T)))
-            return Contexts[typeof(T)].FirstOrDefault() as T;
-        
-        return null;
+        _isInitialized = true;
     }
 
     /// <summary>
-    /// Provides all contexts of the specified type.
+    /// Validates that the app has been initialized.
     /// </summary>
-    /// <typeparam name="T">The type of contexts to be retrieved.</typeparam>
-    /// <returns>All contexts of the specified type, or an empty array if 
-    /// there are no such contexts.</returns>
-    public static T[] GetContexts<T>() where T : class
+    /// <exception cref="InvalidOperationException">The exception thrown if the 
+    /// app has not been initialized.</exception>
+    private void ValidateInitialization()
     {
-        if (Contexts.ContainsKey(typeof(T)))
-            return Contexts[typeof(T)].Cast<T>().ToArray();
-
-        return Array.Empty<T>();
+        if (!_isInitialized)
+            throw new InvalidOperationException($"This app has not yet been initialized. " +
+                $"Initialize with {nameof(App.Initialize)} prior to using the app.");
     }
 
 
@@ -144,44 +132,34 @@ public static class App
     /// instance is null.</exception>
     /// <exception cref="InvalidOperationException">Thrown if the provided instance is 
     /// not a context instance.</exception>
-    public static void Contextualize<T>(T context) where T : class
+    public void Contextualize<T>(T context) where T : class
     {
-        if (context == null)
-            throw new ArgumentNullException(nameof(context));
+        ValidateInitialization();
 
-        Type type = typeof(T);
-        if (!ContextInfos.Contains(type))
-            throw new InvalidOperationException($"The provided instance, {context}, " +
-                $"of type {type.FullName} cannot be contextualized as it is not a Context.");
-
-        if (!Contexts.ContainsKey(type))
-            Contexts.Add(type, new());
-        Contexts[type].Add(context);
-
-        // TODO :: Fulfill behavior dependencies when possible.
+        Contextualize(context as object);
     }
 
     /// <inheritdoc cref="Contextualize{T}(T)"/>
-    private static void Contextualize(object context)
+    private void Contextualize(object context)
     {
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
         Type type = context.GetType();
-        if (!ContextInfos.Contains(type))
+        if (!Evaluator.IsContextType(type))
             throw new InvalidOperationException($"The provided instance, {context}, " +
                 $"of type {type.FullName} cannot be contextualized as it is not a Context.");
 
-        if (!Contexts.ContainsKey(type))
-            Contexts.Add(type, new());
-        Contexts[type].Add(context);
+        if (!_contexts.ContainsKey(type))
+            _contexts.Add(type, new());
+        _contexts[type].Add(context);
 
-        PropertyInfo[] bindableProperties = ContextBindableProperties[type];
+        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
         {
             int contextIndex = c;
             (bindableProperties[c].GetValue(context) as IBindableState)?.Bind(() =>
-                ContextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
+                _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
         }
 
         // TODO :: Fulfill behavior dependencies when possible.
@@ -192,105 +170,89 @@ public static class App
     /// </summary>
     /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context to be deregistered.</param>
-    public static void Decontextualize<T>(T context)
+    public void Decontextualize<T>(T context)
     {
+        ValidateInitialization();
+
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
-        if (!Contexts.ContainsKey(typeof(T)))
+        if (!_contexts.ContainsKey(typeof(T)))
             return;
 
-        PropertyInfo[] bindableProperties = ContextBindableProperties[context.GetType()];
+        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(context.GetType());
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
             (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
 
-        Contexts[typeof(T)].Remove(context);
-        ContextBehaviors.Remove(context);
+        _contexts[typeof(T)].Remove(context);
+        if (_contexts[typeof(T)].Count == 0)
+            _contexts.Remove(typeof(T));
+
+        if (_contextBehaviors.ContainsKey(context))
+        {
+            BehaviorInstance behaviorInstance = _contextBehaviors[context];
+            object[] contexts = behaviorInstance.Contexts;
+
+            for (int c = 0, count = contexts.Length; c < count; c++)
+                if (_contextBehaviors.ContainsKey(contexts[c]) &&
+                    _contextBehaviors[contexts[c]] == behaviorInstance)
+                    _contextBehaviors.Remove(contexts[c]);
+        }
+    }
+
+    /// <summary>
+    /// Provides the first found context of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type of context to be retrieved.</typeparam>
+    /// <returns>The first found context of the specified type, 
+    /// or null if there is no such context.</returns>
+    public T? GetContext<T>() where T : class
+    {
+        ValidateInitialization();
+
+        if (!Evaluator.IsContextType(typeof(T)))
+            throw new InvalidOperationException($"Type {typeof(T).FullName} is not a context.");
+
+        if (_contexts.ContainsKey(typeof(T)))
+            return _contexts[typeof(T)].First() as T;
+
+        return null;
+    }
+
+    /// <summary>
+    /// Provides all contexts of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type of contexts to be retrieved.</typeparam>
+    /// <returns>All contexts of the specified type, or an empty array if 
+    /// there are no such contexts.</returns>
+    public T[] GetContexts<T>() where T : class
+    {
+        ValidateInitialization();
+
+        if (!Evaluator.IsContextType(typeof(T)))
+            throw new InvalidOperationException($"Type {typeof(T).FullName} is not a context.");
+
+        if (_contexts.ContainsKey(typeof(T)))
+            return _contexts[typeof(T)].Cast<T>().ToArray();
+
+        return Array.Empty<T>();
     }
 
 
     /// <summary>
-    /// Registers a type as a behavior type with its dependency information.
+    /// Instantiates an instance of the behavior specified by the provided type.
     /// </summary>
-    /// <param name="type">The type to be registered as a behavior.</param>
-    /// <exception cref="InvalidOperationException">Thrown if a dependency of 
-    /// the behavior is not a context.</exception>
-    private static void RegisterBehavior(Type type)
+    /// <param name="behaviorType">The type of behavior to be instantiated.</param>
+    /// <exception cref="InvalidOperationException">Thrown if the behavior does not 
+    /// construct and expected self-created dependency during its instantiation.</exception>
+    private void InstantiateBehavior(Type behaviorType)
     {
-        IEnumerable<DependencyAttribute> attrs =
-            type.GetCustomAttributes<DependencyAttribute>(true);
-        Type[] depTypes = new Type[attrs.Count()];
-        Dictionary<string, int> selfCreatedDeps = new();
-
-        int depIndex = 0;
-        foreach (DependencyAttribute attr in attrs)
-        {
-            Type t = attr.Type;
-            if (!ContextInfos.Contains(t))
-                throw new InvalidOperationException($"The dependency named {attr.Name} of type" +
-                    $"{t} for the behavior of type {type.FullName} is not defined as a context.");
-
-            depTypes[depIndex] = t;
-            switch (attr.Fulfillment)
-            {
-                case Fulfillment.SelfCreated:
-                    selfCreatedDeps.Add(attr.Name, depIndex);
-                    break;
-                default:
-                    break;
-            }
-
-            List<Type> dependents = ContextDependents.GetValueOrDefault(t, new());
-            if (!dependents.Contains(type))
-                dependents.Add(type);
-
-            depIndex++;
-        }
-
-        BehDepTypes.Add(type, depTypes);
-        BehSelfCreatedDeps.Add(type, selfCreatedDeps);
-
-        // Only self-created dependencies are currently supported, so the Behavior can be created.
-        ConstructorInfo[] constructors = type.GetConstructors(
-            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | 
-            BindingFlags.FlattenHierarchy);
-        if (constructors.Length == 0)
-            throw new InvalidOperationException($"Behavior of type {type.FullName} does not " +
-                $"have a valid constructor.");
-
-        ConstructorInfo constructor = constructors[0]; // Assume one constructor for now.
+        ConstructorInfo constructor = Evaluator.GetBehaviorConstructor(behaviorType);
         ParameterInfo[] parameters = constructor.GetParameters();
-        if (parameters.Length != depTypes.Length)
-            throw new InvalidOperationException($"The default constructor for the behavior " +
-                $"of type {type.FullName} is not valid for its dependencies.");
 
-        Type[] orderedDepTypes = new Type[depTypes.Length];
-        for (int pc = 0, pCount = parameters.Length; pc < pCount; pc++)
-        {
-            ParameterInfo parameterInfo = parameters[pc];
-            string? parameterName = parameterInfo.Name;
-
-            if (parameterName == null)
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {type.FullName} is not valid for its dependencies.");
-
-            if (!selfCreatedDeps.ContainsKey(parameterName))
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {type.FullName} is not valid for its dependencies.");
-
-            if (depTypes[selfCreatedDeps[parameterName]].Equals(parameterInfo.ParameterType))
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {type.FullName} is not valid for its dependencies.");
-
-            if (!parameterInfo.IsOut)
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {type.FullName} is not valid for its dependencies.");
-
-            orderedDepTypes[pc] = parameterInfo.ParameterType;
-        }
-
-        object[] arguments = new object[depTypes.Length];
+        object[] arguments = new object[parameters.Length];
         object behavior = constructor.Invoke(arguments);
+        BehaviorInstance behaviorInstance = new(behavior, arguments);
 
         for (int c = 0, count = arguments.Length; c < count; c++)
         {
@@ -301,34 +263,16 @@ public static class App
             catch (ArgumentNullException)
             {
                 throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {type.FullName} did not construct an expected dependency of " +
-                    $"type {orderedDepTypes[c]}.");
+                    $"of type {behaviorType.FullName} did not construct an expected dependency " +
+                    $"of type {parameters[c].ParameterType.FullName}.");
             }
 
-            ContextBehaviors.Add(arguments[c], behavior);
+            _contextBehaviors.Add(arguments[c], behaviorInstance);
         }
-    }
-
-    /// <summary>
-    /// Registers a type as a context with its relevant details.
-    /// </summary>
-    /// <param name="type">The type to be registered as a context.</param>
-    private static void RegisterContext(Type type)
-    {
-        ContextInfos.Add(type);
-
-        PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance |
-            BindingFlags.Public | BindingFlags.NonPublic);
-        List<PropertyInfo> bindableProperties = new();
-        for (int c = 0, count = properties.Length; c < count; c++)
-            if (typeof(IBindableState).IsAssignableFrom(properties[c].PropertyType))
-                bindableProperties.Add(properties[c]);
-
-        ContextBindableProperties.Add(type, bindableProperties.ToArray());
     }
 
 
     private static T EnsureNonNullable<T>(T value)
-        => value == null ? throw new ArgumentNullException(nameof(value)) : value;
+    => value == null ? throw new ArgumentNullException(nameof(value)) : value;
 
 }
