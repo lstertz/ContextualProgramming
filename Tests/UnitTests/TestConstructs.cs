@@ -1,20 +1,21 @@
 namespace Tests.Constructs
 {
     #region Test Attributes
-    public class TBAttribute : BehaviorAttribute { }
-    public class TBNonContextDependencyAttribute : BehaviorAttribute { }
-    public class TBInvalidDependencyConstructorAttribute : BehaviorAttribute { }
-    public class TBInvalidParameterNameConstructorAttribute : BehaviorAttribute { }
-    public class TBInvalidParameterCountConstructorAttribute : BehaviorAttribute { }
-    public class TBInvalidParameterTypeConstructorAttribute : BehaviorAttribute { }
-    public class TBMissingConstructorAttribute : BehaviorAttribute { }
-    public class TBNonOutParameterConstructorAttribute : BehaviorAttribute { }
-    public class UnusedTBAttribute : BehaviorAttribute { }
+    public class TBAttribute : BaseBehaviorAttribute { }
+    public class TBNonContextDependencyAttribute : BaseBehaviorAttribute { }
+    public class TBInvalidDependencyConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBInvalidParameterNameConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBInvalidParameterCountConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBInvalidParameterTypeConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBMissingConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBNonOutParameterConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBNullDependencyConstructorAttribute : BaseBehaviorAttribute { }
+    public class UnusedTBAttribute : BaseBehaviorAttribute { }
 
-    public class TCAttribute : ContextAttribute { }
-    public class UnusedTCAttribute : ContextAttribute { }
+    public class TCAttribute : BaseContextAttribute { }
+    public class UnusedTCAttribute : BaseContextAttribute { }
 
-    public abstract class TDAttribute : DependencyAttribute
+    public abstract class TDAttribute : BaseDependencyAttribute
     {
         protected TDAttribute(Binding binding, Fulfillment fulfillment,
             string name, Type type) : base(binding, fulfillment, name, type) { }
@@ -29,22 +30,28 @@ namespace Tests.Constructs
     #region Test Classes
     [TB]
     [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+    [TDAttribute<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, "contextB")]
     public class TestBehaviorA
     {
-        protected TestBehaviorA(out TestContextA contextA) => contextA = new();
+        public static int InstanceCount = 0;
+
+        protected TestBehaviorA(out TestContextA contextA, out TestContextB contextB)
+        {
+            contextA = new();
+            contextB = new();
+
+            InstanceCount++;
+        }
+
+        ~TestBehaviorA()
+        {
+            InstanceCount--;
+        }
     }
 
     [TB]
     public class TestBehaviorB { }
 
-
-    [TBInvalidDependencyConstructor]
-    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
-    public class TestInvalidDependencyConstructorBehavior
-    {
-        protected TestInvalidDependencyConstructorBehavior(out TestContextB contextB) =>
-            contextB = new();
-    }
 
     [TBInvalidParameterCountConstructor]
     [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
@@ -90,6 +97,14 @@ namespace Tests.Constructs
     public class TestNonOutParameterConstructorBehavior
     {
         protected TestNonOutParameterConstructorBehavior(TestContextA contextA) { }
+    }
+
+    [TBNullDependencyConstructor]
+    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+    public class TestNullDependencyConstructorBehavior
+    {
+        protected TestNullDependencyConstructorBehavior(out TestContextA? contextA) =>
+            contextA = null;
     }
 
     public class TestNonBehavior { }

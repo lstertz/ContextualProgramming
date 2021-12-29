@@ -5,6 +5,11 @@
 /// are considered with all other contexts to define the app's contextual state.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class ContextAttribute : Attribute
+public abstract class BaseContextAttribute : Attribute
+{
+}
+
+/// <inheritdoc/>
+public class ContextAttribute : BaseContextAttribute
 {
 }

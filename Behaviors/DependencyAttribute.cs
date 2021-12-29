@@ -1,10 +1,11 @@
 ﻿namespace ContextualProgramming;
 
 /// <summary>
-/// Declares a dependency of a behavior (<see cref="BehaviorAttribute"/>) for 
+/// Declares a dependency of a behavior (<see cref="BaseBehaviorAttribute"/>) for 
 /// a type of context.
 /// </summary>
-public abstract class DependencyAttribute : Attribute
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
+public abstract class BaseDependencyAttribute : Attribute
 {
     /// <summary>
     /// Specifies how the dependency is to be bound to the behavior.
@@ -34,12 +35,13 @@ public abstract class DependencyAttribute : Attribute
     /// <param name="fulfillment"><see cref="Fulfillment"/></param>
     /// <param name="name"><see cref="Name"/></param>
     /// <param name="type"><see cref="Type"/></param>
-    protected DependencyAttribute(Binding binding, Fulfillment fulfillment, 
+    protected BaseDependencyAttribute(Binding binding, Fulfillment fulfillment, 
         string name, Type type)
     {
         if (string.IsNullOrEmpty(name))
         {
-            throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", nameof(name));
+            throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", 
+                nameof(name));
         }
 
         if (type is null)
@@ -59,8 +61,15 @@ public abstract class DependencyAttribute : Attribute
 /// Declares a dependency of a behavior (<see cref="BehaviorAttribute"/>) for the 
 /// specified type of context.
 /// </summary>
+public abstract class DependencyAttribute : BaseDependencyAttribute
+{
+    /// <inheritdoc/>
+    public DependencyAttribute(Binding binding, Fulfillment fulfillment,
+        string name, Type type) : base(binding, fulfillment, name, type) { }
+}
+
+/// <inheritdoc/>
 /// <typeparam name="T">The type of the dependency, a type of a context.</typeparam>
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
 public class DependencyAttribute<T> : DependencyAttribute
 {
     /// <summary>
