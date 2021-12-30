@@ -25,20 +25,29 @@ namespace Tests.Constructs
         public TDAttribute(Binding binding, Fulfillment fulfillment,
             string name) : base(binding, fulfillment, name, typeof(T)) { }
     }
+
+    public class TOAttribute : BaseOperationAttribute { }
     #endregion
 
     #region Test Classes
     [TB]
-    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
-    [TDAttribute<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, "contextB")]
+    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextAName)]
+    [TDAttribute<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, ContextBName)]
+    [TDAttribute<TestContextC>(Binding.Unique, Fulfillment.SelfCreated, ContextCName)]
     public class TestBehaviorA
     {
+        public const string ContextAName = "contextA";
+        public const string ContextBName = "contextB";
+        public const string ContextCName = "contextC";
+
         public static int InstanceCount = 0;
 
-        protected TestBehaviorA(out TestContextA contextA, out TestContextB contextB)
+        protected TestBehaviorA(out TestContextA contextA, out TestContextB contextB, 
+            out TestContextC contextC)
         {
             contextA = new();
             contextB = new();
+            contextC = new();
 
             InstanceCount++;
         }
@@ -47,6 +56,16 @@ namespace Tests.Constructs
         {
             InstanceCount--;
         }
+
+
+
+        [TO]
+        [OnChange(ContextAName, nameof(TestContextA.Int))]
+        private void OnContextAIntChange(TestContextA contextA, TestContextB contextB) { }
+
+        [TO]
+        [OnChange(ContextBName)]
+        public void OnContextBChange() { }
     }
 
     [TB]
@@ -118,6 +137,12 @@ namespace Tests.Constructs
 
     [TC]
     public class TestContextB { }
+
+    [TC]
+    public class TestContextC
+    {
+        public ContextState<int> Int { get; set; } = 10;
+    }
 
     public class TestNonContext { }
     #endregion

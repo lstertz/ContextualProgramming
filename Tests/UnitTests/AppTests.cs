@@ -18,8 +18,8 @@ namespace Tests
         [Test]
         public void Construction_DefaultEvaluator()
         {
-            Type expectedEvaluator = typeof(
-                Evaluator<ContextAttribute, BehaviorAttribute, DependencyAttribute>);
+            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, BehaviorAttribute, 
+                DependencyAttribute, OperationAttribute>);
 
             App app = new();
 

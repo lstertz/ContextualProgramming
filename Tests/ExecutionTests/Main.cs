@@ -1,5 +1,4 @@
 ﻿global using ContextualProgramming;
-global using static ContextualProgramming.App;
 using Tests.Contexts;
 
 

@@ -80,7 +80,8 @@ public class App
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute, DependencyAttribute>();
+        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute, 
+            DependencyAttribute, OperationAttribute>();
     }
 
     /// <summary>

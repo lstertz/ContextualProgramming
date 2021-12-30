@@ -103,6 +103,23 @@ public abstract class Evaluator
     public abstract Type[] GetInitializationBehaviorTypes();
 
     /// <summary>
+    /// Provides the operations of the specified behavior type that should 
+    /// be invoked when a context of an instance of that behavior type has changed.
+    /// </summary>
+    /// <remarks>Excluding the <paramref name="contextStateName"/> will only provide 
+    /// the on change operations that do not define a state name.</remarks>
+    /// <param name="behaviorType">The type of the behavior whose operations 
+    /// are to be provided.</param>
+    /// <param name="contextName">The name of the behavior's context whose 
+    /// on change operations should be provided.</param>
+    /// <param name="contextStateName">The name of the behavior's context's 
+    /// specific state whose on change operaitons should be provided.</param>
+    /// <returns>The behavior type's operations that should be invoked 
+    /// for the specified context or context state change.</returns>
+    public abstract MethodInfo[] GetOnChangeOperations(Type behaviorType,
+        string contextName, string? contextStateName = null);
+
+    /// <summary>
     /// Specifies whether the provided type is a type of context known by this evaluator.
     /// </summary>
     /// <param name="type">The type to be checked.</param>
@@ -115,10 +132,12 @@ public abstract class Evaluator
 /// <typeparam name="TBehaviorAttribute">The type of attribute that defines a behavior.</typeparam>
 /// <typeparam name="TDependencyAttribute">The base type of attribute that defines 
 /// a dependency of a behavior.</typeparam>
-public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribute> : Evaluator
+public class Evaluator<TContextAttribute, TBehaviorAttribute,
+    TDependencyAttribute, TOperationAttribute> : Evaluator
     where TContextAttribute : BaseContextAttribute
     where TBehaviorAttribute : BaseBehaviorAttribute
     where TDependencyAttribute : BaseDependencyAttribute
+    where TOperationAttribute : BaseOperationAttribute
 {
     /// <summary>
     /// A mapping of each behavior to its constructor.
@@ -163,11 +182,17 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
     /// </summary>
     private Type[] _initializationBehaviors = Array.Empty<Type>();
 
+    /// <summary>
+    /// All found operations that should be invoked upon a context change.
+    /// </summary>
+    private readonly Dictionary<Type, Dictionary<string, Dictionary<string, List<MethodInfo>>>>
+        _onChangeOperations = new();
+
 
     /// <inheritdoc/>
     protected override void InitializeBehaviorTypes(IEnumerable<Assembly> assembliesToEvaluate)
     {
-        foreach(Assembly assembly in assembliesToEvaluate)
+        foreach (Assembly assembly in assembliesToEvaluate)
         {
             Type[] types = assembly.GetTypes();
             for (int c = 0, count = types.Length; c < count; c++)
@@ -175,6 +200,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
                 {
                     CacheBehaviorDependencies(types[c]);
                     CacheBehaviorConstructors(types[c]);
+                    CacheOperations(types[c]);
                 }
         }
 
@@ -249,6 +275,34 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
     }
 
     /// <inheritdoc/>
+    public override MethodInfo[] GetOnChangeOperations(Type behaviorType,
+        string contextName, string? contextStateName = null)
+    {
+        ValidateInitialization();
+
+        if (!_behaviorTypes.Contains(behaviorType))
+            throw new ArgumentException($"On Change Operations cannot be retrieved " +
+                $"for type {behaviorType.FullName} since it is not a behavior " +
+                $"known to an evaluator with behaviors defined " +
+                $"by {typeof(TBehaviorAttribute).FullName}.");
+
+        if (contextName == null)
+            throw new ArgumentNullException(nameof(contextName));
+
+        if (!_onChangeOperations.ContainsKey(behaviorType))
+            return Array.Empty<MethodInfo>();
+
+        if (!_onChangeOperations[behaviorType].ContainsKey(contextName))
+            return Array.Empty<MethodInfo>();
+
+        string stateName = contextStateName ?? "";
+        if (!_onChangeOperations[behaviorType][contextName].ContainsKey(stateName))
+            return Array.Empty<MethodInfo>();
+
+        return _onChangeOperations[behaviorType][contextName][stateName].ToArray();
+    }
+
+    /// <inheritdoc/>
     public override bool IsContextType(Type type)
     {
         ValidateInitialization();
@@ -278,33 +332,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
                 $"does not have a valid constructor.");
 
         ConstructorInfo constructor = constructors[0]; // Assume one constructor for now.
-        ParameterInfo[] parameters = constructor.GetParameters();
-        if (parameters.Length != depTypes.Length)
-            throw new InvalidOperationException($"The default constructor for the behavior " +
-                $"of type {behaviorType.FullName} is not valid for its dependencies.");
-
-        for (int pc = 0, pCount = parameters.Length; pc < pCount; pc++)
-        {
-            ParameterInfo parameterInfo = parameters[pc];
-            string? parameterName = parameterInfo.Name;
-
-            if (parameterName == null)
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorType.FullName} is not valid for its dependencies.");
-
-            if (!selfCreatedDeps.ContainsKey(parameterName))
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorType.FullName} is not valid for its dependencies.");
-
-            if (!parameterInfo.IsOut)
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorType.FullName} is not valid for its dependencies.");
-
-            Type refDepType = depTypes[selfCreatedDeps[parameterName]].MakeByRefType();
-            if (refDepType != parameterInfo.ParameterType)
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorType.FullName} is not valid for its dependencies.");
-        }
+        ValidateConstructor(behaviorType.FullName, depTypes, selfCreatedDeps, constructor);
 
         _behaviorConstructors.Add(behaviorType, constructor);
     }
@@ -418,10 +446,101 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute, TDependencyAttribu
     {
         List<Type> initializationBehaviors = new();
         foreach (Type behaviorType in _behaviorSelfCreatedDependencies.Keys)
-            if (_behaviorSelfCreatedDependencies[behaviorType].Count == 
+            if (_behaviorSelfCreatedDependencies[behaviorType].Count ==
                 _behaviorDependencies[behaviorType].Length)
                 initializationBehaviors.Add(behaviorType);
 
         _initializationBehaviors = initializationBehaviors.ToArray();
+    }
+
+    /// <summary>
+    /// Determines, validates, and caches the operations 
+    /// of the specified behavior type.
+    /// </summary>
+    /// <param name="behaviorType">The type of behavior whose operations 
+    /// should be cached.</param>
+    private void CacheOperations(Type behaviorType)
+    {
+        MethodInfo[] methods = behaviorType.GetMethods(BindingFlags.Instance |
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy);
+
+        for (int c = 0, count = methods.Length; c < count; c++)
+            if (methods[c].GetCustomAttribute<TOperationAttribute>(true) != null)
+            {
+                CacheOnChangeOperations(behaviorType, methods[c]);
+                // TODO :: Support other types of operation caching here.
+            }
+    }
+
+    private void CacheOnChangeOperations(Type behaviorType, MethodInfo operation)
+    {
+        IEnumerable<OnChangeAttribute> attrs = operation
+            .GetCustomAttributes<OnChangeAttribute>(true);
+        if (attrs.Count() > 0 && !_onChangeOperations.ContainsKey(behaviorType))
+            _onChangeOperations.Add(behaviorType, new());
+
+        foreach (OnChangeAttribute attr in attrs)
+        {
+            ValidateOnChangeOperation(behaviorType, operation, attr);
+
+            string dn = attr.DependencyName;
+            if (!_onChangeOperations[behaviorType].ContainsKey(dn))
+                _onChangeOperations[behaviorType].Add(dn, new());
+
+            string sn = string.IsNullOrEmpty(attr.ContextStateName) ? "" : attr.ContextStateName;
+            if (!_onChangeOperations[behaviorType][dn].ContainsKey(sn))
+                _onChangeOperations[behaviorType][dn].Add(sn, new());
+
+            _onChangeOperations[behaviorType][dn][sn].Add(operation);
+        }
+    }
+
+
+    /// <summary>
+    /// Ensures the validity of a behavior's constructor.
+    /// </summary>
+    /// <param name="behaviorName">The name of the behavior whose constructor 
+    /// is to be validated.</param>
+    /// <param name="depTypes">The types of the behavior's dependencies.</param>
+    /// <param name="selfCreatedDeps">The names and indices of the dependencies 
+    /// that the behavior will create when it is instantiated.</param>
+    /// <param name="constructor">The constructor of the behavior to be validated.</param>
+    /// <exception cref="InvalidOperationException"></exception>
+    private static void ValidateConstructor(string? behaviorName, Type[] depTypes,
+        Dictionary<string, int> selfCreatedDeps, ConstructorInfo constructor)
+    {
+        ParameterInfo[] parameters = constructor.GetParameters();
+        if (parameters.Length != depTypes.Length)
+            throw new InvalidOperationException($"The default constructor for the behavior " +
+                $"of type {behaviorName} is not valid for its dependencies.");
+
+        for (int pc = 0, pCount = parameters.Length; pc < pCount; pc++)
+        {
+            ParameterInfo parameterInfo = parameters[pc];
+            string? parameterName = parameterInfo.Name;
+
+            if (parameterName == null)
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {behaviorName} is not valid for its dependencies.");
+
+            if (!selfCreatedDeps.ContainsKey(parameterName))
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {behaviorName} is not valid for its dependencies.");
+
+            if (!parameterInfo.IsOut)
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {behaviorName} is not valid for its dependencies.");
+
+            Type refDepType = depTypes[selfCreatedDeps[parameterName]].MakeByRefType();
+            if (refDepType != parameterInfo.ParameterType)
+                throw new InvalidOperationException($"The default constructor for the behavior " +
+                    $"of type {behaviorName} is not valid for its dependencies.");
+        }
+    }
+
+    private static void ValidateOnChangeOperation(Type behaviorType, MethodInfo operation,
+        OnChangeAttribute attribute)
+    {
+
     }
 }
