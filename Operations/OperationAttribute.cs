@@ -12,6 +12,6 @@ public abstract class BaseOperationAttribute : Attribute
 }
 
 /// <inheritdoc/>
-public class OperationAttribute : BaseBehaviorAttribute
+public class OperationAttribute : BaseOperationAttribute
 {
 }
