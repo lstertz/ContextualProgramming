@@ -35,19 +35,19 @@ public abstract class BaseDependencyAttribute : Attribute
     /// <param name="fulfillment"><see cref="Fulfillment"/></param>
     /// <param name="name"><see cref="Name"/></param>
     /// <param name="type"><see cref="Type"/></param>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="name"/> 
+    /// is null or empty.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="type"/> 
+    /// is null.</exception>
     protected BaseDependencyAttribute(Binding binding, Fulfillment fulfillment, 
         string name, Type type)
     {
         if (string.IsNullOrEmpty(name))
-        {
             throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", 
                 nameof(name));
-        }
 
         if (type is null)
-        {
             throw new ArgumentNullException(nameof(type));
-        }
 
         Binding = binding;
         Name = name;
