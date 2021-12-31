@@ -1,3 +1,5 @@
+global using ContextualProgramming;
+
 namespace Tests.Constructs
 {
     #region Test Behavior Attributes
