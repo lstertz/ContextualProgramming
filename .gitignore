@@ -1,7 +1,7 @@
 ﻿.vs
 bin/Debug/net6.0
 obj/Debug
-Showcase/bin/Debug
-Showcase/obj/Debug/net6.0
 Tests/bin/Debug
 Tests/obj/Debug/net6.0
+Showcase/obj/Debug
+Showcase/bin/Debug
