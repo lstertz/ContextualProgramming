@@ -474,6 +474,13 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
             }
     }
 
+    /// <summary>
+    /// Validates and caches the provided operation as an on change operation 
+    /// for each such declaration found to be associated with the operation.
+    /// </summary>
+    /// <param name="behaviorType">The type of behavior whose operation is being evaluated.</param>
+    /// <param name="operation">The operation being evaluated, validated, and cached 
+    /// for on change declarations.</param>
     private void CacheOnChangeOperations(Type behaviorType, MethodInfo operation)
     {
         IEnumerable<OnChangeAttribute> attrs = operation
