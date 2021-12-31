@@ -467,6 +467,8 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         for (int c = 0, count = methods.Length; c < count; c++)
             if (methods[c].GetCustomAttribute<TOperationAttribute>(true) != null)
             {
+                ValidateOperation(behaviorType, methods[c]);
+
                 CacheOnChangeOperations(behaviorType, methods[c]);
                 // TODO :: Support other types of operation caching here.
             }
@@ -538,9 +540,69 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         }
     }
 
-    private static void ValidateOnChangeOperation(Type behaviorType, MethodInfo operation,
+    /// <summary>
+    /// Validates the provided on change declaration for the specified operation and behavior type.
+    /// </summary>
+    /// <param name="behaviorType">The behavior type whose on change operation 
+    /// is being validated.</param>
+    /// <param name="operation">The operation whose on change declaration 
+    /// is being validated.</param>
+    /// <param name="attribute">The on change declaration being validated.</param>
+    /// <exception cref="InvalidOperationException">Thrown if the declaration is 
+    /// invalid with respect to its operation and behavior type.</exception>
+    private void ValidateOnChangeOperation(Type behaviorType, MethodInfo operation,
         OnChangeAttribute attribute)
     {
+        string dName = attribute.DependencyName;
 
+        if (!_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(dName))
+            throw new InvalidOperationException($"The on change declaration of " +
+                $"the operation {operation.Name} of the behavior type {behaviorType.FullName} " +
+                $"has an invalid dependency name, {dName}. All dependency names must match the " +
+                $"name of the behavior dependency that is relevant to the operation.");
+
+        string? csName = attribute.ContextStateName;
+        if (csName == null)
+            return;
+
+        int dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][dName];
+        Type dependencyType = _behaviorDependencies[behaviorType][dependencyIndex];
+        if (!_contextBindableProperties[dependencyType].Select(p => p.Name).Contains(csName))
+            throw new InvalidOperationException($"The on change declaration of " +
+                $"the operation {operation.Name} of the behavior type {behaviorType.FullName} " +
+                $"has an invalid context state name, {csName}. All context state names must " +
+                $"match a non-readonly context state property name of the relevant context, " +
+                $"or be null if there is no specific relevant state.");
+    }
+
+    /// <summary>
+    /// Validates the provided operation of the specific behavior type.
+    /// </summary>
+    /// <param name="behaviorType">The behavior type whose operation is being validated.</param>
+    /// <param name="operation">The operation being validated.</param>
+    /// <exception cref="InvalidOperationException">Thrown if the operation is 
+    /// invalid with respect to the behavior type.</exception>
+    private void ValidateOperation(Type behaviorType, MethodInfo operation)
+    {
+        ParameterInfo[] parameters = operation.GetParameters();
+        for (int c = 0, count = parameters.Length; c < count; c++)
+        {
+            string pName = parameters[c].Name.EnsureNonNullable();
+            Type pType = parameters[c].ParameterType;
+
+            if (!_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(pName))
+                throw new InvalidOperationException($"The operation {operation.Name} " +
+                    $"of the behavior type {behaviorType.FullName} has an invalid " +
+                    $"parameter name, {pName}. All parameter names must match the name " +
+                    $"of the dependency expected to be provided to the operation.");
+
+            int dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][pName];
+            if (pType != _behaviorDependencies[behaviorType][dependencyIndex])
+                throw new InvalidOperationException($"The operation {operation.Name} " +
+                    $"of the behavior type {behaviorType.FullName} has an invalid " +
+                    $"type for parameter {pName}. Expected " +
+                    $"{_behaviorDependencies[behaviorType][dependencyIndex].FullName} but " +
+                    $"was {pType.FullName}.");
+        }
     }
 }

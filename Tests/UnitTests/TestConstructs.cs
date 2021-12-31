@@ -1,9 +1,10 @@
 namespace Tests.Constructs
 {
-    #region Test Attributes
+    #region Test Behavior Attributes
     public class TBAttribute : BaseBehaviorAttribute { }
     public class TBNonContextDependencyAttribute : BaseBehaviorAttribute { }
     public class TBInvalidDependencyConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBInvalidOperationsAttribute : BaseBehaviorAttribute { }
     public class TBInvalidParameterNameConstructorAttribute : BaseBehaviorAttribute { }
     public class TBInvalidParameterCountConstructorAttribute : BaseBehaviorAttribute { }
     public class TBInvalidParameterTypeConstructorAttribute : BaseBehaviorAttribute { }
@@ -11,10 +12,14 @@ namespace Tests.Constructs
     public class TBNonOutParameterConstructorAttribute : BaseBehaviorAttribute { }
     public class TBNullDependencyConstructorAttribute : BaseBehaviorAttribute { }
     public class UnusedTBAttribute : BaseBehaviorAttribute { }
+    #endregion
 
+    #region Test Context Attributes
     public class TCAttribute : BaseContextAttribute { }
     public class UnusedTCAttribute : BaseContextAttribute { }
+    #endregion
 
+    #region Test Dependency Attributes
     public abstract class TDAttribute : BaseDependencyAttribute
     {
         protected TDAttribute(Binding binding, Fulfillment fulfillment,
@@ -25,8 +30,14 @@ namespace Tests.Constructs
         public TDAttribute(Binding binding, Fulfillment fulfillment,
             string name) : base(binding, fulfillment, name, typeof(T)) { }
     }
+    #endregion
 
+    #region Test Operation Attributes
     public class TOAttribute : BaseOperationAttribute { }
+    public class TOInvalidContextNameAttribute : BaseOperationAttribute { }
+    public class TOInvalidContextTypeAttribute : BaseOperationAttribute { }
+    public class TOInvalidOnChangeContextAttribute : BaseOperationAttribute { }
+    public class TOInvalidOnChangeStateAttribute : BaseOperationAttribute { }
     #endregion
 
     #region Test Classes
@@ -58,7 +69,6 @@ namespace Tests.Constructs
         }
 
 
-
         [TO]
         [OnChange(ContextAName, nameof(TestContextA.Int))]
         private void OnContextAIntChange(TestContextA contextA, TestContextB contextB) { }
@@ -71,6 +81,31 @@ namespace Tests.Constructs
     [TB]
     public class TestBehaviorB { }
 
+
+    [TBInvalidOperations]
+    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+    public class TestInvalidOperationsBehavior
+    {
+        protected TestInvalidOperationsBehavior(out TestContextA contextA)
+        {
+            contextA = new();
+        }
+
+
+        [TOInvalidContextName]
+        public void InvalidContextNameOperation(TestContextA a) { }
+
+        [TOInvalidContextType]
+        public void InvalidContextTypeOperation(TestContextB contextA) { }
+
+        [TOInvalidOnChangeContext]
+        [OnChange("a")]
+        public void InvalidOnChangeContextOperation(TestContextA contextA) { }
+
+        [TOInvalidOnChangeState]
+        [OnChange("contextA", "InvalidState")]
+        public void InvalidOnChangeStateOperation(TestContextA contextA) { }
+    }
 
     [TBInvalidParameterCountConstructor]
     [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]

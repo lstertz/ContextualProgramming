@@ -311,38 +311,46 @@ namespace Tests
         }
         #endregion
 
-        #region Is Context Type
+        #region Initialization
         [Test]
-        public void IsContextType_InvalidContextType()
+        public void Initialization_InvalidOnChangeContext()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
-            evaluator.Initialize();
-
-            Assert.IsFalse(evaluator.IsContextType(typeof(TestNonContext)));
-        }
-
-        [Test]
-        public void IsContextType_ValidContextType()
-        {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
-            evaluator.Initialize();
-
-            Assert.IsTrue(evaluator.IsContextType(typeof(TestContextA)));
-        }
-
-        [Test]
-        public void IsContextType_UninitializedThrowsException()
-        {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
+                TDAttribute, TOInvalidOnChangeContextAttribute> evaluator = new();
 
             Assert.Throws<InvalidOperationException>(() =>
-                evaluator.IsContextType(typeof(TestContextA)));
+                evaluator.Initialize());
         }
-        #endregion
 
-        #region Initialization
+        [Test]
+        public void Initialization_InvalidOnChangeState()
+        {
+            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
+                TDAttribute, TOInvalidOnChangeStateAttribute> evaluator = new();
 
-        // TODO : 10 :: Check for invalid setup for on change operations.
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
+        [Test]
+        public void Initialization_InvalidOperationContextName()
+        {
+            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
+                TDAttribute, TOInvalidContextNameAttribute> evaluator = new();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
+        [Test]
+        public void Initialization_InvalidOperationContextType()
+        {
+            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
+                TDAttribute, TOInvalidContextTypeAttribute> evaluator = new();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
 
         [Test]
         public void Initialization_InvalidDependencyBehavior()
@@ -412,6 +420,35 @@ namespace Tests
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
+        }
+        #endregion
+
+        #region Is Context Type
+        [Test]
+        public void IsContextType_InvalidContextType()
+        {
+            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            evaluator.Initialize();
+
+            Assert.IsFalse(evaluator.IsContextType(typeof(TestNonContext)));
+        }
+
+        [Test]
+        public void IsContextType_ValidContextType()
+        {
+            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            evaluator.Initialize();
+
+            Assert.IsTrue(evaluator.IsContextType(typeof(TestContextA)));
+        }
+
+        [Test]
+        public void IsContextType_UninitializedThrowsException()
+        {
+            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.IsContextType(typeof(TestContextA)));
         }
         #endregion
     }
