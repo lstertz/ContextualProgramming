@@ -1,9 +1,10 @@
 namespace Tests.Constructs
 {
-    #region Test Attributes
+    #region Test Behavior Attributes
     public class TBAttribute : BaseBehaviorAttribute { }
     public class TBNonContextDependencyAttribute : BaseBehaviorAttribute { }
     public class TBInvalidDependencyConstructorAttribute : BaseBehaviorAttribute { }
+    public class TBInvalidOperationsAttribute : BaseBehaviorAttribute { }
     public class TBInvalidParameterNameConstructorAttribute : BaseBehaviorAttribute { }
     public class TBInvalidParameterCountConstructorAttribute : BaseBehaviorAttribute { }
     public class TBInvalidParameterTypeConstructorAttribute : BaseBehaviorAttribute { }
@@ -11,10 +12,14 @@ namespace Tests.Constructs
     public class TBNonOutParameterConstructorAttribute : BaseBehaviorAttribute { }
     public class TBNullDependencyConstructorAttribute : BaseBehaviorAttribute { }
     public class UnusedTBAttribute : BaseBehaviorAttribute { }
+    #endregion
 
+    #region Test Context Attributes
     public class TCAttribute : BaseContextAttribute { }
     public class UnusedTCAttribute : BaseContextAttribute { }
+    #endregion
 
+    #region Test Dependency Attributes
     public abstract class TDAttribute : BaseDependencyAttribute
     {
         protected TDAttribute(Binding binding, Fulfillment fulfillment,
@@ -27,18 +32,33 @@ namespace Tests.Constructs
     }
     #endregion
 
+    #region Test Operation Attributes
+    public class TOAttribute : BaseOperationAttribute { }
+    public class TOInvalidContextNameAttribute : BaseOperationAttribute { }
+    public class TOInvalidContextTypeAttribute : BaseOperationAttribute { }
+    public class TOInvalidOnChangeContextAttribute : BaseOperationAttribute { }
+    public class TOInvalidOnChangeStateAttribute : BaseOperationAttribute { }
+    #endregion
+
     #region Test Classes
     [TB]
-    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
-    [TDAttribute<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, "contextB")]
+    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextAName)]
+    [TDAttribute<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, ContextBName)]
+    [TDAttribute<TestContextC>(Binding.Unique, Fulfillment.SelfCreated, ContextCName)]
     public class TestBehaviorA
     {
+        public const string ContextAName = "contextA";
+        public const string ContextBName = "contextB";
+        public const string ContextCName = "contextC";
+
         public static int InstanceCount = 0;
 
-        protected TestBehaviorA(out TestContextA contextA, out TestContextB contextB)
+        protected TestBehaviorA(out TestContextA contextA, out TestContextB contextB, 
+            out TestContextC contextC)
         {
             contextA = new();
             contextB = new();
+            contextC = new();
 
             InstanceCount++;
         }
@@ -47,11 +67,45 @@ namespace Tests.Constructs
         {
             InstanceCount--;
         }
+
+
+        [TO]
+        [OnChange(ContextAName, nameof(TestContextA.Int))]
+        private void OnContextAIntChange(TestContextA contextA, TestContextB contextB) { }
+
+        [TO]
+        [OnChange(ContextBName)]
+        public void OnContextBChange() { }
     }
 
     [TB]
     public class TestBehaviorB { }
 
+
+    [TBInvalidOperations]
+    [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+    public class TestInvalidOperationsBehavior
+    {
+        protected TestInvalidOperationsBehavior(out TestContextA contextA)
+        {
+            contextA = new();
+        }
+
+
+        [TOInvalidContextName]
+        public void InvalidContextNameOperation(TestContextA a) { }
+
+        [TOInvalidContextType]
+        public void InvalidContextTypeOperation(TestContextB contextA) { }
+
+        [TOInvalidOnChangeContext]
+        [OnChange("a")]
+        public void InvalidOnChangeContextOperation(TestContextA contextA) { }
+
+        [TOInvalidOnChangeState]
+        [OnChange("contextA", "InvalidState")]
+        public void InvalidOnChangeStateOperation(TestContextA contextA) { }
+    }
 
     [TBInvalidParameterCountConstructor]
     [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
@@ -118,6 +172,12 @@ namespace Tests.Constructs
 
     [TC]
     public class TestContextB { }
+
+    [TC]
+    public class TestContextC
+    {
+        public ContextState<int> Int { get; set; } = 10;
+    }
 
     public class TestNonContext { }
     #endregion

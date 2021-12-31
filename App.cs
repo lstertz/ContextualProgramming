@@ -26,7 +26,7 @@ public class App
 
 
         public BehaviorInstance(object behavior, object[] contexts) => (Behavior, Contexts) =
-            (EnsureNonNullable(behavior), EnsureNonNullable(contexts));
+            (behavior.EnsureNonNullable(), contexts.EnsureNonNullable());
     }
 
     /// <summary>
@@ -45,7 +45,7 @@ public class App
         public string PropertyName { get; set; }
 
         public ContextChange(object context, string propertyName) => (Context, PropertyName) =
-            (EnsureNonNullable(context), EnsureNonNullable(propertyName));
+            (context.EnsureNonNullable(), propertyName.EnsureNonNullable());
     }
 
 
@@ -80,7 +80,8 @@ public class App
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute, DependencyAttribute>();
+        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute, 
+            DependencyAttribute, OperationAttribute>();
     }
 
     /// <summary>
@@ -270,9 +271,4 @@ public class App
             _contextBehaviors.Add(arguments[c], behaviorInstance);
         }
     }
-
-
-    private static T EnsureNonNullable<T>(T value)
-    => value == null ? throw new ArgumentNullException(nameof(value)) : value;
-
 }
