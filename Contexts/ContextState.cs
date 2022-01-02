@@ -91,5 +91,11 @@ namespace ContextualProgramming
 
             return _value.GetHashCode();
         }
+
+        /// <inheritdoc/>
+        public override string? ToString()
+        {
+            return _value == null ? "" : _value.ToString();
+        }
     }
 }

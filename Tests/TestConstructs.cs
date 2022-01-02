@@ -73,11 +73,29 @@ namespace Tests.Constructs
 
         [TO]
         [OnChange(ContextAName, nameof(TestContextA.Int))]
-        private void OnContextAIntChange(TestContextA contextA, TestContextB contextB) { }
+        private void OnContextAIntChange(TestContextA contextA, TestContextC contextC)
+        {
+            contextA.OnStateChangeIntValue = contextA.Int;
+            contextC.Int.Value = contextA.Int;
+        }
+
+        [TO]
+        [OnChange(ContextAName)]
+        public void OnContextAChange(TestContextA contextA)
+        {
+            contextA.OnContextChangeIntValue = contextA.Int;
+        }
 
         [TO]
         [OnChange(ContextBName)]
         public void OnContextBChange() { }
+
+        [TO]
+        [OnChange(ContextCName, nameof(TestContextC.Int))]
+        public void OnContextCIntChange(TestContextC contextC)
+        {
+            contextC.OnContextChangeIntValue = contextC.Int;
+        }
     }
 
     [TB]
@@ -169,7 +187,10 @@ namespace Tests.Constructs
     [TC]
     public class TestContextA
     {
-        public ContextState<int> Int { get; set; } = 10;
+        public int OnStateChangeIntValue { get; set; } = 0;
+        public int OnContextChangeIntValue { get; set; } = 0;
+
+        public ContextState<int> Int { get; init; } = 0;
     }
 
     [TC]
@@ -178,7 +199,10 @@ namespace Tests.Constructs
     [TC]
     public class TestContextC
     {
-        public ContextState<int> Int { get; set; } = 10;
+        public int OnContextChangeIntValue { get; set; } = 0;
+
+        public ContextState<int> Int { get; init; } = 0;
+        public ContextState<string> String { get; init; } = "Test";
     }
 
     public class TestNonContext { }

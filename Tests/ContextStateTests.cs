@@ -283,6 +283,25 @@ namespace Tests
         }
         #endregion
 
+        #region To String
+        [Test]
+        public void ToString_NonNullMatchesValueToString()
+        {
+            int value = 10;
+            ContextState<int> contextState = value;
+
+            Assert.AreEqual(10.ToString(), contextState.ToString());
+        }
+
+        [Test]
+        public void ToString_NullProvidesEmptyString()
+        {
+            ContextState<string> contextState = new ContextState<string>(null);
+
+            Assert.AreEqual(string.Empty, contextState.ToString());
+        }
+        #endregion
+
         #region Value Setting
         [Test]
         public void ValueSetting_ValueSets()
