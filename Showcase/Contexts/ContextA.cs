@@ -3,5 +3,7 @@
 [Context]
 public class ContextA
 {
-    public ContextState<int> State { get; set; } = 0;
+    public ContextState<int> State { get; init; } = 0;
+
+    public ContextStateList<int> StateList { get; init; } = Array.Empty<int>();
 }
