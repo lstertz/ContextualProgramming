@@ -20,13 +20,19 @@ public class App
         public object Behavior { get; set; }
 
         /// <summary>
-        /// The contexts (dependencies) of the encapsulated behavior.
+        /// The contexts (dependencies) of the encapsulated behavior keyed by to their names.
         /// </summary>
-        public object[] Contexts { get; set; }
+        public Dictionary<string, object> Contexts { get; set; }
+
+        /// <summary>
+        /// The contexts (dependencies) of the encapsulated behavior mapped to their names.
+        /// </summary>
+        public Dictionary<object, string> ContextNames { get; set; }
 
 
-        public BehaviorInstance(object behavior, object[] contexts) => (Behavior, Contexts) =
-            (behavior.EnsureNonNullable(), contexts.EnsureNonNullable());
+        public BehaviorInstance(object behavior, Dictionary<string, object> contexts) =>
+            (Behavior, Contexts, ContextNames) =
+            (behavior.EnsureNonNullable(), contexts, contexts.Flip());
     }
 
     /// <summary>
@@ -69,7 +75,7 @@ public class App
     /// <summary>
     /// A record of context changes that have occurred since the last evaluation.
     /// </summary>
-    private static readonly List<ContextChange> _contextChanges = new();
+    private readonly List<ContextChange> _contextChanges = new();
 
     private bool _isInitialized = false;
 
@@ -80,7 +86,7 @@ public class App
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute, 
+        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute,
             DependencyAttribute, OperationAttribute>();
     }
 
@@ -192,12 +198,9 @@ public class App
         if (_contextBehaviors.ContainsKey(context))
         {
             BehaviorInstance behaviorInstance = _contextBehaviors[context];
-            object[] contexts = behaviorInstance.Contexts;
-
-            for (int c = 0, count = contexts.Length; c < count; c++)
-                if (_contextBehaviors.ContainsKey(contexts[c]) &&
-                    _contextBehaviors[contexts[c]] == behaviorInstance)
-                    _contextBehaviors.Remove(contexts[c]);
+            foreach (object c in behaviorInstance.Contexts.Values)
+                if (_contextBehaviors.ContainsKey(c) && _contextBehaviors[c] == behaviorInstance)
+                    _contextBehaviors.Remove(c);
         }
     }
 
@@ -239,6 +242,61 @@ public class App
         return Array.Empty<T>();
     }
 
+    /// <summary>
+    /// Evaluates any changes to the contextual state of the app since the last update 
+    /// and invokes any appropriate operations to respond to those changes.
+    /// </summary>
+    /// <returns>True if there were changes evaluated, false otherwise.</returns>
+    public bool Update()
+    {
+        if (_contextChanges.Count == 0)
+            return false;
+
+        ContextChange[] contextChanges = _contextChanges.ToArray();
+        _contextChanges.Clear();
+
+        for (int c = 0, count = contextChanges.Length; c < count; c++)
+        {
+            ContextChange change = contextChanges[c];
+            object context = change.Context;
+            if (!_contextBehaviors.ContainsKey(context))
+                continue;
+
+            BehaviorInstance bInstance = _contextBehaviors[context];
+            Type behaviorType = bInstance.Behavior.GetType();
+            string contextName = bInstance.ContextNames[context];
+
+            MethodInfo[] contextOperations = Evaluator.GetOnChangeOperations(
+                behaviorType, contextName);
+            for (int co = 0, coCount = contextOperations.Length; co < coCount; co++)
+                InvokeOperation(bInstance, contextOperations[co]);
+
+            MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
+                behaviorType, contextName, change.PropertyName);
+            for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
+                InvokeOperation(bInstance, stateOperations[so]);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Invokes the provided operation for the provided behavior instance.
+    /// </summary>
+    /// <param name="bInstance">The behavior instance that the operation for which 
+    /// the operation is being invoked.</param>
+    /// <param name="operation">The operation to invoke.</param>
+    private static void InvokeOperation(BehaviorInstance bInstance, MethodInfo operation)
+    {
+        ParameterInfo[] parameters = operation.GetParameters();
+        object[] arguments = new object[parameters.Length];
+
+        for (int pco = 0, pcoCount = parameters.Length; pco < pcoCount; pco++)
+            arguments[pco] = bInstance.Contexts[parameters[pco].Name.EnsureNonNullable()];
+
+        operation.Invoke(bInstance.Behavior, arguments);
+    }
+
 
     /// <summary>
     /// Instantiates an instance of the behavior specified by the provided type.
@@ -251,15 +309,17 @@ public class App
         ConstructorInfo constructor = Evaluator.GetBehaviorConstructor(behaviorType);
         ParameterInfo[] parameters = constructor.GetParameters();
 
+
         object[] arguments = new object[parameters.Length];
         object behavior = constructor.Invoke(arguments);
-        BehaviorInstance behaviorInstance = new(behavior, arguments);
 
-        for (int c = 0, count = arguments.Length; c < count; c++)
+        Dictionary<string, object> contexts = new();
+        for (int c = 0, count = parameters.Length; c < count; c++)
         {
             try
             {
-                Contextualize(arguments[c]);
+                contexts.Add(parameters[c].Name.EnsureNonNullable(),
+                    arguments[c].EnsureNonNullable());
             }
             catch (ArgumentNullException)
             {
@@ -267,7 +327,12 @@ public class App
                     $"of type {behaviorType.FullName} did not construct an expected dependency " +
                     $"of type {parameters[c].ParameterType.FullName}.");
             }
+        }
 
+        BehaviorInstance behaviorInstance = new(behavior, contexts);
+        for (int c = 0, count = arguments.Length; c < count; c++)
+        {
+            Contextualize(arguments[c]);
             _contextBehaviors.Add(arguments[c], behaviorInstance);
         }
     }

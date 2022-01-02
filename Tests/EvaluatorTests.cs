@@ -247,7 +247,7 @@ namespace Tests
             evaluator.Initialize();
 
             MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextAName);
+                TestBehaviorA.ContextCName);
 
             Assert.IsEmpty(operations);
         }
@@ -277,7 +277,7 @@ namespace Tests
             evaluator.Initialize();
 
             MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextCName, nameof(TestContextC.Int));
+                TestBehaviorA.ContextCName, nameof(TestContextC.String));
 
             Assert.IsEmpty(operations);
         }

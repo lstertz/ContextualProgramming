@@ -1,3 +1,4 @@
+using ContextualProgramming.Internal;
 using NSubstitute;
 using NUnit.Framework;
 using System.Reflection;
@@ -18,7 +19,7 @@ namespace Tests
         [Test]
         public void Construction_DefaultEvaluator()
         {
-            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, BehaviorAttribute, 
+            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, BehaviorAttribute,
                 DependencyAttribute, OperationAttribute>);
 
             App app = new();
@@ -38,11 +39,27 @@ namespace Tests
         #endregion
 
         #region Contextualization
-        //[Test]
-        //public void Contextualization_BindsForChanges()
-        //{
-            // TODO :: Implement once able to be validated.
-        //}
+        [Test]
+        public void Contextualization_BindsForChanges()
+        {
+            Evaluator evaluator = Substitute.For<Evaluator>();
+            App? app = new(evaluator);
+
+            PrimeEvaluatorForContext<TestContextA>(evaluator);
+
+            app.Initialize();
+
+            TestContextA context = new();
+            context.Int.Value = 10;
+
+            Assert.IsFalse(app.Update()); // Not yet bound, so changes aren't detected.
+
+            app.Contextualize(context);
+
+            context.Int.Value = 11;
+
+            Assert.IsTrue(app.Update());
+        }
 
         [Test]
         public void Contextualization_Contextualizes()
@@ -141,11 +158,23 @@ namespace Tests
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
         }
 
-        //[Test]
-        //public void Decontextualization_UnbindsForChanges()
-        //{
-        // TODO :: Implement once able to be validated.
-        //}
+        [Test]
+        public void Decontextualization_UnbindsForChanges()
+        {
+            Evaluator evaluator = Substitute.For<Evaluator>();
+            App? app = new(evaluator);
+
+            PrimeEvaluatorForContext<TestContextA>(evaluator);
+
+            app.Initialize();
+
+            TestContextA context = new();
+            app.Contextualize(context);
+            app.Decontextualize(context);
+            context.Int.Value = 10;
+
+            Assert.IsFalse(app.Update());
+        }
 
         [Test]
         public void Decontextualization_UninitializedThrowsException()
@@ -153,7 +182,7 @@ namespace Tests
             Evaluator evaluator = Substitute.For<Evaluator>();
             App? app = new(evaluator);
 
-            Assert.Throws<InvalidOperationException>(() => 
+            Assert.Throws<InvalidOperationException>(() =>
                 app.Decontextualize<TestContextA>(new()));
         }
         #endregion
@@ -279,7 +308,7 @@ namespace Tests
         [Test]
         public void Initialization_InstantiatedInitializationBehaviors()
         {
-            App app = SetupStandardApp();
+            App _ = SetupStandardApp();
 
             Assert.AreEqual(1, TestBehaviorA.InstanceCount);
         }
@@ -290,29 +319,202 @@ namespace Tests
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
 
-            Type bType = typeof(TestNullDependencyConstructorBehavior);
-            evaluator.GetInitializationBehaviorTypes().Returns(new Type[] { bType });
-            evaluator.GetBehaviorConstructor(bType).Returns(bType
-                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)[0]);
+            PrimeEvaluatorForBehavior<TestNullDependencyConstructorBehavior>(evaluator);
 
             Assert.Throws<InvalidOperationException>(() => app.Initialize());
         }
         #endregion
 
+        #region Updating
+        [Test]
+        public void Updating_NoChanges_DoesNotInvokeContextChangeOperations()
+        {
+            App app = SetupStandardApp();
+
+            TestContextA? contextA = app.GetContext<TestContextA>();
+            if (contextA == null)
+                throw new NullReferenceException();
+
+            app.Update();
+
+            Assert.AreEqual(0, contextA.OnContextChangeIntValue);
+        }
+        [Test]
+        public void Updating_NoChanges_DoesNotInvokeStateChangeOperations()
+        {
+            App app = SetupStandardApp();
+
+            TestContextA? contextA = app.GetContext<TestContextA>();
+            if (contextA == null)
+                throw new NullReferenceException();
+
+            app.Update();
+
+            Assert.AreEqual(0, contextA.OnStateChangeIntValue);
+        }
+
+        [Test]
+        public void Updating_NoChanges_ReturnsFalse()
+        {
+            App app = SetupStandardApp();
+
+            Assert.IsFalse(app.Update());
+        }
+
+        [Test]
+        public void Updating_WithChanges_ClearsPreviousChanges()
+        {
+            App app = SetupStandardApp();
+
+            TestContextA? contextA = app.GetContext<TestContextA>();
+            if (contextA == null)
+                throw new NullReferenceException();
+
+            contextA.Int.Value = 11;
+
+            app.Update(); // Evaluate Context A's changes, which change Context C.
+            app.Update(); // Evaluate Context C's changes, which result in no new changes.
+
+            Assert.IsFalse(app.Update());
+        }
+
+        [Test]
+        public void Updating_WithChanges_InvokesOnContextChangeOperations()
+        {
+            App app = SetupStandardApp();
+
+            TestContextA? contextA = app.GetContext<TestContextA>();
+            if (contextA == null)
+                throw new NullReferenceException();
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAChange");
+            if (mi == null)
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextAName).Returns(new MethodInfo[] { mi });
+
+            int expectedValue = 11;
+            contextA.Int.Value = expectedValue;
+
+            app.Update(); // Behavior A updates Context A's context change value.
+
+            Assert.AreEqual(expectedValue, contextA.OnContextChangeIntValue);
+        }
+
+        [Test]
+        public void Updating_WithChanges_InvokesOnStateChangeOperations()
+        {
+            App app = SetupStandardApp();
+
+            TestContextA? contextA = app.GetContext<TestContextA>();
+            if (contextA == null)
+                throw new NullReferenceException();
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (mi == null)
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int))
+                .Returns(new MethodInfo[] { mi });
+
+            int expectedValue = 11;
+            contextA.Int.Value = expectedValue;
+
+            app.Update(); // Behavior A updates Context A's state change value.
+
+            Assert.AreEqual(expectedValue, contextA.OnStateChangeIntValue);
+        }
+
+        [Test]
+        public void Updating_WithChanges_RecordsAndInvokesForSubsequentChanges()
+        {
+            App app = SetupStandardApp();
+
+            TestContextA? contextA = app.GetContext<TestContextA>();
+            if (contextA == null)
+                throw new NullReferenceException();
+
+            TestContextC? contextC = app.GetContext<TestContextC>();
+            if (contextC == null)
+                throw new NullReferenceException();
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (mi == null)
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int))
+                .Returns(new MethodInfo[] { mi });
+
+            mi = typeof(TestBehaviorA).GetMethod("OnContextCIntChange");
+            if (mi == null)
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextCName, nameof(TestContextC.Int))
+                .Returns(new MethodInfo[] { mi });
+
+            int expectedValue = 11;
+            contextA.Int.Value = expectedValue;
+
+            app.Update(); // Behavior A propagates Context A's value to Context C.
+            app.Update(); // Behavior A updates Context C's context change value.
+
+            Assert.AreEqual(expectedValue, contextC.OnContextChangeIntValue);
+        }
+
+        [Test]
+        public void Updating_WithChanges_ReturnsTrue()
+        {
+            App app = SetupStandardApp();
+
+            TestContextA? contextA = app.GetContext<TestContextA>();
+            if (contextA == null)
+                throw new NullReferenceException();
+
+            contextA.Int.Value = 11;
+
+            Assert.IsTrue(app.Update());
+        }
+        #endregion
+
+
+        private void PrimeEvaluatorForBehavior<TBehavior>(Evaluator evaluator)
+        {
+            Type type = typeof(TBehavior);
+
+            evaluator.GetInitializationBehaviorTypes().Returns(new Type[] { type });
+            evaluator.GetBehaviorConstructor(type).Returns(type
+                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)[0]);
+        }
+
+        private void PrimeEvaluatorForContext<TContext>(Evaluator evaluator)
+        {
+            Type type = typeof(TContext);
+
+            PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance |
+                BindingFlags.NonPublic | BindingFlags.Public);
+            List<PropertyInfo> bindableProperties = new();
+            for (int c = 0, count = properties.Length; c < count; c++)
+                if (typeof(IBindableState).IsAssignableFrom(properties[c].PropertyType))
+                    bindableProperties.Add(properties[c]);
+
+            evaluator.GetBindableStateInfos(type).Returns(bindableProperties.ToArray());
+            evaluator.IsContextType(type).ReturnsForAnyArgs(true);
+        }
 
         private App SetupStandardApp()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App? app = new(evaluator);
 
-            Type bType = typeof(TestBehaviorA);
-            Type cType = typeof(TestContextA);
-
-            evaluator.GetInitializationBehaviorTypes().Returns(new Type[] { bType });
-            evaluator.GetBehaviorConstructor(bType).Returns(bType
-                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)[0]);
-            evaluator.IsContextType(cType).ReturnsForAnyArgs(true);
-            evaluator.GetBindableStateInfos(cType).Returns(new PropertyInfo[0]);
+            PrimeEvaluatorForContext<TestContextA>(evaluator);
+            PrimeEvaluatorForContext<TestContextC>(evaluator);
+            PrimeEvaluatorForBehavior<TestBehaviorA>(evaluator);
 
             app.Initialize();
             return app;
