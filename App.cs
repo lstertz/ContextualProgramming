@@ -30,6 +30,12 @@ public class App
         public Dictionary<object, string> ContextNames { get; set; }
 
 
+        /// <summary>
+        /// Constructs a new behavior instance to link an instance 
+        /// of a behavior with its contexts.
+        /// </summary>
+        /// <param name="behavior"><see cref="Behavior"/></param>
+        /// <param name="contexts"><see cref="Contexts"/></param>
         public BehaviorInstance(object behavior, Dictionary<string, object> contexts) =>
             (Behavior, Contexts, ContextNames) =
             (behavior.EnsureNonNullable(), contexts, contexts.Flip());
@@ -50,6 +56,12 @@ public class App
         /// </summary>
         public string PropertyName { get; set; }
 
+
+        /// <summary>
+        /// Constructs a new context change to hold details of a changed context.
+        /// </summary>
+        /// <param name="context"><see cref="Context"/></param>
+        /// <param name="propertyName"><see cref="PropertyName"/></param>
         public ContextChange(object context, string propertyName) => (Context, PropertyName) =
             (context.EnsureNonNullable(), propertyName.EnsureNonNullable());
     }
