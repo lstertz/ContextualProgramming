@@ -184,10 +184,7 @@ namespace ContextualProgramming
 
 
         /// <inheritdoc/>
-        public override bool Equals(object? other)
-        {
-            return Equals(other as ContextStateList<T>);
-        }
+        public override bool Equals(object? other) => Equals(other as ContextStateList<T>);
 
         /// <inheritdoc/>
         public bool Equals(ContextStateList<T>? other)
@@ -214,15 +211,9 @@ namespace ContextualProgramming
         }
 
         /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
+        public override int GetHashCode() => base.GetHashCode();
 
         /// <inheritdoc/>
-        public override string? ToString()
-        {
-            return _elements.ToString();
-        }
+        public override string? ToString() => _elements.ToString();
     }
 }

@@ -62,10 +62,7 @@ namespace ContextualProgramming
 
 
         /// <inheritdoc/>
-        public override bool Equals(object? other)
-        {
-            return Equals(other as ContextState<T>);
-        }
+        public override bool Equals(object? other) => Equals(other as ContextState<T>);
 
         /// <inheritdoc/>
         public bool Equals(ContextState<T>? other)
@@ -89,9 +86,6 @@ namespace ContextualProgramming
         }
 
         /// <inheritdoc/>
-        public override string? ToString()
-        {
-            return _value == null ? "" : _value.ToString();
-        }
+        public override string? ToString() => _value == null ? "" : _value.ToString();
     }
 }
