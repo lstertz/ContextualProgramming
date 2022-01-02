@@ -295,8 +295,8 @@ public class App
     /// <summary>
     /// Invokes the provided operation for the provided behavior instance.
     /// </summary>
-    /// <param name="bInstance">The behavior instance that the operation for which 
-    /// the operation is being invoked.</param>
+    /// <param name="bInstance">The behavior instance for which the 
+    /// operation is being invoked.</param>
     /// <param name="operation">The operation to invoke.</param>
     private static void InvokeOperation(BehaviorInstance bInstance, MethodInfo operation)
     {
