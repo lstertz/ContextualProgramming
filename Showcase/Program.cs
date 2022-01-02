@@ -21,6 +21,12 @@ if (initializedContextA != null)
 
 app.Update();
 
+if (initializedContextA != null)
+    initializedContextA.StateList.Add(1);
+
+if (app.Update())
+    Console.WriteLine("State list change was recorded.");
+
 // Validate contextualization of a second context.
 app.Contextualize(new ContextA());
 Console.WriteLine("Contextualized an instance of Context A.");
