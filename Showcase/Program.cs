@@ -19,6 +19,7 @@ ContextA? initializedContextA = app.GetContext<ContextA>();
 if (initializedContextA != null)
     initializedContextA.State.Value = 1;
 
+app.Update();
 
 // Validate contextualization of a second context.
 app.Contextualize(new ContextA());
@@ -41,3 +42,5 @@ else
 
 if (initializedContextA != null)
     initializedContextA.State.Value = 2;
+
+app.Update();
