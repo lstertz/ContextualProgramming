@@ -11,7 +11,7 @@ namespace ContextualProgramming
     /// an object or struct with internal values.</typeparam>
     public class ContextState<T> : IBindableState, IEquatable<ContextState<T>>
     {
-        public static implicit operator ContextState<T>(T? value) => new ContextState<T>(value);
+        public static implicit operator ContextState<T>(T? value) => new(value);
         public static implicit operator T?(ContextState<T> contextState) => contextState._value;
 
         public static bool operator ==(ContextState<T>? a, ContextState<T>? b) => 
@@ -51,21 +51,14 @@ namespace ContextualProgramming
             _value = value;
         }
 
-        /// <inheritdoc/>
-        void IBindableState.Bind(Action onChange)
-        {
-            if (onChange == null)
-                throw new ArgumentNullException($"The binding action cannot be null. " +
-                    $"If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
-
-            _onChange = onChange;
-        }
 
         /// <inheritdoc/>
-        void IBindableState.Unbind()
-        {
-            _onChange = null;
-        }
+        void IBindableState.Bind(Action onChange) => _onChange = onChange ?? 
+            throw new ArgumentNullException($"The binding action cannot be null. " +
+                $"If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
+
+        /// <inheritdoc/>
+        void IBindableState.Unbind() => _onChange = null;
 
 
         /// <inheritdoc/>
