@@ -9,56 +9,66 @@ namespace Tests
         [Test]
         public void Binding_BindStateToNull_ThrowsException()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            ContextState<int> contextState = 10;
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             Assert.Throws<ArgumentNullException>(() =>
-                (contextState as IBindableState)?.Bind(null));
+                (contextStateList as IBindableState)?.Bind(null));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
-        }
-
-        [Test]
-        public void Binding_BoundState_AddWillNotify()
-        {
-            Assert.Ignore();
-
-            bool wasNotified = false;
-
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = 11;
-
-            Assert.IsTrue(wasNotified);
         }
 
         [Test]
         public void Binding_BoundState_AddRangeWillNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = 11;
+            contextStateList.AddRange(new int[] { 12, 13 });
 
             Assert.IsTrue(wasNotified);
         }
 
         [Test]
-        public void Binding_BoundState_ClearWillNotify()
+        public void Binding_BoundState_AddWillNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = 11;
+            contextStateList.Add(12);
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_ClearOfEmptyListWillNotNotify()
+        {
+            bool wasNotified = false;
+
+            ContextStateList<int> contextStateList = Array.Empty<int>();
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextStateList.Clear();
+
+            Assert.IsFalse(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_ClearWillNotify()
+        {
+            bool wasNotified = false;
+
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextStateList.Clear();
 
             Assert.IsTrue(wasNotified);
         }
@@ -66,14 +76,13 @@ namespace Tests
         [Test]
         public void Binding_BoundState_ElementChangeWillNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = 11;
+            contextStateList[0] = 12;
 
             Assert.IsTrue(wasNotified);
         }
@@ -81,14 +90,13 @@ namespace Tests
         [Test]
         public void Binding_BoundState_ElementsChangeWillNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = 11;
+            contextStateList.Elements = new int[] { 12, 13 };
 
             Assert.IsTrue(wasNotified);
         }
@@ -96,14 +104,13 @@ namespace Tests
         [Test]
         public void Binding_BoundState_ElementChangeWillNotify_FromNull()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<string> contextState = new(null);
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            string?[] values = { null, "a" };
+            ContextStateList<string> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = "Test";
+            contextStateList[0] = "b";
 
             Assert.IsTrue(wasNotified);
         }
@@ -111,44 +118,13 @@ namespace Tests
         [Test]
         public void Binding_BoundState_ElementChangeWillNotify_ToNull()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<string> contextState = new("Test");
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            string?[] values = { "a", "b" };
+            ContextStateList<string> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = null;
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void Binding_BoundState_InsertWillNotify()
-        {
-            Assert.Ignore();
-
-            bool wasNotified = false;
-
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = 11;
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void Binding_BoundState_InsertRangeWillNotify()
-        {
-            Assert.Ignore();
-
-            bool wasNotified = false;
-
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = 11;
+            contextStateList[0] = null;
 
             Assert.IsTrue(wasNotified);
         }
@@ -156,15 +132,81 @@ namespace Tests
         [Test]
         public void Binding_BoundState_ElementUnchangedDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = value;
+            contextStateList[0] = 10;
+
+            Assert.IsFalse(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_EmptySetToEmptyDoesNotNotify()
+        {
+            bool wasNotified = false;
+
+            ContextStateList<int> contextStateList = Array.Empty<int>();
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextStateList.Elements = Array.Empty<int>();
+
+            Assert.IsFalse(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_EmptySetToNullDoesNotNotify()
+        {
+            bool wasNotified = false;
+
+            ContextStateList<int> contextStateList = Array.Empty<int>();
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextStateList.Elements = null;
+
+            Assert.IsFalse(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_InsertWillNotify()
+        {
+            bool wasNotified = false;
+
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextStateList.Insert(1, 12);
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_InsertRangeWillNotify()
+        {
+            bool wasNotified = false;
+
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextStateList.InsertRange(1, new int[] {12, 13 });
+
+            Assert.IsTrue(wasNotified);
+        }
+
+        [Test]
+        public void Binding_BoundState_NonRemoveWillNotify()
+        {
+            bool wasNotified = false;
+
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+
+            contextStateList.Remove(12);
 
             Assert.IsFalse(wasNotified);
         }
@@ -172,14 +214,13 @@ namespace Tests
         [Test]
         public void Binding_BoundState_RemoveWillNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = 11;
+            contextStateList.Remove(10);
 
             Assert.IsTrue(wasNotified);
         }
@@ -187,30 +228,27 @@ namespace Tests
         [Test]
         public void Binding_BoundState_RemoveAtWillNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = 11;
+            contextStateList.RemoveAt(0);
 
             Assert.IsTrue(wasNotified);
         }
 
         [Test]
-        public void Binding_BoundState_SizeUnchangedDoesNotNotify()
+        public void Binding_BoundState_RetrievalDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = value;
+            int value = contextStateList[0];
 
             Assert.IsFalse(wasNotified);
         }
@@ -218,16 +256,14 @@ namespace Tests
         [Test]
         public void Binding_ReboundState_ChangeWillNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = false);
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = false);
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
 
-            contextState.Value = 11;
+            contextStateList[0] = 12;
 
             Assert.IsTrue(wasNotified);
         }
@@ -235,16 +271,14 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_AddDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
+            contextStateList.Add(12);
 
             Assert.IsFalse(wasNotified);
         }
@@ -252,16 +286,14 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_AddRangeDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
+            contextStateList.AddRange(new int[] { 12, 13 });
 
             Assert.IsFalse(wasNotified);
         }
@@ -269,16 +301,14 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_ClearDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
+            contextStateList.Clear();
 
             Assert.IsFalse(wasNotified);
         }
@@ -286,16 +316,14 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_ElementChangeDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
+            contextStateList[0] = 12;
 
             Assert.IsFalse(wasNotified);
         }
@@ -303,16 +331,14 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_ElementsChangeDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
+            contextStateList.Elements = new int[] { 12, 13 };
 
             Assert.IsFalse(wasNotified);
         }
@@ -320,16 +346,14 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_InsertDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
+            contextStateList.Insert(1, 12);
 
             Assert.IsFalse(wasNotified);
         }
@@ -337,33 +361,14 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_InsertRangeDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
-
-            Assert.IsFalse(wasNotified);
-        }
-
-        [Test]
-        public void Binding_UnboundState_RemoveDoesNotNotify()
-        {
-            Assert.Ignore();
-
-            bool wasNotified = false;
-
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
-
-            contextState.Value = 11;
+            contextStateList.InsertRange(1, new int[] {12, 13 });
 
             Assert.IsFalse(wasNotified);
         }
@@ -371,16 +376,29 @@ namespace Tests
         [Test]
         public void Binding_UnboundState_RemoveAtDoesNotNotify()
         {
-            Assert.Ignore();
-
             bool wasNotified = false;
 
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
 
-            contextState.Value = 11;
+            contextStateList.RemoveAt(0);
+
+            Assert.IsFalse(wasNotified);
+        }
+
+        [Test]
+        public void Binding_UnboundState_RemoveDoesNotNotify()
+        {
+            bool wasNotified = false;
+
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
+            (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+            (contextStateList as IBindableState)?.Unbind();
+
+            contextStateList.Remove(10);
 
             Assert.IsFalse(wasNotified);
         }
@@ -534,163 +552,159 @@ namespace Tests
         [Test]
         public void ListOperations_Add_ElementIsAdded()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 10, 11, 12 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.Add(12);
 
-            int newValue = 11;
-            contextState.Value = newValue;
-
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
-
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.AreEqual(expected, contextStateList.Elements);
         }
 
         [Test]
         public void ListOperations_AddRange_ElementsAreAdded()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 10, 11, 12, 13 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.AddRange(new[] { 12, 13 });
 
-            int newValue = 11;
-            contextState.Value = newValue;
-
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
-
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.AreEqual(expected, contextStateList.Elements);
         }
 
         [Test]
         public void ListOperations_Clear_ElementsAreRemoved()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.Clear();
 
-            int newValue = 11;
-            contextState.Value = newValue;
+            Assert.AreEqual(Array.Empty<int>(), contextStateList.Elements);
+        }
 
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
+        [Test]
+        public void ListOperations_Getting_ProvidesExpectedElement()
+        {
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.AreEqual(values[0], contextStateList[0]);
+            Assert.AreEqual(values[1], contextStateList[1]);
         }
 
         [Test]
         public void ListOperations_Insert_ElementIsInserted()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 10, 12, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.Insert(1, 12);
 
-            int newValue = 11;
-            contextState.Value = newValue;
+            Assert.AreEqual(expected, contextStateList.Elements);
+        }
 
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
+        [Test]
+        public void ListOperations_Insert_OutOfRangeThrowsException()
+        {
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                contextStateList.Insert(3, 12));
         }
 
         [Test]
         public void ListOperations_InsertRange_ElementsAreInserted()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 10, 12, 13, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.InsertRange(1, new[] { 12, 13 });
 
-            int newValue = 11;
-            contextState.Value = newValue;
+            Assert.AreEqual(expected, contextStateList.Elements);
+        }
 
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
+        [Test]
+        public void ListOperations_InsertRange_OutOfRangeThrowsException()
+        {
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                contextStateList.InsertRange(3, new[] { 12, 13 }));
         }
 
         [Test]
         public void ListOperations_Remove_ElementIsRemoved()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 11 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.Remove(10);
 
-            int newValue = 11;
-            contextState.Value = newValue;
-
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
-
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.AreEqual(expected, contextStateList.Elements);
         }
 
         [Test]
         public void ListOperations_RemoveAt_ElementIsRemoved()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 11 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.RemoveAt(0);
 
-            int newValue = 11;
-            contextState.Value = newValue;
+            Assert.AreEqual(expected, contextStateList.Elements);
+        }
 
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
+        [Test]
+        public void ListOperations_RemoveAt_OutOfRangeThrowsException()
+        {
+            int[] values = { 10, 11 };
+            int[] expected = { 11 };
+            ContextStateList<int> contextStateList = values;
 
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.Throws<ArgumentOutOfRangeException>(() => contextStateList.RemoveAt(4));
         }
 
         [Test]
         public void ListOperations_Setting_ElementSets()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 10, 12 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList[1] = expected[1];
 
-            int newValue = 11;
-            contextState.Value = newValue;
-
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
-
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            Assert.AreEqual(expected, contextStateList.Elements);
         }
 
         [Test]
         public void ListOperations_SettingAll_ElementsAreSet()
         {
-            Assert.Ignore();
+            int[] values = { 10, 11 };
+            int[] expected = { 10, 11, 12 };
+            ContextStateList<int> contextStateList = values;
 
-            int value = 10;
-            ContextState<int> contextState = value;
+            contextStateList.Elements = expected;
 
-            int newValue = 11;
-            contextState.Value = newValue;
+            Assert.AreEqual(expected, contextStateList.Elements);
+        }
 
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
+        [Test]
+        public void ListOperations_SettingAll_NullSetsEmptyList()
+        {
+            int[] values = { 10, 11 };
+            ContextStateList<int> contextStateList = values;
 
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
+            contextStateList.Elements = null;
+
+            Assert.AreEqual(Array.Empty<int>(), contextStateList.Elements);
         }
         #endregion
 
