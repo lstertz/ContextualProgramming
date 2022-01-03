@@ -2,7 +2,7 @@
 The development project of the Contextual Programming SDK (C#), an SDK to enable programming in accordance to the Contextual Programming paradigm.
 Current functionality is limited to behaviors that create their own dependencies (contexts) and perform operations for specified context state changes.
 
-## The Contextual Programming Paradigm##
+## The Contextual Programming Paradigm ##
 A brief in-progress overview:<br>
 <br>
 Contextual Programming is a programming paradigm that focuses on coding from the perspective of 'when'. 
@@ -30,8 +30,7 @@ An instance of 'App' must be created and initialized at runtime. This will resul
 <br>
 Since all contexts are currently only able to be handled by their creating behaviors, 'App.GetContext' must be used for an external system to modify the states of a context.<br>
 <br>
-<br>
-Refer to the Showcase project for an example implementation.
+<b>Refer to the Showcase project for an example implementation.</b>
 
 ## Release ##
 The latest release is 1.0.0 (01/02/2022), avialable on NuGet - https://www.nuget.org/packages/ContextualProgramming/
