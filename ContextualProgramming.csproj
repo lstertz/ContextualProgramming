@@ -5,6 +5,17 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<LangVersion>preview</LangVersion>
+		<Version>1.0.0</Version>
+		<Authors>Lucas Stertz</Authors>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryType>git</RepositoryType>
+		<RepositoryUrl>https://github.com/lstertz/ContextualProgramming</RepositoryUrl>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReleaseNotes>Initial release providing behaviors with self-created dependencies (contexts) and operations invoked in response to value changes.</PackageReleaseNotes>
+		<Description>An SDK for developing in accordance to the Contextual Programming paradigm.</Description>
+		<PackageProjectUrl>https://github.com/lstertz/ContextualProgramming</PackageProjectUrl>
+		<PackageTags>contextual;contextual programming;behaviors;behavior;operations;operation;contexts;context;compositions;composition;dynamic;framework</PackageTags>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -14,6 +25,13 @@
 		<EmbeddedResource Remove="Tests\**" />
 		<None Remove="Showcase\**" />
 		<None Remove="Tests\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="README.md">
+	    <Pack>True</Pack>
+	    <PackagePath>\</PackagePath>
+	  </None>
 	</ItemGroup>
 
 </Project>
