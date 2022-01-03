@@ -7,7 +7,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ContextualProgramming", "Co
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{A0E477D7-609F-4375-B45A-2DE1DA442787}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Showcase", "Showcase\Showcase.csproj", "{4D738C33-6DD5-42F2-9FF4-6B95A0F39946}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Showcase", "Showcase\Showcase.csproj", "{4D738C33-6DD5-42F2-9FF4-6B95A0F39946}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -20,7 +20,6 @@ Global
 		{E3315570-A73E-4F10-9671-C77A615D5462}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E3315570-A73E-4F10-9671-C77A615D5462}.Release|Any CPU.Build.0 = Release|Any CPU
 		{A0E477D7-609F-4375-B45A-2DE1DA442787}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A0E477D7-609F-4375-B45A-2DE1DA442787}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A0E477D7-609F-4375-B45A-2DE1DA442787}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A0E477D7-609F-4375-B45A-2DE1DA442787}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4D738C33-6DD5-42F2-9FF4-6B95A0F39946}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
