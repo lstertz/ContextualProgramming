@@ -1,6 +1,6 @@
-﻿using Tests.Contexts;
+﻿using ContextualProgramming.Showcase.Contexts;
 
-namespace Tests.Behaviors;
+namespace ContextualProgramming.Showcase.Behaviors;
 
 [Behavior]
 [Dependency<ContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextName)]

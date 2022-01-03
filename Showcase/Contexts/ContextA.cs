@@ -1,4 +1,4 @@
-﻿namespace Tests.Contexts;
+﻿namespace ContextualProgramming.Showcase.Contexts;
 
 [Context]
 public class ContextA

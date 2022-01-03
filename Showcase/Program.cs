@@ -1,5 +1,5 @@
 ﻿global using ContextualProgramming;
-using Tests.Contexts;
+using ContextualProgramming.Showcase.Contexts;
 
 
 App app = new();
