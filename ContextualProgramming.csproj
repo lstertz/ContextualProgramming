@@ -16,6 +16,7 @@
 		<PackageProjectUrl>https://github.com/lstertz/ContextualProgramming</PackageProjectUrl>
 		<PackageTags>contextual;contextual programming;behaviors;behavior;operations;operation;contexts;context;compositions;composition;dynamic;framework</PackageTags>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<ItemGroup>
