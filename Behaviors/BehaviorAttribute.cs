@@ -5,7 +5,7 @@
 /// constructs that depend upon and manipulate, through contextual execution, 
 /// the app's contextual state.
 /// </summary>
-[AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = true)]
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
 public abstract class BaseBehaviorAttribute : Attribute
 {
 }
