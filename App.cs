@@ -94,7 +94,8 @@ public class App
 
     /// <summary>
     /// Constructs a new app with the default evaluator, 
-    /// <see cref="Evaluator{TContextAttribute, TBehaviorAttribute, TBaseDependencyAttribute}"/>.
+    /// <see cref="Evaluator{TContextAttribute, TBehaviorAttribute, 
+    /// TBaseDependencyAttribute, TOperationAttribute}"/>.
     /// </summary>
     public App()
     {
