@@ -13,7 +13,7 @@
         /// <param name="value">The value.</param>
         /// <returns>The guaranteed non-null value.</returns>
         /// <exception cref="ArgumentNullException">Thrown if the value is null.</exception>
-        public static T EnsureNonNullable<T>(this T? value) => 
+        public static T EnsureNotNull<T>(this T? value) => 
             value == null ? throw new ArgumentNullException(nameof(value)) : value;
     }
 }
