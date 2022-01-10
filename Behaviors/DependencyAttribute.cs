@@ -95,7 +95,7 @@ public enum Fulfillment
     /// <summary>
     /// The dependency can only be fulfilled by an existing qualifying context.
     /// </summary>
-    //Existing,  // Not currently supported.
+    Existing,
     /// <summary>
     /// The dependency will be fulfilled by an existing qualifying context, if one exists, 
     /// otherwise it is expected to be created by the dependent behavior during its construction.

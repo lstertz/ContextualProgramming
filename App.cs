@@ -331,8 +331,7 @@ public class App
         {
             try
             {
-                contexts.Add(parameters[c].Name.EnsureNotNull(),
-                    arguments[c].EnsureNotNull());
+                contexts.Add(parameters[c].Name.EnsureNotNull(), arguments[c].EnsureNotNull());
             }
             catch (ArgumentNullException)
             {

@@ -72,6 +72,16 @@ public abstract class Evaluator
     public abstract ConstructorInfo GetBehaviorConstructor(Type behaviorType);
 
     /// <summary>
+    /// Provides the dependencies required by the specified behavior for an 
+    /// instance of that behavior to be instantiated.
+    /// </summary>
+    /// <param name="behaviorType">The type of behavior whose required dependencies 
+    /// are to be provided.</param>
+    /// <returns>The types of the specified behavior's required dependencies.
+    /// Duplicates indicate how many of the same type of dependency that is required.</returns>
+    public abstract Type[] GetBehaviorRequiredDependencies(Type behaviorType);
+
+    /// <summary>
     /// Provides the behavior types found by this evaluator.
     /// </summary>
     /// <returns>All types found to be behaviors.</returns>
@@ -150,6 +160,13 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     /// The types of all dependencies of all behavior types.
     /// </summary>
     private readonly Dictionary<Type, Type[]> _behaviorDependencies = new();
+
+    /// <summary>
+    /// The names and their dependency indices for the existing 
+    /// dependencies of all behavior types.
+    /// </summary>
+    private readonly Dictionary<Type, Dictionary<string, int>>
+        _behaviorExistingDependencies = new();
 
     /// <summary>
     /// The names and their dependency indices for the self-created 
@@ -236,6 +253,29 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                 $"by {typeof(TBehaviorAttribute).FullName}.");
 
         return _behaviorConstructors[behaviorType];
+    }
+
+    /// <inheritdoc/>
+    public override Type[] GetBehaviorRequiredDependencies(Type behaviorType)
+    {
+        ValidateInitialization();
+
+        if (!_behaviorExistingDependencies.ContainsKey(behaviorType))
+            throw new ArgumentException($"Behavior dependencies cannot be retrieved " +
+                $"for type {behaviorType.FullName} since it is not a behavior " +
+                $"known to an evaluator with behaviors defined " +
+                $"by {typeof(TBehaviorAttribute).FullName}.");
+
+        Dictionary<string, int> existingDeps = _behaviorExistingDependencies[behaviorType];
+        if (existingDeps.Count == 0)
+            return Array.Empty<Type>();
+
+        Type[] allDependencies = _behaviorDependencies[behaviorType];
+        Type[] requiredDependencies = new Type[existingDeps.Count];
+        foreach (int depIndex in existingDeps.Values)
+            requiredDependencies[depIndex] = allDependencies[depIndex];
+
+        return requiredDependencies;
     }
 
     /// <inheritdoc/>
@@ -353,22 +393,32 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
 
         Type[] depTypes = new Type[attrs.Count()];
         Dictionary<string, int> selfCreatedDeps = new();
+        Dictionary<string, int> existingDeps = new();
 
         int depIndex = 0;
         foreach (TDependencyAttribute attr in attrs)
         {
             Type t = attr.Type;
+            string name = attr.Name;
             if (!_contextTypes.Contains(t))
-                throw new InvalidOperationException($"The dependency named {attr.Name} of type" +
-                    $"{t} for the behavior of type {behaviorType.FullName} is not a context " +
-                    $"known to an evaluator with contexts defined " +
+                throw new InvalidOperationException($"The dependency named {name} of type" +
+                    $"{t.FullName} for the behavior of type {behaviorType.FullName} is not a " +
+                    $"context known to an evaluator with contexts defined " +
                     $"by {typeof(TContextAttribute).FullName}.");
+
+            if (existingDeps.ContainsKey(name) || selfCreatedDeps.ContainsKey(name))
+                throw new InvalidOperationException($"The dependency named {name} of type" +
+                    $"{t.FullName} for the behavior of type {behaviorType.FullName} has the " +
+                    $"same name as another of its behavior's dependencies.");
 
             depTypes[depIndex] = t;
             switch (attr.Fulfillment)
             {
+                case Fulfillment.Existing:
+                    existingDeps.Add(name, depIndex);
+                    break;
                 case Fulfillment.SelfCreated:
-                    selfCreatedDeps.Add(attr.Name, depIndex);
+                    selfCreatedDeps.Add(name, depIndex);
                     break;
                 default:
                     break;
@@ -382,6 +432,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         }
 
         _behaviorDependencies.Add(behaviorType, depTypes);
+        _behaviorExistingDependencies.Add(behaviorType, existingDeps);
         _behaviorSelfCreatedDependencies.Add(behaviorType, selfCreatedDeps);
     }
 
@@ -521,7 +572,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         Dictionary<string, int> selfCreatedDeps, ConstructorInfo constructor)
     {
         ParameterInfo[] parameters = constructor.GetParameters();
-        if (parameters.Length != depTypes.Length)
+        if (parameters.Length != selfCreatedDeps.Count)
             throw new InvalidOperationException($"The default constructor for the behavior " +
                 $"of type {behaviorName} is not valid for its dependencies.");
 
