@@ -75,9 +75,9 @@ public class DependencyAttribute<T> : DependencyAttribute
     /// <summary>
     /// Constructs a new dependency attribute.
     /// </summary>
-    /// <param name="binding"><see cref="DependencyAttribute.Binding"/></param>
-    /// <param name="name"><see cref="DependencyAttribute.Name"/></param>
-    /// <param name="fulfillment"><see cref="DependencyAttribute.Fulfillment"/></param>
+    /// <param name="binding"><see cref="BaseDependencyAttribute.Binding"/></param>
+    /// <param name="name"><see cref="BaseDependencyAttribute.Name"/></param>
+    /// <param name="fulfillment"><see cref="BaseDependencyAttribute.Fulfillment"/></param>
     public DependencyAttribute(Binding binding, Fulfillment fulfillment, 
         string name) : base(binding, fulfillment, name, typeof(T)) { }
 }
@@ -95,7 +95,7 @@ public enum Fulfillment
     /// <summary>
     /// The dependency can only be fulfilled by an existing qualifying context.
     /// </summary>
-    //Existing,  // Not currently supported.
+    Existing,
     /// <summary>
     /// The dependency will be fulfilled by an existing qualifying context, if one exists, 
     /// otherwise it is expected to be created by the dependent behavior during its construction.

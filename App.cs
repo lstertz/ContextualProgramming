@@ -38,7 +38,7 @@ public class App
         /// <param name="contexts"><see cref="Contexts"/></param>
         public BehaviorInstance(object behavior, Dictionary<string, object> contexts) =>
             (Behavior, Contexts, ContextNames) =
-            (behavior.EnsureNonNullable(), contexts, contexts.Flip());
+            (behavior.EnsureNotNull(), contexts, contexts.Flip());
     }
 
     /// <summary>
@@ -63,7 +63,7 @@ public class App
         /// <param name="context"><see cref="Context"/></param>
         /// <param name="propertyName"><see cref="PropertyName"/></param>
         public ContextChange(object context, string propertyName) => (Context, PropertyName) =
-            (context.EnsureNonNullable(), propertyName.EnsureNonNullable());
+            (context.EnsureNotNull(), propertyName.EnsureNotNull());
     }
 
 
@@ -94,7 +94,8 @@ public class App
 
     /// <summary>
     /// Constructs a new app with the default evaluator, 
-    /// <see cref="Evaluator{TContextAttribute, TBehaviorAttribute, TBaseDependencyAttribute}"/>.
+    /// <see cref="Evaluator{TContextAttribute, TBehaviorAttribute, 
+    /// TBaseDependencyAttribute, TOperationAttribute}"/>.
     /// </summary>
     public App()
     {
@@ -304,7 +305,7 @@ public class App
         object[] arguments = new object[parameters.Length];
 
         for (int pco = 0, pcoCount = parameters.Length; pco < pcoCount; pco++)
-            arguments[pco] = bInstance.Contexts[parameters[pco].Name.EnsureNonNullable()];
+            arguments[pco] = bInstance.Contexts[parameters[pco].Name.EnsureNotNull()];
 
         operation.Invoke(bInstance.Behavior, arguments);
     }
@@ -330,8 +331,7 @@ public class App
         {
             try
             {
-                contexts.Add(parameters[c].Name.EnsureNonNullable(),
-                    arguments[c].EnsureNonNullable());
+                contexts.Add(parameters[c].Name.EnsureNotNull(), arguments[c].EnsureNotNull());
             }
             catch (ArgumentNullException)
             {

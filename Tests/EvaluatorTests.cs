@@ -2,69 +2,241 @@ using NUnit.Framework;
 using System.Reflection;
 using Tests.Constructs;
 
-namespace Tests
+namespace EvaluatorTests
 {
-    public class EvaluatorTests
+    #region Shared Constructs
+    public class NonBehavior { }
+
+    public abstract class TDAttribute : BaseDependencyAttribute
     {
-        #region Get Behavior Constructor
+        protected TDAttribute(Binding binding, Fulfillment fulfillment,
+            string name, Type type) : base(binding, fulfillment, name, type) { }
+    }
+    public class TDAttribute<T> : TDAttribute
+    {
+        public TDAttribute(Binding binding, Fulfillment fulfillment,
+            string name) : base(binding, fulfillment, name, typeof(T)) { }
+    }
+    #endregion
+
+    public class GetBehaviorConstructor
+    {
+        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseBehaviorAttribute => new();
+
+        public class DefinedConstructorBehaviorAttribute : BaseBehaviorAttribute { }
+        [DefinedConstructorBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class DefinedConstructorBehavior
+        {
+            public DefinedConstructorBehavior(out TestContextA contextA) => contextA = new();
+        }
+
+        public class DefaultConstructorBehaviorAttribute : BaseBehaviorAttribute { }
+        [DefaultConstructorBehavior]
+        public class DefaultConstructorBehavior { }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA { }
+
+        public class TOAttribute : BaseOperationAttribute { }
+
         [Test]
         public void GetBehaviorConstructor_HasDefinedConstructor()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<DefinedConstructorBehaviorAttribute>();
             evaluator.Initialize();
 
-            ConstructorInfo constructor = evaluator.GetBehaviorConstructor(typeof(TestBehaviorA));
+            ConstructorInfo constructor = evaluator.GetBehaviorConstructor(
+                typeof(DefinedConstructorBehavior));
             Assert.IsNotNull(constructor);
         }
 
         [Test]
         public void GetBehaviorConstructor_HasDefaultConstructor()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<DefaultConstructorBehaviorAttribute>();
             evaluator.Initialize();
 
-            ConstructorInfo constructor = evaluator.GetBehaviorConstructor(typeof(TestBehaviorB));
+            ConstructorInfo constructor = evaluator.GetBehaviorConstructor(
+                typeof(DefaultConstructorBehavior));
             Assert.IsNotNull(constructor);
         }
 
         [Test]
-        public void GetBehaviorConstructor_InvalidBehavior()
+        public void GetBehaviorConstructor_NonBehaviorThrowsException()
         {
-            Evaluator<TCAttribute, UnusedTBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<DefinedConstructorBehaviorAttribute>();
             evaluator.Initialize();
 
             Assert.Throws<ArgumentException>(() =>
-                evaluator.GetBehaviorConstructor(typeof(TestBehaviorA)));
+                evaluator.GetBehaviorConstructor(typeof(NonBehavior)));
         }
 
         [Test]
         public void GetBehaviorConstructor_UninitializedThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<DefinedConstructorBehaviorAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
-                evaluator.GetBehaviorConstructor(typeof(TestBehaviorA)));
+                evaluator.GetBehaviorConstructor(typeof(DefinedConstructorBehavior)));
         }
-        #endregion
+    }
 
-        #region Get Behavior Types
+    public class GetBehaviorRequiredDependencies
+    {
+        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseBehaviorAttribute => new();
+
+        public class ExcludesSelfCreatedDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
+        [ExcludesSelfCreatedDependenciesBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
+        [TD<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, "contextB")]
+        public class ExcludesSelfCreatedDependenciesBehavior
+        {
+            public ExcludesSelfCreatedDependenciesBehavior(out TestContextB contextB) => 
+                contextB = new();
+        }
+
+        public class HasExistingDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasExistingDependenciesBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
+        [TD<TestContextB>(Binding.Unique, Fulfillment.Existing, "contextB")]
+        public class HasExistingDependenciesBehavior { }
+
+        public class IncludesDuplicateExistingDependenciesBehaviorAttribute : 
+            BaseBehaviorAttribute { }
+        [IncludesDuplicateExistingDependenciesBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA1")]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA2")]
+        public class IncludesDuplicateExistingDependenciesBehavior
+        {
+        }
+
+        public class HasNoExistingDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasNoExistingDependenciesBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class HasNoExistingDependenciesBehavior 
+        {
+            public HasNoExistingDependenciesBehavior(out TestContextA contextA) =>
+                contextA = new();
+        }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA { }
+        [TC]
+        public class TestContextB { }
+
+        public class TOAttribute : BaseOperationAttribute { }
+
+        [Test]
+        public void GetBehaviorRequiredDependencies_ExcludesSelfCreatedDependencies()
+        {
+            var evaluator = GetEvaluator<ExcludesSelfCreatedDependenciesBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+                typeof(ExcludesSelfCreatedDependenciesBehavior));
+
+            Assert.AreEqual(1, dependencies.Length);
+            Assert.Contains(typeof(TestContextA), dependencies);
+        }
+
+        [Test]
+        public void GetBehaviorRequiredDependencies_HasExistingDependencies()
+        {
+            var evaluator = GetEvaluator<HasExistingDependenciesBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+                typeof(HasExistingDependenciesBehavior));
+
+            Assert.AreEqual(2, dependencies.Length);
+            Assert.Contains(typeof(TestContextA), dependencies);
+            Assert.Contains(typeof(TestContextB), dependencies);
+        }
+
+        [Test]
+        public void GetBehaviorRequiredDependencies_HasNoExistingDependencies()
+        {
+            var evaluator = GetEvaluator<HasNoExistingDependenciesBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+                typeof(HasNoExistingDependenciesBehavior));
+            Assert.IsEmpty(dependencies);
+        }
+
+        [Test]
+        public void GetBehaviorRequiredDependencies_IncludesDuplicateExistingDependencies()
+        {
+            var evaluator = GetEvaluator<IncludesDuplicateExistingDependenciesBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+                typeof(IncludesDuplicateExistingDependenciesBehavior));
+
+            Assert.AreEqual(2, dependencies.Length);
+            Assert.AreEqual(typeof(TestContextA), dependencies[0]);
+            Assert.AreEqual(typeof(TestContextA), dependencies[1]);
+        }
+
+        [Test]
+        public void GetBehaviorRequiredDependencies_NonBehaviorThrowsException()
+        {
+            var evaluator = GetEvaluator<HasExistingDependenciesBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Assert.Throws<ArgumentException>(() =>
+                evaluator.GetBehaviorRequiredDependencies(typeof(NonBehavior)));
+        }
+
+        [Test]
+        public void GetBehaviorRequiredDependencies_UninitalizedThrowsException()
+        {
+            var evaluator = GetEvaluator<HasExistingDependenciesBehaviorAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.GetBehaviorRequiredDependencies(
+                    typeof(HasExistingDependenciesBehavior)));
+        }
+    }
+
+    public class GetBehaviorTypes
+    {
+        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseBehaviorAttribute => new();
+
+        public class HasBehaviorTypesBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasBehaviorTypesBehavior]
+        public class HasBehaviorTypesBehaviorA { }
+        [HasBehaviorTypesBehavior]
+        public class HasBehaviorTypesBehaviorB { }
+
+        public class HasNoBehaviorTypesBehaviorAttribute : BaseBehaviorAttribute { }
+
+        public class TCAttribute : BaseContextAttribute { }
+        public class TOAttribute : BaseOperationAttribute { }
+
         [Test]
         public void GetBehaviorTypes_HasBehaviorTypes()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasBehaviorTypesBehaviorAttribute>();
             evaluator.Initialize();
 
             Type[] behaviors = evaluator.GetBehaviorTypes();
 
             Assert.AreEqual(2, behaviors.Length);
-            Assert.Contains(typeof(TestBehaviorA), behaviors);
-            Assert.Contains(typeof(TestBehaviorB), behaviors);
+            Assert.Contains(typeof(HasBehaviorTypesBehaviorA), behaviors);
+            Assert.Contains(typeof(HasBehaviorTypesBehaviorB), behaviors);
         }
 
         [Test]
         public void GetBehaviorTypes_HasNoBehaviorTypes()
         {
-            Evaluator<TCAttribute, UnusedTBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasNoBehaviorTypesBehaviorAttribute>();
             evaluator.Initialize();
 
             Assert.IsEmpty(evaluator.GetBehaviorTypes());
@@ -73,33 +245,53 @@ namespace Tests
         [Test]
         public void GetBehaviorTypes_UninitializedThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasBehaviorTypesBehaviorAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.GetBehaviorTypes());
         }
-        #endregion
+    }
 
-        #region Get Bindable State Infos
+    public class GetBindableStateInfos
+    {
+        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseContextAttribute => new();
+
+        public class HasStatesContextAttribute : BaseContextAttribute { }
+        [HasStatesContext]
+        public class HasStatesContext
+        {
+            public ContextState<int> Int { get; init; } = 0;
+        }
+        public class HasNoStatesContextAttribute : BaseContextAttribute { }
+        [HasNoStatesContext]
+
+        public class HasNoStatesContext { }
+
+        public class NonContext { }
+
+        public class TBAttribute : BaseBehaviorAttribute { }
+        public class TOAttribute : BaseOperationAttribute { }
+
         [Test]
         public void GetBindableStateInfos_HasStates()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasStatesContextAttribute>();
             evaluator.Initialize();
 
-            PropertyInfo[] infos = evaluator.GetBindableStateInfos(typeof(TestContextA));
+            PropertyInfo[] infos = evaluator.GetBindableStateInfos(typeof(HasStatesContext));
 
             Assert.AreEqual(1, infos.Length);
-            Assert.AreEqual(nameof(TestContextA.Int), infos[0].Name);
+            Assert.AreEqual(nameof(HasStatesContext.Int), infos[0].Name);
         }
 
         [Test]
         public void GetBindableStateInfos_HasNoStates()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasNoStatesContextAttribute>();
             evaluator.Initialize();
 
-            PropertyInfo[] infos = evaluator.GetBindableStateInfos(typeof(TestContextB));
+            PropertyInfo[] infos = evaluator.GetBindableStateInfos(typeof(HasNoStatesContext));
 
             Assert.IsEmpty(infos);
         }
@@ -107,43 +299,56 @@ namespace Tests
         [Test]
         public void GetBindableStateInfos_NonContext()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasStatesContextAttribute>();
             evaluator.Initialize();
 
             Assert.Throws<ArgumentException>(() =>
-                evaluator.GetBindableStateInfos(typeof(TestNonContext)));
+                evaluator.GetBindableStateInfos(typeof(NonContext)));
         }
 
         [Test]
         public void GetBindableStateInfos_UninitializedThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasStatesContextAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
-                evaluator.GetBindableStateInfos(typeof(TestContextB)));
+                evaluator.GetBindableStateInfos(typeof(HasStatesContext)));
         }
-        #endregion
+    }
 
-        #region Get Context Types
+    public class GetContextTypes
+    {
+        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseContextAttribute => new();
+
+        public class HasContextTypesContextAttribute : BaseContextAttribute { }
+        [HasContextTypesContext]
+        public class HasContextTypesContextA { }
+        [HasContextTypesContext]
+        public class HasContextTypesContextB { }
+
+        public class HasNoContextTypesContextAttribute : BaseContextAttribute { }
+
+        public class TBAttribute : BaseBehaviorAttribute { }
+        public class TOAttribute : BaseOperationAttribute { }
+
         [Test]
         public void GetContextTypes_HasContextTypes()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasContextTypesContextAttribute>();
             evaluator.Initialize();
 
             Type[] contexts = evaluator.GetContextTypes();
 
-            Assert.AreEqual(3, contexts.Length);
-            Assert.Contains(typeof(TestContextA), contexts);
-            Assert.Contains(typeof(TestContextB), contexts);
-            Assert.Contains(typeof(TestContextC), contexts);
+            Assert.AreEqual(2, contexts.Length);
+            Assert.Contains(typeof(HasContextTypesContextA), contexts);
+            Assert.Contains(typeof(HasContextTypesContextB), contexts);
         }
 
         [Test]
         public void GetContextTypes_HasNoContextTypes()
         {
-            Evaluator<UnusedTCAttribute, UnusedTBAttribute, 
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasNoContextTypesContextAttribute>();
             evaluator.Initialize();
 
             Assert.IsEmpty(evaluator.GetContextTypes());
@@ -152,31 +357,68 @@ namespace Tests
         [Test]
         public void GetContextTypes_UninitializedThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasContextTypesContextAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.GetContextTypes());
         }
-        #endregion
+    }
 
-        #region Get Initialization Behavior Types
+    public class GetInitializationBehaviorTypes
+    {
+        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseBehaviorAttribute => new();
+
+        public class ExcludesBehaviorsWithExistingDependenciesAttribute : BaseBehaviorAttribute { }
+        [ExcludesBehaviorsWithExistingDependencies]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
+        public class ExcludesBehaviorsWithExistingDependencies { }
+
+        public class HasBehaviorsBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasBehaviorsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class HasBehaviorsBehaviorA
+        {
+            public HasBehaviorsBehaviorA(out TestContextA contextA) => contextA = new();
+        }
+        [HasBehaviorsBehavior]
+        public class HasBehaviorsBehaviorB { }
+
+        public class HasNoBehaviorsBehaviorAttribute : BaseBehaviorAttribute { }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA { }
+
+        public class TOAttribute : BaseOperationAttribute { }
+
+        [Test]
+        public void GetInitializationBehaviorTypes_ExcludesBehaviorsWithExistingDependencies()
+        {
+            var evaluator = GetEvaluator<ExcludesBehaviorsWithExistingDependenciesAttribute>();
+            evaluator.Initialize();
+
+            Type[] behaviors = evaluator.GetInitializationBehaviorTypes();
+            Assert.IsEmpty(behaviors);
+        }
+
         [Test]
         public void GetInitializationBehaviorTypes_HasBehaviors()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasBehaviorsBehaviorAttribute>();
             evaluator.Initialize();
 
             Type[] behaviors = evaluator.GetInitializationBehaviorTypes();
 
             Assert.AreEqual(2, behaviors.Length);
-            Assert.Contains(typeof(TestBehaviorA), behaviors);
-            Assert.Contains(typeof(TestBehaviorB), behaviors);
+            Assert.Contains(typeof(HasBehaviorsBehaviorA), behaviors);
+            Assert.Contains(typeof(HasBehaviorsBehaviorB), behaviors);
         }
 
         [Test]
         public void GetInitializationBehaviorTypes_HasNoBehaviors()
         {
-            Evaluator<TCAttribute, UnusedTBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasNoBehaviorsBehaviorAttribute>();
             evaluator.Initialize();
 
             Assert.IsEmpty(evaluator.GetInitializationBehaviorTypes());
@@ -185,33 +427,62 @@ namespace Tests
         [Test]
         public void GetInitializationBehaviorTypes_UninitializedThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasBehaviorsBehaviorAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.GetInitializationBehaviorTypes());
         }
-        #endregion
+    }
 
-        #region Get On Change Operations
-        [Test]
-        public void GetOnChangeOperations_InvalidBehaviorThrowsException()
+    public class GetOnChangeOperations
+    {
+        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseBehaviorAttribute => new();
+
+        public class HasNoOperationsBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasNoOperationsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        public class HasNoOperationsBehavior
         {
-            Evaluator<TCAttribute, UnusedTBAttribute, TDAttribute, TOAttribute> evaluator = new();
-            evaluator.Initialize();
+            public const string ContextA = "contextA";
 
-            Assert.Throws<ArgumentException>(() =>
-                evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                    TestBehaviorA.ContextAName));
+            public HasNoOperationsBehavior(out TestContextA contextA) => contextA = new();
         }
+        public class HasOperationsBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasOperationsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        public class HasOperationsBehavior
+        {
+            public const string ContextA = "contextA";
+
+            public HasOperationsBehavior(out TestContextA contextA) => contextA = new();
+
+            [TO]
+            [OnChange(ContextA)]
+            public void OnContextAChange(TestContextA contextA) { }
+
+            [TO]
+            [OnChange(ContextA, nameof(TestContextA.Int))]
+            private void OnContextAIntChange(TestContextA contextA) { }
+        }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA
+        {
+            public ContextState<int> Int { get; init; } = 0;
+        }
+
+        public class TOAttribute : BaseOperationAttribute { }
 
         [Test]
         public void GetOnChangeOperations_InvalidContextProvidesNoOperations()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
             evaluator.Initialize();
 
-            MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                "InvalidContextName");
+            MethodInfo[] operations = evaluator.GetOnChangeOperations(
+                typeof(HasOperationsBehavior), "invalidContextName");
 
             Assert.IsEmpty(operations);
         }
@@ -219,35 +490,45 @@ namespace Tests
         [Test]
         public void GetOnChangeOperations_InvalidStateProvidesNoOperations()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
             evaluator.Initialize();
 
-            MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextBName, "InvalidStateName");
+            MethodInfo[] operations = evaluator.GetOnChangeOperations(
+                typeof(HasOperationsBehavior), HasOperationsBehavior.ContextA, "invalidState");
 
             Assert.IsEmpty(operations);
         }
 
         [Test]
+        public void GetOnChangeOperations_NonBehaviorThrowsException()
+        {
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Assert.Throws<ArgumentException>(() =>
+                evaluator.GetOnChangeOperations(typeof(NonBehavior), "contextName"));
+        }
+
+        [Test]
         public void GetOnChangeOperations_NullContextThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
             evaluator.Initialize();
 
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             Assert.Throws<ArgumentNullException>(() =>
-                evaluator.GetOnChangeOperations(typeof(TestBehaviorA), null));
+                evaluator.GetOnChangeOperations(typeof(HasOperationsBehavior), null));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
         }
 
         [Test]
         public void GetOnChangeOperations_ProvidesContextOnChangeOperations_HasNoOperations()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasNoOperationsBehaviorAttribute>();
             evaluator.Initialize();
 
-            MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextCName);
+            MethodInfo[] operations = evaluator.GetOnChangeOperations(
+                typeof(HasNoOperationsBehavior), HasNoOperationsBehavior.ContextA);
 
             Assert.IsEmpty(operations);
         }
@@ -255,16 +536,17 @@ namespace Tests
         [Test]
         public void GetOnChangeOperations_ProvidesContextOnChangeOperations_HasOperations()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
             evaluator.Initialize();
 
             MethodInfo?[] expectedOperations = new MethodInfo?[]
             {
-                typeof(TestBehaviorA).GetMethod(nameof(TestBehaviorA.OnContextBChange)),
+                    typeof(HasOperationsBehavior).GetMethod(
+                        nameof(HasOperationsBehavior.OnContextAChange)),
             };
 
-            MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextBName);
+            MethodInfo[] operations = evaluator.GetOnChangeOperations(
+                typeof(HasOperationsBehavior), HasOperationsBehavior.ContextA);
 
             Assert.AreEqual(expectedOperations.Length, operations.Length);
             Assert.Contains(expectedOperations[0], operations);
@@ -273,11 +555,12 @@ namespace Tests
         [Test]
         public void GetOnChangeOperations_ProvidesStateOnChangeOperations_HasNoOperations()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasNoOperationsBehaviorAttribute>();
             evaluator.Initialize();
 
-            MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextCName, nameof(TestContextC.String));
+            MethodInfo[] operations = evaluator.GetOnChangeOperations(
+                typeof(HasNoOperationsBehavior),
+                HasNoOperationsBehavior.ContextA, nameof(TestContextA.Int));
 
             Assert.IsEmpty(operations);
         }
@@ -285,17 +568,18 @@ namespace Tests
         [Test]
         public void GetOnChangeOperations_ProvidesStateOnChangeOperations_HasOperations()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
             evaluator.Initialize();
 
             MethodInfo?[] expectedOperations = new MethodInfo?[]
             {
-                typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
-                BindingFlags.Instance | BindingFlags.NonPublic)
+                    typeof(HasOperationsBehavior).GetMethod("OnContextAIntChange",
+                        BindingFlags.Instance | BindingFlags.NonPublic)
             };
 
-            MethodInfo[] operations = evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+            MethodInfo[] operations = evaluator.GetOnChangeOperations(
+                typeof(HasOperationsBehavior), HasOperationsBehavior.ContextA,
+                nameof(TestContextA.Int));
 
             Assert.AreEqual(expectedOperations.Length, operations.Length);
             Assert.Contains(expectedOperations[0], operations);
@@ -305,20 +589,162 @@ namespace Tests
         [Test]
         public void GetOnChangeOperations_UninitializedThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
-                evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                    TestBehaviorA.ContextAName));
+                evaluator.GetOnChangeOperations(typeof(HasOperationsBehavior),
+                    HasOperationsBehavior.ContextA));
         }
-        #endregion
+    }
 
-        #region Initialization
+    public class Initialization
+    {
+        public static Evaluator<TCAttribute, T1, TDAttribute, T2> GetEvaluator<T1, T2>()
+            where T1 : BaseBehaviorAttribute where T2 : BaseOperationAttribute => new();
+
+        public class InvalidDuplicateDependencyNamesBehaviorAttribute : BaseBehaviorAttribute { }
+        [InvalidDuplicateDependencyNamesBehavior]
+        [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "context")]
+        [TDAttribute<TestContextB>(Binding.Unique, Fulfillment.Existing, "context")]
+        public class InvalidDuplicateDependencyNamesBehavior
+        {
+            protected InvalidDuplicateDependencyNamesBehavior(out TestContextA context) => 
+                context = new();
+        }
+
+        public class InvalidExistingDependencyConstructorBehaviorAttribute : 
+            BaseBehaviorAttribute { }
+        [InvalidExistingDependencyConstructorBehavior]
+        [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        [TDAttribute<TestContextB>(Binding.Unique, Fulfillment.Existing, "contextB")]
+        public class InvalidExistingDependencyConstructorBehavior
+        {
+            protected InvalidExistingDependencyConstructorBehavior(
+                out TestContextA contextA, out TestContextB contextB)
+            {
+                contextA = new();
+                contextB = new();
+            }
+        }
+
+        public class InvalidOperationsBehaviorAttribute : BaseBehaviorAttribute { }
+        [InvalidOperationsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        public class InvalidOperationsBehavior
+        {
+            public const string ContextA = "contextA";
+
+            public InvalidOperationsBehavior(out TestContextA contextA) => contextA = new();
+
+            [InvalidOperationContextNameOperation]
+            public void InvalidOperaitonContextNameOperation(TestContextA a) { }
+
+            [InvalidOperationContextTypeOperation]
+            public void InvalidOperationContextTypeOperation(TestContextB contextA) { }
+
+            [InvalidOnChangeContextOperation]
+            [OnChange("a")]
+            public void InvalidOnChangeContextOperation(TestContextA contextA) { }
+
+            [InvalidOnChangeStateOperation]
+            [OnChange(ContextA, "InvalidState")]
+            public void InvalidOnChangeStateOperation(TestContextA contextA) { }
+        }
+
+        public class TOAttribute : BaseOperationAttribute { }
+        public class InvalidOnChangeContextOperationAttribute : BaseOperationAttribute { }
+        public class InvalidOnChangeStateOperationAttribute : BaseOperationAttribute { }
+        public class InvalidOperationContextNameOperationAttribute : BaseOperationAttribute { }
+        public class InvalidOperationContextTypeOperationAttribute : BaseOperationAttribute { }
+
+        public class InvalidParamCountConstructorBehaviorAttribute : BaseBehaviorAttribute { }
+        [InvalidParamCountConstructorBehavior]
+        [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class InvalidParamCountConstructorBehavior
+        {
+            protected InvalidParamCountConstructorBehavior(
+                out TestContextA contextA, out TestContextB contextB)
+            {
+                contextA = new();
+                contextB = new();
+            }
+        }
+
+        public class InvalidParamNameConstructorBehaviorAttribute : BaseBehaviorAttribute { }
+        [InvalidParamNameConstructorBehavior]
+        [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class InvalidParamNameConstructorBehavior
+        {
+            protected InvalidParamNameConstructorBehavior(out TestContextA a) => a = new();
+        }
+
+        public class InvalidParamTypeConstructorBehaviorAttribute : BaseBehaviorAttribute { }
+        [InvalidParamTypeConstructorBehavior]
+        [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class InvalidParamTypeConstructorBehavior
+        {
+            protected InvalidParamTypeConstructorBehavior(out TestContextB contextA) =>
+                contextA = new();
+        }
+
+        public class MissingConstructorBehaviorAttribute : BaseBehaviorAttribute { }
+        [MissingConstructorBehavior]
+        [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class MissingConstructorBehavior { }
+
+        public class NonContextDependencyBehaviorAttribute : BaseBehaviorAttribute { }
+        [NonContextDependencyBehavior]
+        [TD<NonContext>(Binding.Unique, Fulfillment.SelfCreated, "nonContext")]
+        public class NonContextDependencyBehavior
+        {
+            public NonContextDependencyBehavior(out NonContext nonContext) =>
+                nonContext = new();
+        }
+
+        public class NonOutParamBehaviorAttribute : BaseBehaviorAttribute { }
+        [NonOutParamBehavior]
+        [TDAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class NonOutParamBehavior
+        {
+            public NonOutParamBehavior(TestContextA contextA) => contextA = new();
+        }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA
+        {
+            public ContextState<int> Int { get; init; } = 0;
+        }
+        [TC]
+        public class TestContextB { }
+
+        public class NonContext { }
+
+        [Test]
+        public void Initialization_InvalidDuplicateDependencyNames()
+        {
+            var evaluator = GetEvaluator<InvalidDuplicateDependencyNamesBehaviorAttribute,
+                TOAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
+        [Test]
+        public void Initialization_InvalidExistingDependencyConstructor()
+        {
+            var evaluator = GetEvaluator<InvalidExistingDependencyConstructorBehaviorAttribute,
+                TOAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
         [Test]
         public void Initialization_InvalidOnChangeContext()
         {
-            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
-                TDAttribute, TOInvalidOnChangeContextAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidOperationsBehaviorAttribute,
+                InvalidOnChangeContextOperationAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -327,8 +753,8 @@ namespace Tests
         [Test]
         public void Initialization_InvalidOnChangeState()
         {
-            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
-                TDAttribute, TOInvalidOnChangeStateAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidOperationsBehaviorAttribute,
+                InvalidOnChangeStateOperationAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -337,8 +763,8 @@ namespace Tests
         [Test]
         public void Initialization_InvalidOperationContextName()
         {
-            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
-                TDAttribute, TOInvalidContextNameAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidOperationsBehaviorAttribute,
+                InvalidOperationContextNameOperationAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -347,18 +773,8 @@ namespace Tests
         [Test]
         public void Initialization_InvalidOperationContextType()
         {
-            Evaluator<TCAttribute, TBInvalidOperationsAttribute,
-                TDAttribute, TOInvalidContextTypeAttribute> evaluator = new();
-
-            Assert.Throws<InvalidOperationException>(() =>
-                evaluator.Initialize());
-        }
-
-        [Test]
-        public void Initialization_InvalidDependencyBehavior()
-        {
-            Evaluator<TCAttribute, TBNonContextDependencyAttribute, 
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidOperationsBehaviorAttribute,
+                InvalidOperationContextTypeOperationAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -367,8 +783,8 @@ namespace Tests
         [Test]
         public void Initialization_InvalidParameterCountConstructor()
         {
-            Evaluator<TCAttribute, TBInvalidParameterCountConstructorAttribute, 
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidParamCountConstructorBehaviorAttribute,
+                TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -377,8 +793,8 @@ namespace Tests
         [Test]
         public void Initialization_InvalidParameterNameConstructor()
         {
-            Evaluator<TCAttribute, TBInvalidParameterNameConstructorAttribute, 
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidParamNameConstructorBehaviorAttribute,
+                TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -387,8 +803,8 @@ namespace Tests
         [Test]
         public void Initialization_InvalidParameterTypeConstructor()
         {
-            Evaluator<TCAttribute, TBInvalidParameterTypeConstructorAttribute, 
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidParamTypeConstructorBehaviorAttribute,
+                TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -397,8 +813,7 @@ namespace Tests
         [Test]
         public void Initialization_MissingConstructor()
         {
-            Evaluator<TCAttribute, TBMissingConstructorAttribute, 
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<MissingConstructorBehaviorAttribute, TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -407,8 +822,7 @@ namespace Tests
         [Test]
         public void Initialization_NonContextDependency()
         {
-            Evaluator<TCAttribute, TBNonContextDependencyAttribute, 
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<NonContextDependencyBehaviorAttribute, TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -417,41 +831,54 @@ namespace Tests
         [Test]
         public void Initialization_NonOutParameterConstructor()
         {
-            Evaluator<TCAttribute, TBNonOutParameterConstructorAttribute, 
+            Evaluator<TCAttribute, TBNonOutParameterConstructorAttribute,
                 TDAttribute, TOAttribute> evaluator = new();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
         }
-        #endregion
+    }
 
-        #region Is Context Type
+    public class IsContextType
+    {
+        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseContextAttribute => new();
+
+        public class InvalidContextTypeContextAttribute : BaseContextAttribute { }
+        public class NonContext { }
+
+        public class ValidContextTypeContextAttribute : BaseContextAttribute { }
+        [ValidContextTypeContext]
+        public class ValidContextTypeContext { }
+
+
+        public class TBAttribute : BaseBehaviorAttribute { }
+        public class TOAttribute : BaseOperationAttribute { }
         [Test]
         public void IsContextType_InvalidContextType()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<InvalidContextTypeContextAttribute>();
             evaluator.Initialize();
 
-            Assert.IsFalse(evaluator.IsContextType(typeof(TestNonContext)));
+            Assert.IsFalse(evaluator.IsContextType(typeof(NonContext)));
         }
 
         [Test]
         public void IsContextType_ValidContextType()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<ValidContextTypeContextAttribute>();
             evaluator.Initialize();
 
-            Assert.IsTrue(evaluator.IsContextType(typeof(TestContextA)));
+            Assert.IsTrue(evaluator.IsContextType(typeof(ValidContextTypeContext)));
         }
 
         [Test]
         public void IsContextType_UninitializedThrowsException()
         {
-            Evaluator<TCAttribute, TBAttribute, TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = GetEvaluator<ValidContextTypeContextAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
-                evaluator.IsContextType(typeof(TestContextA)));
+                evaluator.IsContextType(typeof(ValidContextTypeContext)));
         }
-        #endregion
     }
 }
