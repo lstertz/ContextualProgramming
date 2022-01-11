@@ -168,7 +168,7 @@ public class App
         Type type = context.GetType();
         if (!Evaluator.IsContextType(type))
             throw new InvalidOperationException($"The provided instance, {context}, " +
-                $"of type {type.FullName} cannot be contextualized as it is not a Context.");
+                $"of type {type.FullName} cannot be contextualized as it is not a context.");
 
         if (!_contexts.ContainsKey(type))
             _contexts.Add(type, new());
@@ -197,16 +197,18 @@ public class App
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
+        Type type = typeof(T);
         if (!_contexts.ContainsKey(typeof(T)))
-            return;
+            throw new InvalidOperationException($"The provided instance, {context}, " +
+                $"of type {type.FullName} cannot be decontextualized as it is not a context.");
 
         PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(context.GetType());
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
             (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
 
-        _contexts[typeof(T)].Remove(context);
-        if (_contexts[typeof(T)].Count == 0)
-            _contexts.Remove(typeof(T));
+        _contexts[type].Remove(context);
+        if (_contexts[type].Count == 0)
+            _contexts.Remove(type);
 
         if (_contextBehaviors.ContainsKey(context))
         {
