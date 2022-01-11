@@ -1,6 +1,5 @@
 using NUnit.Framework;
 using System.Reflection;
-using Tests.Constructs;
 
 namespace EvaluatorTests
 {
@@ -833,7 +832,7 @@ namespace EvaluatorTests
         [Test]
         public void NonOutParameterConstructor()
         {
-            Evaluator<TCAttribute, TBNonOutParameterConstructorAttribute,
+            Evaluator<TCAttribute, NonOutParamBehaviorAttribute,
                 TDAttribute, TOAttribute> evaluator = new();
 
             Assert.Throws<InvalidOperationException>(() =>
