@@ -90,27 +90,36 @@ namespace EvaluatorTests
 
         public class ExcludesSelfCreatedDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
         [ExcludesSelfCreatedDependenciesBehavior]
-        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
-        [TD<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, "contextB")]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep1Name)]
+        [TD<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, Dep2Name)]
         public class ExcludesSelfCreatedDependenciesBehavior
         {
+            public const string Dep1Name = "contextA";
+            public const string Dep2Name = "contextB";
+
             public ExcludesSelfCreatedDependenciesBehavior(out TestContextB contextB) => 
                 contextB = new();
         }
 
         public class HasExistingDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
         [HasExistingDependenciesBehavior]
-        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
-        [TD<TestContextB>(Binding.Unique, Fulfillment.Existing, "contextB")]
-        public class HasExistingDependenciesBehavior { }
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep1Name)]
+        [TD<TestContextB>(Binding.Unique, Fulfillment.Existing, Dep2Name)]
+        public class HasExistingDependenciesBehavior
+        {
+            public const string Dep1Name = "contextA";
+            public const string Dep2Name = "contextB";
+        }
 
         public class IncludesDuplicateExistingDependenciesBehaviorAttribute : 
             BaseBehaviorAttribute { }
         [IncludesDuplicateExistingDependenciesBehavior]
-        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA1")]
-        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA2")]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep1Name)]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep2Name)]
         public class IncludesDuplicateExistingDependenciesBehavior
         {
+            public const string Dep1Name = "contextA1";
+            public const string Dep2Name = "contextA2";
         }
 
         public class HasNoExistingDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
@@ -136,11 +145,13 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<ExcludesSelfCreatedDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
                 typeof(ExcludesSelfCreatedDependenciesBehavior));
 
             Assert.AreEqual(1, dependencies.Length);
-            Assert.Contains(typeof(TestContextA), dependencies);
+            Assert.AreEqual(ExcludesSelfCreatedDependenciesBehavior.Dep1Name, 
+                dependencies[0].Item1);
+            Assert.AreEqual(typeof(TestContextA), dependencies[0].Item2);
         }
 
         [Test]
@@ -149,12 +160,14 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasExistingDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
                 typeof(HasExistingDependenciesBehavior));
-
+            
             Assert.AreEqual(2, dependencies.Length);
-            Assert.Contains(typeof(TestContextA), dependencies);
-            Assert.Contains(typeof(TestContextB), dependencies);
+            Assert.AreEqual(HasExistingDependenciesBehavior.Dep1Name, dependencies[0].Item1);
+            Assert.AreEqual(typeof(TestContextA), dependencies[0].Item2);
+            Assert.AreEqual(HasExistingDependenciesBehavior.Dep2Name, dependencies[1].Item1);
+            Assert.AreEqual(typeof(TestContextB), dependencies[1].Item2);
         }
 
         [Test]
@@ -163,7 +176,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasNoExistingDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
                 typeof(HasNoExistingDependenciesBehavior));
             Assert.IsEmpty(dependencies);
         }
@@ -174,12 +187,16 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<IncludesDuplicateExistingDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
                 typeof(IncludesDuplicateExistingDependenciesBehavior));
 
             Assert.AreEqual(2, dependencies.Length);
-            Assert.AreEqual(typeof(TestContextA), dependencies[0]);
-            Assert.AreEqual(typeof(TestContextA), dependencies[1]);
+            Assert.AreEqual(IncludesDuplicateExistingDependenciesBehavior.Dep1Name, 
+                dependencies[0].Item1);
+            Assert.AreEqual(typeof(TestContextA), dependencies[0].Item2);
+            Assert.AreEqual(IncludesDuplicateExistingDependenciesBehavior.Dep2Name, 
+                dependencies[1].Item1);
+            Assert.AreEqual(typeof(TestContextA), dependencies[1].Item2);
         }
 
         [Test]
@@ -360,78 +377,6 @@ namespace EvaluatorTests
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.GetContextTypes());
-        }
-    }
-
-    public class GetInitializationBehaviorTypes
-    {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
-            where T : BaseBehaviorAttribute => new();
-
-        public class ExcludesBehaviorsWithExistingDependenciesBehaviorAttribute : 
-            BaseBehaviorAttribute { }
-        [ExcludesBehaviorsWithExistingDependenciesBehavior]
-        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
-        public class ExcludesBehaviorsWithExistingDependenciesBehavior { }
-
-        public class HasBehaviorsBehaviorAttribute : BaseBehaviorAttribute { }
-        [HasBehaviorsBehavior]
-        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
-        public class HasBehaviorsBehaviorA
-        {
-            public HasBehaviorsBehaviorA(out TestContextA contextA) => contextA = new();
-        }
-        [HasBehaviorsBehavior]
-        public class HasBehaviorsBehaviorB { }
-
-        public class HasNoBehaviorsBehaviorAttribute : BaseBehaviorAttribute { }
-
-        public class TCAttribute : BaseContextAttribute { }
-        [TC]
-        public class TestContextA { }
-
-        public class TOAttribute : BaseOperationAttribute { }
-
-        [Test]
-        public void ExcludesBehaviorsWithExistingDependencies()
-        {
-            var evaluator = 
-                GetEvaluator<ExcludesBehaviorsWithExistingDependenciesBehaviorAttribute>();
-            evaluator.Initialize();
-
-            Type[] behaviors = evaluator.GetInitializationBehaviorTypes();
-            Assert.IsEmpty(behaviors);
-        }
-
-        [Test]
-        public void HasBehaviors()
-        {
-            var evaluator = GetEvaluator<HasBehaviorsBehaviorAttribute>();
-            evaluator.Initialize();
-
-            Type[] behaviors = evaluator.GetInitializationBehaviorTypes();
-
-            Assert.AreEqual(2, behaviors.Length);
-            Assert.Contains(typeof(HasBehaviorsBehaviorA), behaviors);
-            Assert.Contains(typeof(HasBehaviorsBehaviorB), behaviors);
-        }
-
-        [Test]
-        public void HasNoBehaviors()
-        {
-            var evaluator = GetEvaluator<HasNoBehaviorsBehaviorAttribute>();
-            evaluator.Initialize();
-
-            Assert.IsEmpty(evaluator.GetInitializationBehaviorTypes());
-        }
-
-        [Test]
-        public void UninitializedThrowsException()
-        {
-            var evaluator = GetEvaluator<HasBehaviorsBehaviorAttribute>();
-
-            Assert.Throws<InvalidOperationException>(() =>
-                evaluator.GetInitializationBehaviorTypes());
         }
     }
 

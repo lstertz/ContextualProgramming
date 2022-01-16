@@ -77,9 +77,8 @@ public abstract class Evaluator
     /// </summary>
     /// <param name="behaviorType">The type of behavior whose required dependencies 
     /// are to be provided.</param>
-    /// <returns>The types of the specified behavior's required dependencies.
-    /// Duplicates indicate how many of the same type of dependency that is required.</returns>
-    public abstract Type[] GetBehaviorRequiredDependencies(Type behaviorType);
+    /// <returns>The names and types of the specified behavior's required dependencies.</returns>
+    public abstract Tuple<string, Type>[] GetBehaviorRequiredDependencies(Type behaviorType);
 
     /// <summary>
     /// Provides the behavior types found by this evaluator.
@@ -103,14 +102,6 @@ public abstract class Evaluator
     /// </summary>
     /// <returns>All types found to be contexts.</returns>
     public abstract Type[] GetContextTypes();
-
-    /// <summary>
-    /// Provides the behavior types of behaviors that can instantiate without 
-    /// any required dependencies, as found by this evaluator.
-    /// </summary>
-    /// <returns>All behavior types found to be behaviors that can be 
-    /// instantiated without any required dependencies.</returns>
-    public abstract Type[] GetInitializationBehaviorTypes();
 
     /// <summary>
     /// Provides the operations of the specified behavior type that should 
@@ -187,19 +178,9 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     private readonly Dictionary<Type, PropertyInfo[]> _contextBindableProperties = new();
 
     /// <summary>
-    /// A mapping of context types to the behavior types that depend upon them.
-    /// </summary>
-    private readonly Dictionary<Type, List<Type>> _contextTypesToBehaviorTypes = new();
-
-    /// <summary>
     /// All found context types.
     /// </summary>
     private readonly HashSet<Type> _contextTypes = new();
-
-    /// <summary>
-    /// All found initializaiton behaviors.
-    /// </summary>
-    private Type[] _initializationBehaviors = Array.Empty<Type>();
 
     /// <summary>
     /// All found operations that should be invoked upon a context change.
@@ -222,8 +203,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                     CacheOperations(types[c]);
                 }
         }
-
-        CacheInitializationBehaviorTypes();
     }
 
     /// <inheritdoc/>
@@ -256,7 +235,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     }
 
     /// <inheritdoc/>
-    public override Type[] GetBehaviorRequiredDependencies(Type behaviorType)
+    public override Tuple<string, Type>[] GetBehaviorRequiredDependencies(Type behaviorType)
     {
         ValidateInitialization();
 
@@ -268,12 +247,17 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
 
         Dictionary<string, int> existingDeps = _behaviorExistingDependencies[behaviorType];
         if (existingDeps.Count == 0)
-            return Array.Empty<Type>();
+            return Array.Empty<Tuple<string, Type>>();
 
         Type[] allDependencies = _behaviorDependencies[behaviorType];
-        Type[] requiredDependencies = new Type[existingDeps.Count];
-        foreach (int depIndex in existingDeps.Values)
-            requiredDependencies[depIndex] = allDependencies[depIndex];
+        Tuple<string, Type>[] requiredDependencies = new Tuple<string, Type>[existingDeps.Count];
+
+        int c = 0;
+        foreach (string depName in existingDeps.Keys)
+        {
+            requiredDependencies[c] = new(depName, allDependencies[existingDeps[depName]]);
+            c++;
+        }
 
         return requiredDependencies;
     }
@@ -306,14 +290,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         ValidateInitialization();
 
         return _contextTypes.ToArray();
-    }
-
-    /// <inheritdoc/>
-    public override Type[] GetInitializationBehaviorTypes()
-    {
-        ValidateInitialization();
-
-        return _initializationBehaviors;
     }
 
     /// <inheritdoc/>
@@ -424,10 +400,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                     break;
             }
 
-            List<Type> dependents = _contextTypesToBehaviorTypes.GetValueOrDefault(t, new());
-            if (!dependents.Contains(behaviorType))
-                dependents.Add(behaviorType);
-
             depIndex++;
         }
 
@@ -490,20 +462,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
             _contextTypes.Add(type);
         }
         return false;
-    }
-
-    /// <summary>
-    /// Determines and caches the behavior types of initialization behaviors.
-    /// </summary>
-    private void CacheInitializationBehaviorTypes()
-    {
-        List<Type> initializationBehaviors = new();
-        foreach (Type behaviorType in _behaviorSelfCreatedDependencies.Keys)
-            if (_behaviorSelfCreatedDependencies[behaviorType].Count ==
-                _behaviorDependencies[behaviorType].Length)
-                initializationBehaviors.Add(behaviorType);
-
-        _initializationBehaviors = initializationBehaviors.ToArray();
     }
 
     /// <summary>

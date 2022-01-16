@@ -7,11 +7,17 @@ namespace AppTests
 {
     public static class Setup
     {
-        public static void PrimeEvaluatorForBehavior<TBehavior>(Evaluator evaluator)
+        public static void PrimeEvaluatorForBehavior<TBehavior>(Evaluator evaluator,
+            Tuple<string, Type>[]? behaviorUnfulfilledDependencies = null)
         {
             Type type = typeof(TBehavior);
+            Tuple<string, Type>[] unfulfilledDependencies =
+                behaviorUnfulfilledDependencies == null ?
+                Array.Empty<Tuple<string, Type>>() :
+                behaviorUnfulfilledDependencies;
 
-            evaluator.GetInitializationBehaviorTypes().Returns(new Type[] { type });
+            evaluator.GetBehaviorTypes().Returns(new Type[] { type });
+            evaluator.GetBehaviorRequiredDependencies(type).Returns(unfulfilledDependencies);
             evaluator.GetBehaviorConstructor(type).Returns(type
                 .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)[0]);
         }
@@ -31,24 +37,26 @@ namespace AppTests
             evaluator.IsContextType(type).ReturnsForAnyArgs(true);
         }
 
-        public static App BehaviorAndContextApp<TBehavior, TContext>()
+        public static App BehaviorAndContextApp<TBehavior, TContext>(
+            Tuple<string, Type>[]? behaviorUnfulfilledDependencies = null)
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
 
-            PrimeEvaluatorForBehavior<TBehavior>(evaluator);
+            PrimeEvaluatorForBehavior<TBehavior>(evaluator, behaviorUnfulfilledDependencies);
             PrimeEvaluatorForContext<TContext>(evaluator);
             app.Initialize();
 
             return app;
         }
 
-        public static App BehaviorAndContextApp<TBehavior, TContextA, TContextB>()
+        public static App BehaviorAndContextApp<TBehavior, TContextA, TContextB>(
+            Tuple<string, Type>[]? behaviorUnfulfilledDependencies = null)
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
 
-            PrimeEvaluatorForBehavior<TBehavior>(evaluator);
+            PrimeEvaluatorForBehavior<TBehavior>(evaluator, behaviorUnfulfilledDependencies);
             PrimeEvaluatorForContext<TContextA>(evaluator);
             PrimeEvaluatorForContext<TContextB>(evaluator);
             app.Initialize();
@@ -61,7 +69,7 @@ namespace AppTests
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
 
-            evaluator.GetInitializationBehaviorTypes().Returns(Array.Empty<Type>());
+            evaluator.GetBehaviorTypes().Returns(Array.Empty<Type>());
             PrimeEvaluatorForContext<TContext>(evaluator);
             app.Initialize();
 
@@ -108,11 +116,82 @@ namespace AppTests
         }
     }
 
+    public class BehaviorHandling
+    {
+        public class TBAttribute : BaseBehaviorAttribute { }
+        [TB]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
+        [TD<TestContextB>(Binding.Unique, Fulfillment.SelfCreated, "contextB")]
+        public class TestBehaviorA
+        {
+            protected TestBehaviorA(out TestContextB contextB)
+            {
+                contextB = new();
+            }
+        }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA { }
+        [TC]
+        public class TestContextB { }
+
+        [Test]
+        public void BehaviorHandling_FulfilledBehaviorContextualizesSelfCreatedDependencies()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
+        public void BehaviorHandling_DecontextualizationPreventsFulfillment()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
+        public void BehaviorHandling_DestroyedBehaviorsRemainingDependenciesUsedForInstantiation()
+        {
+            Assert.Ignore();
+        }
+    }
     public class Contextualization
     {
+        public class TBAttribute : BaseBehaviorAttribute { }
+        [TB]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep1Name)]
+        public class TestBehaviorA
+        {
+            public const string Dep1Name = "contextA";
+
+            public static int InstanceCount = 0;
+
+            protected TestBehaviorA() => InstanceCount++;
+            ~TestBehaviorA() => InstanceCount--;
+        }
+
+        [TB]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep1Name)]
+        [TD<TestContextB>(Binding.Unique, Fulfillment.Existing, Dep2Name)]
+        public class TestBehaviorB
+        {
+            public const string Dep1Name = "contextA";
+            public const string Dep2Name = "contextB";
+
+            public static int InstanceCount = 0;
+
+            protected TestBehaviorB() => InstanceCount++;
+            ~TestBehaviorB() => InstanceCount--;
+        }
+
         public class TCAttribute : BaseContextAttribute { }
         [TC]
         public class TestContextA
+        {
+            public ContextState<int> Int { get; init; } = 0;
+        }
+
+        [TC]
+        public class TestContextB
         {
             public ContextState<int> Int { get; init; } = 0;
         }
@@ -146,12 +225,50 @@ namespace AppTests
         }
 
         [Test]
+        public void Contextualization_FulfilledMultiDependencyBehaviorsAreInstantiated()
+        {
+            Assert.Ignore();
+
+            App app = Setup.BehaviorAndContextApp<TestBehaviorB, TestContextA, TestContextB>(
+                new Tuple<string, Type>[]
+                {
+                    new(TestBehaviorB.Dep1Name, typeof(TestContextA)),
+                    new(TestBehaviorB.Dep2Name, typeof(TestContextB)) 
+                });
+
+            TestContextA contextA = new();
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(0, TestBehaviorA.InstanceCount);
+
+            TestContextA contextB = new();
+            app.Contextualize(contextB);
+
+            Assert.AreEqual(1, TestBehaviorA.InstanceCount);
+        }
+
+        [Test]
+        public void Contextualization_FulfilledSingleDependencyBehaviorsAreInstantiated()
+        {
+            App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA>(
+                new Tuple<string, Type>[]
+                {
+                    new(TestBehaviorA.Dep1Name, typeof(TestContextA))
+                });
+
+            TestContextA contextA = new();
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(1, TestBehaviorA.InstanceCount);
+        }
+
+        [Test]
         public void Contextualization_NonContextTypeThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
 
-            evaluator.GetInitializationBehaviorTypes().Returns(Array.Empty<Type>());
+            evaluator.GetBehaviorTypes().Returns(Array.Empty<Type>());
             evaluator.IsContextType(typeof(TestNonContext)).Returns(false);
             app.Initialize();
 
@@ -198,11 +315,17 @@ namespace AppTests
 
                 InstanceCount++;
             }
+            ~TestBehaviorA() => InstanceCount--;
+        }
 
-            ~TestBehaviorA()
-            {
-                InstanceCount--;
-            }
+        [TB]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
+        public class TestBehaviorB
+        {
+            public static int InstanceCount = 0;
+
+            protected TestBehaviorB() => InstanceCount++;
+            ~TestBehaviorB() => InstanceCount--;
         }
 
         public class TCAttribute : BaseContextAttribute { }
@@ -229,7 +352,28 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_DestroysDependentBehaviors()
+        public void Decontextualization_DestroysDependentFulfilledBehaviors()
+        {
+            Assert.Ignore();
+
+            Evaluator evaluator = Substitute.For<Evaluator>();
+            App app = new(evaluator);
+
+            Setup.PrimeEvaluatorForContext<TestContextA>(evaluator);
+            Setup.PrimeEvaluatorForBehavior<TestBehaviorA>(evaluator);
+
+            app.Initialize();
+
+            app.Decontextualize(app.GetContext<TestContextA>());
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            Assert.AreEqual(0, TestBehaviorA.InstanceCount);
+        }
+
+        [Test]
+        public void Decontextualization_DestroysDependentInitializationBehaviors()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -253,7 +397,7 @@ namespace AppTests
             Evaluator evaluator = Substitute.For<Evaluator>();
             App? app = new(evaluator);
 
-            evaluator.GetInitializationBehaviorTypes().Returns(Array.Empty<Type>());
+            evaluator.GetBehaviorTypes().Returns(Array.Empty<Type>());
             evaluator.IsContextType(typeof(TestNonContext)).Returns(false);
             app.Initialize();
 
@@ -311,7 +455,7 @@ namespace AppTests
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
 
-            evaluator.GetInitializationBehaviorTypes().Returns(Array.Empty<Type>());
+            evaluator.GetBehaviorTypes().Returns(Array.Empty<Type>());
             evaluator.IsContextType(typeof(TestNonContext)).Returns(false);
             app.Initialize();
 
@@ -383,7 +527,7 @@ namespace AppTests
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
 
-            evaluator.GetInitializationBehaviorTypes().Returns(Array.Empty<Type>());
+            evaluator.GetBehaviorTypes().Returns(Array.Empty<Type>());
             evaluator.IsContextType(typeof(TestNonContext)).Returns(false);
             app.Initialize();
 
@@ -435,11 +579,19 @@ namespace AppTests
 
                 InstanceCount++;
             }
+            ~TestBehaviorA() => InstanceCount--;
+        }
 
-            ~TestBehaviorA()
-            {
-                InstanceCount--;
-            }
+        [TB]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep1Name)]
+        public class TestBehaviorB
+        {
+            public const string Dep1Name = "contextA";
+
+            public static int InstanceCount = 0;
+
+            protected TestBehaviorB() => InstanceCount++;
+            ~TestBehaviorB() => InstanceCount--;
         }
 
         public class TBNullDependencyConstructorBehaviorAttribute : BaseBehaviorAttribute { }
@@ -466,7 +618,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Initialization_ContextualizedInitializationBehaviorContexts()
+        public void Initialization_ContextualizesInitializationBehaviorContexts()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA>();
 
@@ -474,7 +626,19 @@ namespace AppTests
         }
 
         [Test]
-        public void Initialization_InstantiatedInitializationBehaviors()
+        public void Initialization_DoesNotInstantiateUnfulfilledBehaviors()
+        {
+            App _ = Setup.BehaviorAndContextApp<TestBehaviorB, TestContextA>(
+                new Tuple<string, Type>[]
+                {
+                    new(TestBehaviorB.Dep1Name, typeof(TestContextA))
+                });
+
+            Assert.AreEqual(0, TestBehaviorB.InstanceCount);
+        }
+
+        [Test]
+        public void Initialization_InstantiatesInitializationBehaviors()
         {
             App _ = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA>();
 
@@ -511,10 +675,7 @@ namespace AppTests
             public const string ContextBName = "contextB";
 
             protected TestBehaviorA(out TestContextA contextA, out TestContextB contextB)
-            {
-                contextA = new();
-                contextB = new();
-            }
+                => (contextA, contextB) = (new(), new());
 
 
             [TO]

@@ -9,6 +9,117 @@ namespace ContextualProgramming;
 /// </summary>
 public class App
 {
+    private class BehaviorFactory
+    {
+        /// <summary>
+        /// Specifies whether this factory can instantiate an instance of its behavior 
+        /// if <see cref="Process"/> was called.
+        /// </summary>
+        public bool CanInstantiate => NumberOfPendingInstantiations != 0;
+
+        /// <summary>
+        /// Provides the number of instantiations that would be made 
+        /// through <see cref="Process"/>.
+        /// </summary>
+        /// <remarks>
+        /// A value of -1 indicates that an infinite number of instantiations can be made.
+        /// Under this condition, <see cref="Process"/> will only instantiate one instance 
+        /// for each call.
+        /// </remarks>
+        public int NumberOfPendingInstantiations
+        {
+            get
+            {
+                int instantiationCount = -1;
+                foreach (var dependencySet in _availableDependencies.Values)
+                {
+                    if (instantiationCount == -1)
+                        instantiationCount = dependencySet.Count;
+                    else if (instantiationCount < dependencySet.Count)
+                        instantiationCount = dependencySet.Count;
+
+                    if (instantiationCount == 0)
+                        return 0;
+                }
+
+                return instantiationCount;
+            }
+        }
+
+        private readonly Dictionary<string, HashSet<object>> _availableDependencies = new();
+
+        private readonly ConstructorInfo _constructor;
+
+        private readonly Dictionary<Type, string[]> _dependencyTypesNames = new();
+
+        public BehaviorFactory(ConstructorInfo constructor, 
+            Tuple<string, Type>[] behaviorDependencies)
+        {
+            _constructor = constructor;
+
+            for (int c = 0, count = behaviorDependencies.Length; c < count; c++)
+            {
+                // TODO :: Parse the dependencies.
+            }
+        }
+
+
+        public bool AddAvailableDependency(object dependency)
+        {
+            // TODO :: Add dependency.
+
+            return false;
+        }
+
+        public BehaviorInstance[] Process()
+        {
+            int instantiationCount = NumberOfPendingInstantiations;
+
+            // No dependencies are required, infinite instantiations are possible.
+            // Instantiate only one per process call to make the instantiations controllable.
+            if (instantiationCount == -1)
+                instantiationCount = 1;
+
+            BehaviorInstance[] newInstances = new BehaviorInstance[instantiationCount];
+            for (int c = 0, count = newInstances.Length; c < count; c++)
+                newInstances[c] = InstantiateBehavior();
+
+            return newInstances;
+        }
+
+        /// <summary>
+        /// Instantiates an instance of the factory's behavior, using/associating any available 
+        /// dependencies as required by the behavior.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown if the behavior does not 
+        /// construct the expected self-created dependency during its instantiation.</exception>
+        private BehaviorInstance InstantiateBehavior()
+        {
+            ParameterInfo[] parameters = _constructor.GetParameters();
+
+            object[] arguments = new object[parameters.Length];
+            object behavior = _constructor.Invoke(arguments);
+
+            Dictionary<string, object> contexts = new();
+            for (int c = 0, count = parameters.Length; c < count; c++)
+            {
+                try
+                {
+                    contexts.Add(parameters[c].Name.EnsureNotNull(), arguments[c].EnsureNotNull());
+                }
+                catch (ArgumentNullException)
+                {
+                    Type behaviorType = _constructor.DeclaringType.EnsureNotNull();
+                    throw new InvalidOperationException($"The default constructor for the " +
+                        $"behavior of type {behaviorType.FullName} did not construct an " +
+                        $"expected dependency of type {parameters[c].ParameterType.FullName}.");
+                }
+            }
+
+            return new(behavior, contexts, arguments);
+        }
+    }
+
     /// <summary>
     /// Encapsulates an instance of a behavior with its contexts.
     /// </summary>
@@ -20,14 +131,19 @@ public class App
         public object Behavior { get; set; }
 
         /// <summary>
-        /// The contexts (dependencies) of the encapsulated behavior keyed by to their names.
+        /// The contexts (dependencies) of the encapsulated behavior keyed by their names.
         /// </summary>
-        public Dictionary<string, object> Contexts { get; set; }
+        public Dictionary<string, object> Contexts { get; init; }
 
         /// <summary>
         /// The contexts (dependencies) of the encapsulated behavior mapped to their names.
         /// </summary>
-        public Dictionary<object, string> ContextNames { get; set; }
+        public Dictionary<object, string> ContextNames { get; init; }
+
+        /// <summary>
+        /// The contexts created by the behavior.
+        /// </summary>
+        public object[] SelfCreatedContexts { get; private set; }
 
 
         /// <summary>
@@ -36,9 +152,11 @@ public class App
         /// </summary>
         /// <param name="behavior"><see cref="Behavior"/></param>
         /// <param name="contexts"><see cref="Contexts"/></param>
-        public BehaviorInstance(object behavior, Dictionary<string, object> contexts) =>
-            (Behavior, Contexts, ContextNames) =
-            (behavior.EnsureNotNull(), contexts, contexts.Flip());
+        /// <param name="selfCreatedContexts"><see cref="SelfCreatedContexts"/></param>
+        public BehaviorInstance(object behavior, Dictionary<string, object> contexts, 
+            object[] selfCreatedContexts) => 
+            (Behavior, Contexts, ContextNames, SelfCreatedContexts) =
+            (behavior.EnsureNotNull(), contexts, contexts.Flip(), selfCreatedContexts);
     }
 
     /// <summary>
@@ -79,8 +197,7 @@ public class App
     private readonly Dictionary<Type, HashSet<object>> _contexts = new();
 
     /// <summary>
-    /// A mapping of context instances to the behavior instances that created them 
-    /// as self-created dependencies.
+    /// A mapping of context instances to the behavior instances that depend upon them.
     /// </summary>
     private readonly Dictionary<object, BehaviorInstance> _contextBehaviors = new();
 
@@ -88,6 +205,14 @@ public class App
     /// A record of context changes that have occurred since the last evaluation.
     /// </summary>
     private readonly List<ContextChange> _contextChanges = new();
+
+    private readonly Queue<BehaviorFactory> _pendingFactories = new();
+
+    /// <summary>
+    /// A mapping of context types to the behavior types that require them 
+    /// to be fulfilled.
+    /// </summary>
+    private readonly Dictionary<Type, List<Type>> _requiredContextBehaviorTypes = new();
 
     private bool _isInitialized = false;
 
@@ -123,11 +248,70 @@ public class App
     {
         Evaluator.Initialize();
 
-        Type[] initializationBehaviors = Evaluator.GetInitializationBehaviorTypes();
-        for (int c = 0, count = initializationBehaviors.Length; c < count; c++)
-            InstantiateBehavior(initializationBehaviors[c]);
+        Type[] behaviorTypes = Evaluator.GetBehaviorTypes();
+        for (int c = 0, count = behaviorTypes.Length; c < count; c++)
+            CreateBehaviorFactory(behaviorTypes[c]);
+
+        ProcessPendingFactories();
 
         _isInitialized = true;
+    }
+
+    private void CreateBehaviorFactory(Type behaviorType)
+    {
+        ConstructorInfo constructor = Evaluator.GetBehaviorConstructor(behaviorType);
+        Tuple<string, Type>[] deps = Evaluator.GetBehaviorRequiredDependencies(behaviorType);
+        BehaviorFactory factory = new(constructor, deps);
+        for (int c = 0, count = deps.Length; c < count; c++)
+        {
+            // TODO :: Create behavior factory object that holds data about 
+            //          its required dependencies, the behavior type, and how many of
+            //          each dependency exists for fulfillment.
+            // TODO :: context type mapping to behavior factory.
+            // TODO :: behavior type mapping to behavior factory
+
+            /*
+            if (!_requiredContextBehaviorTypes.ContainsKey(requiredContextTypes[c]))
+                _requiredContextBehaviorTypes.Add(requiredContextTypes[c], new());
+
+            List<Type> requiringBehaviors = _requiredContextBehaviorTypes[requiredContextTypes[c]];
+            if (!requiringBehaviors.Contains(behaviorType))
+                requiringBehaviors.Add(behaviorType);
+            */
+
+            // TODO :: Contextualization gets factories and adds the new context to them.
+            //          Any time a behavior is fulfilled, its factory instantiates it.
+        }
+
+        if (factory.CanInstantiate)
+            _pendingFactories.Enqueue(factory);
+    }
+
+    /// <summary>
+    /// Processes the app's pending factories until there are no more remaining.
+    /// </summary>
+    private void ProcessPendingFactories()
+    {
+        while (_pendingFactories.Count > 0)
+        {
+            BehaviorInstance[] newInstances = _pendingFactories.Dequeue().Process();
+            for (int c = 0, count = newInstances.Length; c < count; c++)
+                RegisterBehaviorInstance(newInstances[c]);
+        }
+    }
+    
+    /// <summary>
+    /// Registers the provided behavior instance by contextualizing its self created contexts 
+    /// and associating the instance's contexts with the instance.
+    /// </summary>
+    /// <param name="instance">The instance to be registered.</param>
+    private void RegisterBehaviorInstance(BehaviorInstance instance)
+    {
+        for (int c = 0, count = instance.SelfCreatedContexts.Length; c < count; c++)
+            Contextualize(instance.SelfCreatedContexts[c]);
+
+        foreach (object context in instance.Contexts.Values)
+            _contextBehaviors.Add(context, instance);
     }
 
     /// <summary>
@@ -172,7 +356,9 @@ public class App
 
         if (!_contexts.ContainsKey(type))
             _contexts.Add(type, new());
-        _contexts[type].Add(context);
+
+        if (!_contexts[type].Add(context))
+            return;
 
         PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
@@ -310,44 +496,5 @@ public class App
             arguments[pco] = bInstance.Contexts[parameters[pco].Name.EnsureNotNull()];
 
         operation.Invoke(bInstance.Behavior, arguments);
-    }
-
-
-    /// <summary>
-    /// Instantiates an instance of the behavior specified by the provided type.
-    /// </summary>
-    /// <param name="behaviorType">The type of behavior to be instantiated.</param>
-    /// <exception cref="InvalidOperationException">Thrown if the behavior does not 
-    /// construct and expected self-created dependency during its instantiation.</exception>
-    private void InstantiateBehavior(Type behaviorType)
-    {
-        ConstructorInfo constructor = Evaluator.GetBehaviorConstructor(behaviorType);
-        ParameterInfo[] parameters = constructor.GetParameters();
-
-
-        object[] arguments = new object[parameters.Length];
-        object behavior = constructor.Invoke(arguments);
-
-        Dictionary<string, object> contexts = new();
-        for (int c = 0, count = parameters.Length; c < count; c++)
-        {
-            try
-            {
-                contexts.Add(parameters[c].Name.EnsureNotNull(), arguments[c].EnsureNotNull());
-            }
-            catch (ArgumentNullException)
-            {
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorType.FullName} did not construct an expected dependency " +
-                    $"of type {parameters[c].ParameterType.FullName}.");
-            }
-        }
-
-        BehaviorInstance behaviorInstance = new(behavior, contexts);
-        for (int c = 0, count = arguments.Length; c < count; c++)
-        {
-            Contextualize(arguments[c]);
-            _contextBehaviors.Add(arguments[c], behaviorInstance);
-        }
     }
 }
