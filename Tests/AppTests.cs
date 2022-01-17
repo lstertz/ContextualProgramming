@@ -95,7 +95,7 @@ namespace AppTests
     public class Construction
     {
         [Test]
-        public void Construction_DefaultEvaluator()
+        public void DefaultEvaluator()
         {
             Type expectedEvaluator = typeof(Evaluator<ContextAttribute, BehaviorAttribute,
                 DependencyAttribute, OperationAttribute>);
@@ -106,7 +106,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Construction_OverriddenEvaluator()
+        public void OverriddenEvaluator()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
 
@@ -137,19 +137,19 @@ namespace AppTests
         public class TestContextB { }
 
         [Test]
-        public void BehaviorHandling_FulfilledBehaviorContextualizesSelfCreatedDependencies()
+        public void FulfilledBehaviorContextualizesSelfCreatedDependencies()
         {
             Assert.Ignore();
         }
 
         [Test]
-        public void BehaviorHandling_DecontextualizationPreventsFulfillment()
+        public void DecontextualizationPreventsFulfillment()
         {
             Assert.Ignore();
         }
 
         [Test]
-        public void BehaviorHandling_DestroyedBehaviorsRemainingDependenciesUsedForInstantiation()
+        public void DestroyedBehaviorsRemainingDependenciesUsedForInstantiation()
         {
             Assert.Ignore();
         }
@@ -197,7 +197,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Contextualization_BindsForChanges()
+        public void BindsForChanges()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -214,7 +214,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Contextualization_Contextualizes()
+        public void Contextualizes()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -225,7 +225,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Contextualization_FulfilledMultiDependencyBehaviorsAreInstantiated()
+        public void FulfilledMultiDependencyBehaviorsAreInstantiated()
         {
             Assert.Ignore();
 
@@ -248,7 +248,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Contextualization_FulfilledSingleDependencyBehaviorsAreInstantiated()
+        public void FulfilledSingleDependencyBehaviorsAreInstantiated()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA>(
                 new Tuple<string, Type>[]
@@ -263,7 +263,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Contextualization_NonContextTypeThrowsException()
+        public void NonContextTypeThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -277,7 +277,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Contextualization_NullThrowsException()
+        public void NullThrowsException()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -288,7 +288,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Contextualization_UninitializedThrowsException()
+        public void UninitializedThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -336,7 +336,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_Decontextualizes()
+        public void Decontextualizes()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -352,7 +352,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_DestroysDependentFulfilledBehaviors()
+        public void DestroysDependentFulfilledBehaviors()
         {
             Assert.Ignore();
 
@@ -373,7 +373,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_DestroysDependentInitializationBehaviors()
+        public void DestroysDependentInitializationBehaviors()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -392,7 +392,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_NonContextTypeThrowsException()
+        public void NonContextTypeThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App? app = new(evaluator);
@@ -406,7 +406,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_NullThrowsException()
+        public void NullThrowsException()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -417,7 +417,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_UnbindsForChanges()
+        public void UnbindsForChanges()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -430,7 +430,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Decontextualization_UninitializedThrowsException()
+        public void UninitializedThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -450,7 +450,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContext_NonContextThrowsException()
+        public void NonContextThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -464,7 +464,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContext_NullWhenNoneAvailable()
+        public void NullWhenNoneAvailable()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -472,7 +472,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContext_ProvidesFirstWhenMultipleAreAvailable()
+        public void ProvidesFirstWhenMultipleAreAvailable()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -484,7 +484,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContext_ProvidesWhenOneIsAvailable()
+        public void ProvidesWhenOneIsAvailable()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -495,7 +495,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContext_UninitializedThrowsException()
+        public void UninitializedThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -514,7 +514,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContexts_EmptyWhenNonAvailable()
+        public void EmptyWhenNonAvailable()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -522,7 +522,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContexts_NonContextThrowsException()
+        public void NonContextThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -536,7 +536,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContexts_ProvidesWhenAvailable()
+        public void ProvidesWhenAvailable()
         {
             App app = Setup.ContextOnlyApp<TestContextA>();
 
@@ -555,7 +555,7 @@ namespace AppTests
         }
 
         [Test]
-        public void GetContexts_UninitializedThrowsException()
+        public void UninitializedThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -618,7 +618,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Initialization_ContextualizesInitializationBehaviorContexts()
+        public void ContextualizesInitializationBehaviorContexts()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA>();
 
@@ -626,7 +626,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Initialization_DoesNotInstantiateUnfulfilledBehaviors()
+        public void DoesNotInstantiateUnfulfilledBehaviors()
         {
             App _ = Setup.BehaviorAndContextApp<TestBehaviorB, TestContextA>(
                 new Tuple<string, Type>[]
@@ -638,7 +638,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Initialization_InstantiatesInitializationBehaviors()
+        public void InstantiatesInitializationBehaviors()
         {
             App _ = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA>();
 
@@ -646,7 +646,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Initialization_NullDependencyConstructorThrowsException()
+        public void NullDependencyConstructorThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -720,7 +720,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Updating_NoChanges_DoesNotInvokeContextChangeOperations()
+        public void NoChanges_DoesNotInvokeContextChangeOperations()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
@@ -733,7 +733,7 @@ namespace AppTests
             Assert.AreEqual(0, contextA.OnContextChangeIntValue);
         }
         [Test]
-        public void Updating_NoChanges_DoesNotInvokeStateChangeOperations()
+        public void NoChanges_DoesNotInvokeStateChangeOperations()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
@@ -747,7 +747,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Updating_NoChanges_ReturnsFalse()
+        public void NoChanges_ReturnsFalse()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
@@ -755,7 +755,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Updating_WithChanges_ClearsPreviousChanges()
+        public void WithChanges_ClearsPreviousChanges()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
@@ -772,7 +772,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Updating_WithChanges_InvokesOnContextChangeOperations()
+        public void WithChanges_InvokesOnContextChangeOperations()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
@@ -796,7 +796,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Updating_WithChanges_InvokesOnStateChangeOperations()
+        public void WithChanges_InvokesOnStateChangeOperations()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
@@ -822,7 +822,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Updating_WithChanges_RecordsAndInvokesForSubsequentChanges()
+        public void WithChanges_RecordsAndInvokesForSubsequentChanges()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
@@ -861,7 +861,7 @@ namespace AppTests
         }
 
         [Test]
-        public void Updating_WithChanges_ReturnsTrue()
+        public void WithChanges_ReturnsTrue()
         {
             App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA, TestContextB>();
 
