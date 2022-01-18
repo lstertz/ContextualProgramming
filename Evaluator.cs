@@ -63,13 +63,14 @@ public abstract class Evaluator
                 $"Initialize with {nameof(Evaluator.Initialize)} prior to using the evaluator.");
     }
 
+
     /// <summary>
-    /// Provides the constructor for the specified behavior.
+    /// Provides a new factory for instantiating the specified behavior.
     /// </summary>
-    /// <param name="behaviorType">The type of behavior whose constructor 
+    /// <param name="behaviorType">The type of behavior whose factory  
     /// is to be provided.</param>
-    /// <returns>The specified behavior's constructor.</returns>
-    public abstract ConstructorInfo GetBehaviorConstructor(Type behaviorType);
+    /// <returns>A factory for the specified behavior.</returns>
+    public abstract IBehaviorFactory BuildBehaviorFactory(Type behaviorType);
 
     /// <summary>
     /// Provides the dependencies required by the specified behavior for an 
@@ -222,17 +223,22 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
 
 
     /// <inheritdoc/>
-    public override ConstructorInfo GetBehaviorConstructor(Type behaviorType)
+    public override IBehaviorFactory BuildBehaviorFactory(Type behaviorType)
     {
         ValidateInitialization();
 
         if (!_behaviorConstructors.ContainsKey(behaviorType))
-            throw new ArgumentException($"Behavior constructors cannot be retrieved " +
+            throw new ArgumentException($"A behavior factory cannot be retrieved " +
                 $"for type {behaviorType.FullName} since it is not a behavior " +
                 $"known to an evaluator with behaviors defined " +
                 $"by {typeof(TBehaviorAttribute).FullName}.");
 
-        return _behaviorConstructors[behaviorType];
+        Dictionary<string, Type> requiredDependencies = new();
+        foreach (var dependency in _behaviorExistingDependencies[behaviorType])
+            requiredDependencies.Add(dependency.Key,
+                _behaviorDependencies[behaviorType][dependency.Value]);
+
+        return new BehaviorFactory(_behaviorConstructors[behaviorType], requiredDependencies);
     }
 
     /// <inheritdoc/>

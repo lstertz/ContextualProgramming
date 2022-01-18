@@ -1,3 +1,4 @@
+using ContextualProgramming.Internal;
 using NUnit.Framework;
 using System.Reflection;
 
@@ -18,68 +19,124 @@ namespace EvaluatorTests
     }
     #endregion
 
-    public class GetBehaviorConstructor
+    public class GetBehaviorFactory
     {
         public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
-        public class DefinedConstructorBehaviorAttribute : BaseBehaviorAttribute { }
-        [DefinedConstructorBehavior]
+        public class ForBehaviorWithExistingAndSelfCreatedDependenciesBehaviorAttribute :
+            BaseBehaviorAttribute
+        { }
+        [ForBehaviorWithExistingAndSelfCreatedDependenciesBehavior]
         [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
-        public class DefinedConstructorBehavior
+        [TD<TestContextB>(Binding.Unique, Fulfillment.Existing, "contextB")]
+        public class ForBehaviorWithExistingAndSelfCreatedDependenciesBehavior
         {
-            public DefinedConstructorBehavior(out TestContextA contextA) => contextA = new();
+            public ForBehaviorWithExistingAndSelfCreatedDependenciesBehavior(
+                out TestContextA contextA) => contextA = new();
+        }
+        public class ForBehaviorWithExistingDependenciesBehaviorAttribute :
+            BaseBehaviorAttribute
+        { }
+        [ForBehaviorWithExistingDependenciesBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, "contextA")]
+        public class ForBehaviorWithExistingDependenciesBehavior
+        {
         }
 
-        public class DefaultConstructorBehaviorAttribute : BaseBehaviorAttribute { }
-        [DefaultConstructorBehavior]
-        public class DefaultConstructorBehavior { }
+        public class ForBehaviorWithOnlySelfCreatedDependenciesBehaviorAttribute : 
+            BaseBehaviorAttribute { }
+        [ForBehaviorWithOnlySelfCreatedDependenciesBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, "contextA")]
+        public class ForBehaviorWithOnlySelfCreatedDependenciesBehavior
+        {
+            public ForBehaviorWithOnlySelfCreatedDependenciesBehavior(
+                out TestContextA contextA) => contextA = new();
+        }
+
+        public class ForBehaviorWithNoDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
+        [ForBehaviorWithNoDependenciesBehavior]
+        public class ForBehaviorWithNoDependenciesBehavior { }
 
         public class TCAttribute : BaseContextAttribute { }
         [TC]
         public class TestContextA { }
+        [TC]
+        public class TestContextB { }
 
         public class TOAttribute : BaseOperationAttribute { }
 
         [Test]
-        public void HasDefinedConstructor()
+        public void ForBehaviorWithExistingAndSelfCreatedDependencies()
         {
-            var evaluator = GetEvaluator<DefinedConstructorBehaviorAttribute>();
+            var evaluator = GetEvaluator<
+                ForBehaviorWithExistingAndSelfCreatedDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            ConstructorInfo constructor = evaluator.GetBehaviorConstructor(
-                typeof(DefinedConstructorBehavior));
-            Assert.IsNotNull(constructor);
+            IBehaviorFactory factory = evaluator.BuildBehaviorFactory(
+                typeof(ForBehaviorWithExistingAndSelfCreatedDependenciesBehavior));
+
+            Assert.IsNotNull(factory);
+            Assert.AreEqual(new Type[] { typeof(TestContextB) }, factory.RequiredDependencyTypes);
         }
 
         [Test]
-        public void HasDefaultConstructor()
+        public void ForBehaviorWithExistingDependencies()
         {
-            var evaluator = GetEvaluator<DefaultConstructorBehaviorAttribute>();
+            var evaluator = GetEvaluator<ForBehaviorWithExistingDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            ConstructorInfo constructor = evaluator.GetBehaviorConstructor(
-                typeof(DefaultConstructorBehavior));
-            Assert.IsNotNull(constructor);
+            IBehaviorFactory factory = evaluator.BuildBehaviorFactory(
+                typeof(ForBehaviorWithExistingDependenciesBehavior));
+
+            Assert.IsNotNull(factory);
+            Assert.AreEqual(new Type[] { typeof(TestContextA) }, factory.RequiredDependencyTypes);
+        }
+
+        [Test]
+        public void ForBehaviorWithNoDependencies()
+        {
+            var evaluator = GetEvaluator<ForBehaviorWithNoDependenciesBehaviorAttribute>();
+            evaluator.Initialize();
+
+            IBehaviorFactory factory = evaluator.BuildBehaviorFactory(
+                typeof(ForBehaviorWithNoDependenciesBehavior));
+
+            Assert.IsNotNull(factory);
+            Assert.AreEqual(Array.Empty<Type>(), factory.RequiredDependencyTypes);
+        }
+
+        [Test]
+        public void ForBehaviorWithOnlySelfCreatedDependencies()
+        {
+            var evaluator = GetEvaluator<
+                ForBehaviorWithOnlySelfCreatedDependenciesBehaviorAttribute>();
+            evaluator.Initialize();
+
+            IBehaviorFactory factory = evaluator.BuildBehaviorFactory(
+                typeof(ForBehaviorWithOnlySelfCreatedDependenciesBehavior));
+
+            Assert.IsNotNull(factory);
+            Assert.AreEqual(Array.Empty<Type>(), factory.RequiredDependencyTypes);
         }
 
         [Test]
         public void NonBehaviorThrowsException()
         {
-            var evaluator = GetEvaluator<DefinedConstructorBehaviorAttribute>();
+            var evaluator = GetEvaluator<ForBehaviorWithNoDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
             Assert.Throws<ArgumentException>(() =>
-                evaluator.GetBehaviorConstructor(typeof(NonBehavior)));
+                evaluator.BuildBehaviorFactory(typeof(NonBehavior)));
         }
 
         [Test]
         public void UninitializedThrowsException()
         {
-            var evaluator = GetEvaluator<DefinedConstructorBehaviorAttribute>();
+            var evaluator = GetEvaluator<ForBehaviorWithNoDependenciesBehaviorAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
-                evaluator.GetBehaviorConstructor(typeof(DefinedConstructorBehavior)));
+                evaluator.BuildBehaviorFactory(typeof(ForBehaviorWithNoDependenciesBehavior)));
         }
     }
 
