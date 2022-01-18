@@ -41,13 +41,9 @@ namespace BehaviorFactoryTests
     {
         public class TestBehavior { }
 
-        private ConstructorInfo _behaviorConstructor;
+        public class TestContextA { }
 
-        [SetUp]
-        public void SetUp()
-        {
-
-        }
+        public class TestContextB { }
 
         [Test]
         public void DeterminesInfinitePendingInstantiations()
@@ -57,8 +53,7 @@ namespace BehaviorFactoryTests
             if (constructor == null)
                 throw new NullReferenceException();
 
-            BehaviorFactory factory = new(constructor,
-                Array.Empty<Tuple<string, Type>>());
+            BehaviorFactory factory = new(constructor, new());
 
             Assert.AreEqual(-1, factory.NumberOfPendingInstantiations);
         }
@@ -68,13 +63,63 @@ namespace BehaviorFactoryTests
         {
             Assert.Ignore();
         }
+
         [Test]
         public void NullConstructorThrowsException()
         {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-            Assert.Throws<ArgumentNullException>(() => new BehaviorFactory(null,
-                Array.Empty<Tuple<string, Type>>()));
+            Assert.Throws<ArgumentNullException>(() => new BehaviorFactory(null, new()));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+        }
+
+        [Test]
+        public void SetsRequiredDependencies_DuplicateDependencyTypes()
+        {
+            ConstructorInfo? constructor = typeof(TestBehavior)
+               .GetConstructor(Array.Empty<Type>());
+            if (constructor == null)
+                throw new NullReferenceException();
+
+            BehaviorFactory factory = new(constructor, new Dictionary<string, Type>
+            {
+                { "A1", typeof(TestContextA) },
+                { "A2", typeof(TestContextA) }
+            });
+
+            Assert.AreEqual(1, factory.RequiredDependencyTypes.Length);
+            Assert.Contains(typeof(TestContextA), factory.RequiredDependencyTypes);
+        }
+
+        [Test]
+        public void SetsRequiredDependencies_MultipleDependencies()
+        {
+            ConstructorInfo? constructor = typeof(TestBehavior)
+               .GetConstructor(Array.Empty<Type>());
+            if (constructor == null)
+                throw new NullReferenceException();
+
+            BehaviorFactory factory = new(constructor, new Dictionary<string, Type>
+            {
+                { "A", typeof(TestContextA) },
+                { "B", typeof(TestContextB) }
+            });
+
+            Assert.AreEqual(2, factory.RequiredDependencyTypes.Length);
+            Assert.Contains(typeof(TestContextA), factory.RequiredDependencyTypes);
+            Assert.Contains(typeof(TestContextB), factory.RequiredDependencyTypes);
+        }
+
+        [Test]
+        public void SetsRequiredDependencies_NoDependencies()
+        {
+            ConstructorInfo? constructor = typeof(TestBehavior)
+               .GetConstructor(Array.Empty<Type>());
+            if (constructor == null)
+                throw new NullReferenceException();
+
+            BehaviorFactory factory = new(constructor, new());
+
+            Assert.IsEmpty(factory.RequiredDependencyTypes);
         }
     }
 

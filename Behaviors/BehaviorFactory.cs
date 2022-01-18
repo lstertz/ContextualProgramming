@@ -25,6 +25,12 @@ public interface IBehaviorFactory
     /// </remarks>
     int NumberOfPendingInstantiations { get; }
 
+    /// <summary>
+    /// Provides the types of the dependencies required for this factory to 
+    /// instantiate a behavior.
+    /// </summary>
+    Type[] RequiredDependencyTypes { get; }
+
 
     /// <summary>
     /// Adds the provided dependency as an available dependency to be used in 
@@ -54,6 +60,10 @@ public class BehaviorFactory : IBehaviorFactory
     /// <inheritdoc/>
     public int NumberOfPendingInstantiations { get; private set; }
 
+    /// <inheritdoc/>
+    public Type[] RequiredDependencyTypes { get; private set; }
+
+
     private readonly Dictionary<string, HashSet<object>> _availableDependencies = new();
 
     private readonly ConstructorInfo _constructor;
@@ -68,15 +78,19 @@ public class BehaviorFactory : IBehaviorFactory
     /// instantiated by this factory.</param>
     /// <param name="requiredDependencies">The dependencies that must be fulfilled for 
     /// a behavior to be instantiated.</param>
-    public BehaviorFactory(ConstructorInfo constructor, Tuple<string, Type>[] requiredDependencies)
+    public BehaviorFactory(ConstructorInfo constructor, 
+        Dictionary<string, Type> requiredDependencies)
     {
         _constructor = constructor.EnsureNotNull();
 
-        for (int c = 0, count = requiredDependencies.Length; c < count; c++)
+        HashSet<Type> dependencyTypes = new();
+        foreach (string dependencyName in requiredDependencies.Keys)
         {
+            dependencyTypes.Add(requiredDependencies[dependencyName]);
             // TODO :: Parse the dependencies.
         }
 
+        RequiredDependencyTypes = dependencyTypes.ToArray();
         NumberOfPendingInstantiations = DeterminePendingInstantiations();
     }
 
