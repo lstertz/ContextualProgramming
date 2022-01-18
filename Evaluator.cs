@@ -77,8 +77,9 @@ public abstract class Evaluator
     /// </summary>
     /// <param name="behaviorType">The type of behavior whose required dependencies 
     /// are to be provided.</param>
-    /// <returns>The names and types of the specified behavior's required dependencies.</returns>
-    public abstract Tuple<string, Type>[] GetBehaviorRequiredDependencies(Type behaviorType);
+    /// <returns>The types of the specified behavior's required dependencies.
+    /// Duplicates indicate how many of the same type of dependency that is required.</returns>
+    public abstract Type[] GetBehaviorRequiredDependencies(Type behaviorType);
 
     /// <summary>
     /// Provides the behavior types found by this evaluator.
@@ -235,7 +236,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     }
 
     /// <inheritdoc/>
-    public override Tuple<string, Type>[] GetBehaviorRequiredDependencies(Type behaviorType)
+    public override Type[] GetBehaviorRequiredDependencies(Type behaviorType)
     {
         ValidateInitialization();
 
@@ -247,19 +248,14 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
 
         Dictionary<string, int> existingDeps = _behaviorExistingDependencies[behaviorType];
         if (existingDeps.Count == 0)
-            return Array.Empty<Tuple<string, Type>>();
+            return Array.Empty<Type>();
 
         Type[] allDependencies = _behaviorDependencies[behaviorType];
-        Tuple<string, Type>[] requiredDependencies = new Tuple<string, Type>[existingDeps.Count];
+        HashSet<Type> requiredDependencies = new();
+        foreach (int depIndex in existingDeps.Values)
+            requiredDependencies.Add(allDependencies[depIndex]);
 
-        int c = 0;
-        foreach (string depName in existingDeps.Keys)
-        {
-            requiredDependencies[c] = new(depName, allDependencies[existingDeps[depName]]);
-            c++;
-        }
-
-        return requiredDependencies;
+        return requiredDependencies.ToArray();
     }
 
     /// <inheritdoc/>

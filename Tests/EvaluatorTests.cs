@@ -111,12 +111,12 @@ namespace EvaluatorTests
             public const string Dep2Name = "contextB";
         }
 
-        public class IncludesDuplicateExistingDependenciesBehaviorAttribute : 
+        public class ExcludesDuplicateExistingDependenciesBehaviorAttribute : 
             BaseBehaviorAttribute { }
-        [IncludesDuplicateExistingDependenciesBehavior]
+        [ExcludesDuplicateExistingDependenciesBehavior]
         [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep1Name)]
         [TD<TestContextA>(Binding.Unique, Fulfillment.Existing, Dep2Name)]
-        public class IncludesDuplicateExistingDependenciesBehavior
+        public class ExcludesDuplicateExistingDependenciesBehavior
         {
             public const string Dep1Name = "contextA1";
             public const string Dep2Name = "contextA2";
@@ -145,13 +145,11 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<ExcludesSelfCreatedDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
                 typeof(ExcludesSelfCreatedDependenciesBehavior));
 
             Assert.AreEqual(1, dependencies.Length);
-            Assert.AreEqual(ExcludesSelfCreatedDependenciesBehavior.Dep1Name, 
-                dependencies[0].Item1);
-            Assert.AreEqual(typeof(TestContextA), dependencies[0].Item2);
+            Assert.Contains(typeof(TestContextA), dependencies);
         }
 
         [Test]
@@ -160,14 +158,12 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasExistingDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
                 typeof(HasExistingDependenciesBehavior));
-            
+
             Assert.AreEqual(2, dependencies.Length);
-            Assert.AreEqual(HasExistingDependenciesBehavior.Dep1Name, dependencies[0].Item1);
-            Assert.AreEqual(typeof(TestContextA), dependencies[0].Item2);
-            Assert.AreEqual(HasExistingDependenciesBehavior.Dep2Name, dependencies[1].Item1);
-            Assert.AreEqual(typeof(TestContextB), dependencies[1].Item2);
+            Assert.Contains(typeof(TestContextA), dependencies);
+            Assert.Contains(typeof(TestContextB), dependencies);
         }
 
         [Test]
@@ -176,27 +172,22 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasNoExistingDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
                 typeof(HasNoExistingDependenciesBehavior));
             Assert.IsEmpty(dependencies);
         }
 
         [Test]
-        public void IncludesDuplicateExistingDependencies()
+        public void ExcludesDuplicateExistingDependencies()
         {
-            var evaluator = GetEvaluator<IncludesDuplicateExistingDependenciesBehaviorAttribute>();
+            var evaluator = GetEvaluator<ExcludesDuplicateExistingDependenciesBehaviorAttribute>();
             evaluator.Initialize();
 
-            Tuple<string, Type>[] dependencies = evaluator.GetBehaviorRequiredDependencies(
-                typeof(IncludesDuplicateExistingDependenciesBehavior));
+            Type[] dependencies = evaluator.GetBehaviorRequiredDependencies(
+                typeof(ExcludesDuplicateExistingDependenciesBehavior));
 
-            Assert.AreEqual(2, dependencies.Length);
-            Assert.AreEqual(IncludesDuplicateExistingDependenciesBehavior.Dep1Name, 
-                dependencies[0].Item1);
-            Assert.AreEqual(typeof(TestContextA), dependencies[0].Item2);
-            Assert.AreEqual(IncludesDuplicateExistingDependenciesBehavior.Dep2Name, 
-                dependencies[1].Item1);
-            Assert.AreEqual(typeof(TestContextA), dependencies[1].Item2);
+            Assert.AreEqual(1, dependencies.Length);
+            Assert.AreEqual(typeof(TestContextA), dependencies[0]);
         }
 
         [Test]
