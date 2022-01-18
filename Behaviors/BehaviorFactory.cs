@@ -6,13 +6,13 @@ namespace ContextualProgramming.Internal;
 /// Creates the <see cref="BehaviorInstance"/>s of a specific type of behavior, based on available 
 /// contexts that are required to fulfill that behavior type's dependencies.
 /// </summary>
-public class BehaviorFactory
+public interface IBehaviorFactory
 {
     /// <summary>
     /// Specifies whether this factory can instantiate an instance of its behavior 
     /// if <see cref="Process"/> was called.
     /// </summary>
-    public bool CanInstantiate => NumberOfPendingInstantiations != 0;
+    bool CanInstantiate { get; }
 
     /// <summary>
     /// Provides the number of instantiations that would be made 
@@ -23,6 +23,35 @@ public class BehaviorFactory
     /// Under this condition, <see cref="Process"/> will only instantiate one instance 
     /// for each call.
     /// </remarks>
+    int NumberOfPendingInstantiations { get; }
+
+
+    /// <summary>
+    /// Adds the provided dependency as an available dependency to be used in 
+    /// the instantiation of a behavior.
+    /// </summary>
+    /// <param name="dependency">The dependency to be added.</param>
+    /// <returns>Whether an instantiation can be made with the dependencies 
+    /// that are available, after this addition.</returns>
+    bool AddAvailableDependency(object dependency);
+
+    /// <summary>
+    /// Processes the available dependencies to instantiate all possible behaviors, unless 
+    /// an infinite number of dependencies can be instantiated, in which only one 
+    /// instance will be created.
+    /// </summary>
+    /// <returns>Any newly instantiated behaviors.</returns>
+    BehaviorInstance[] Process();
+}
+
+
+/// <inheritdoc cref="IBehaviorFactory"/>
+public class BehaviorFactory : IBehaviorFactory
+{
+    /// <inheritdoc/>
+    public bool CanInstantiate => NumberOfPendingInstantiations != 0;
+
+    /// <inheritdoc/>
     public int NumberOfPendingInstantiations { get; private set; }
 
     private readonly Dictionary<string, HashSet<object>> _availableDependencies = new();
@@ -31,11 +60,19 @@ public class BehaviorFactory
 
     private readonly Dictionary<Type, string[]> _dependencyTypesNames = new();
 
-    public BehaviorFactory(ConstructorInfo constructor, Tuple<string, Type>[] behaviorDependencies)
-    {
-        _constructor = constructor;
 
-        for (int c = 0, count = behaviorDependencies.Length; c < count; c++)
+    /// <summary>
+    /// Constructs a new behavior factory.
+    /// </summary>
+    /// <param name="constructor">The constructor of the behaviors that would be 
+    /// instantiated by this factory.</param>
+    /// <param name="requiredDependencies">The dependencies that must be fulfilled for 
+    /// a behavior to be instantiated.</param>
+    public BehaviorFactory(ConstructorInfo constructor, Tuple<string, Type>[] requiredDependencies)
+    {
+        _constructor = constructor.EnsureNotNull();
+
+        for (int c = 0, count = requiredDependencies.Length; c < count; c++)
         {
             // TODO :: Parse the dependencies.
         }
@@ -44,6 +81,7 @@ public class BehaviorFactory
     }
 
 
+    /// <inheritdoc/>
     public bool AddAvailableDependency(object dependency)
     {
         // TODO :: Add dependency.
@@ -52,11 +90,12 @@ public class BehaviorFactory
         return CanInstantiate;
     }
 
+    /// <inheritdoc/>
     public BehaviorInstance[] Process()
     {
         int instantiationCount = NumberOfPendingInstantiations;
 
-        // No dependencies are required, infinite instantiations are possible.
+        // No dependencies are required; infinite instantiations are possible.
         // Instantiate only one per process call to make the instantiations controllable.
         if (instantiationCount == -1)
             instantiationCount = 1;
@@ -69,6 +108,12 @@ public class BehaviorFactory
     }
 
 
+    /// <summary>
+    /// Determines the number of instantiations that could be performed with the 
+    /// currently available dependencies.
+    /// </summary>
+    /// <returns>The number of potential instantiations or -1 if 
+    /// an inifinite number of instantiations are possible.</returns>
     private int DeterminePendingInstantiations()
     {
         int instantiationCount = -1;
