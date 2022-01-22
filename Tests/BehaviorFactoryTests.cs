@@ -126,6 +126,12 @@ namespace BehaviorFactoryTests
     public class Process
     {
         [Test]
+        public void ConstructorReturningNullDependencyThrowsException()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
         public void MultiplePendingInstantiation_InstantiatesMultiple()
         {
             Assert.Ignore();
