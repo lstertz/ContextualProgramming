@@ -56,7 +56,11 @@ public partial class App
     /// </summary>
     private readonly List<ContextChange> _contextChanges = new();
 
-    private readonly Queue<BehaviorFactory> _pendingFactories = new();
+    /// <summary>
+    /// A queue of behavior factories that can (and should) be processed to 
+    /// instantiate new behaviors.
+    /// </summary>
+    private readonly Queue<IBehaviorFactory> _pendingFactories = new();
 
     /// <summary>
     /// A mapping of context types to the behavior types that require them 
@@ -109,9 +113,9 @@ public partial class App
 
     private void CreateBehaviorFactory(Type behaviorType)
     {
-        ConstructorInfo constructor = Evaluator.GetBehaviorConstructor(behaviorType);
-        Tuple<string, Type>[] deps = Evaluator.GetBehaviorRequiredDependencies(behaviorType);
-        BehaviorFactory factory = new(constructor, deps);
+        IBehaviorFactory factory = Evaluator.BuildBehaviorFactory(behaviorType);
+        Type[] deps = Evaluator.GetBehaviorRequiredDependencies(behaviorType);
+        //BehaviorFactory factory = new(constructor, deps);
         for (int c = 0, count = deps.Length; c < count; c++)
         {
             // TODO :: Create behavior factory object that holds data about 
