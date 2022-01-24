@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace AppTests
 {
-    public static class Setup
+    public static class SetUp
     {
         public static App BehaviorAndContextApp<TBehavior, TContext>(
             IBehaviorFactory factory, Type[]? behaviorUnfulfilledDependencies = null)
@@ -201,8 +201,8 @@ namespace AppTests
         [Test]
         public void BindsForChanges()
         {
-            IBehaviorFactory factory = Setup.BuildFactorySubstitute<TestBehaviorA>(new());
-            App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(new());
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
 
             TestContextA context = new();
@@ -220,8 +220,8 @@ namespace AppTests
         [Test]
         public void Contextualizes()
         {
-            IBehaviorFactory factory = Setup.BuildFactorySubstitute<TestBehaviorA>(new());
-            App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(new());
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
 
             TestContextA expectedContext = new();
@@ -235,13 +235,13 @@ namespace AppTests
         {
             Assert.Ignore();
 
-            IBehaviorFactory factory = Setup.BuildFactorySubstitute<TestBehaviorA>(
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(
                 new(), new(), new Type[] 
                 {
                     typeof(TestContextA), 
                     typeof(TestContextB)
                 });
-            App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
 
             MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAChange");
@@ -266,13 +266,13 @@ namespace AppTests
         {
             Assert.Ignore();
 
-            IBehaviorFactory factory = Setup.BuildFactorySubstitute<TestBehaviorA>(
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(
                 new(), new(), new Type[]
                 {
                     typeof(TestContextA),
                     typeof(TestContextB)
                 });
-            App app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
 
             MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
@@ -311,7 +311,7 @@ namespace AppTests
         [Test]
         public void NullThrowsException()
         {
-            App app = Setup.ContextOnlyApp<TestContextA>();
+            App app = SetUp.ContextOnlyApp<TestContextA>();
 
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
             Assert.Throws<ArgumentNullException>(() =>
@@ -341,13 +341,13 @@ namespace AppTests
         [SetUp]
         public void SetUp()
         {
-            IBehaviorFactory factory = Setup.BuildFactorySubstitute<TestBehaviorA>(
+            IBehaviorFactory factory = AppTests.SetUp.BuildFactorySubstitute<TestBehaviorA>(
                 new()
                 {
                     { TestBehaviorA.ContextAName, new TestContextA() },
                     { TestBehaviorA.ContextBName, new TestContextB() }
                 });
-            _app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+            _app = AppTests.SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
         }
 
@@ -636,7 +636,7 @@ namespace AppTests
         [Test]
         public void NullWhenNoneAvailable()
         {
-            App app = Setup.ContextOnlyApp<TestContextA>();
+            App app = SetUp.ContextOnlyApp<TestContextA>();
 
             Assert.IsNull(app.GetContext<TestContextA>());
         }
@@ -644,7 +644,7 @@ namespace AppTests
         [Test]
         public void ProvidesFirstWhenMultipleAreAvailable()
         {
-            App app = Setup.ContextOnlyApp<TestContextA>();
+            App app = SetUp.ContextOnlyApp<TestContextA>();
 
             TestContextA firstContext = new();
             app.Contextualize(firstContext);
@@ -656,7 +656,7 @@ namespace AppTests
         [Test]
         public void ProvidesWhenOneIsAvailable()
         {
-            App app = Setup.ContextOnlyApp<TestContextA>();
+            App app = SetUp.ContextOnlyApp<TestContextA>();
 
             TestContextA firstContext = new();
             app.Contextualize(firstContext);
@@ -679,7 +679,7 @@ namespace AppTests
         [Test]
         public void EmptyWhenNonAvailable()
         {
-            App app = Setup.ContextOnlyApp<TestContextA>();
+            App app = SetUp.ContextOnlyApp<TestContextA>();
 
             Assert.IsEmpty(app.GetContexts<TestContextA>());
         }
@@ -701,7 +701,7 @@ namespace AppTests
         [Test]
         public void ProvidesWhenAvailable()
         {
-            App app = Setup.ContextOnlyApp<TestContextA>();
+            App app = SetUp.ContextOnlyApp<TestContextA>();
 
             TestContextA firstContext = new();
             TestContextA secondContext = new();
@@ -736,13 +736,13 @@ namespace AppTests
         [SetUp]
         public void SetUp()
         {
-            IBehaviorFactory factory = Setup.BuildFactorySubstitute<TestBehaviorA>(
+            IBehaviorFactory factory = AppTests.SetUp.BuildFactorySubstitute<TestBehaviorA>(
                 new()
                 {
                     { TestBehaviorA.ContextAName, new TestContextA() },
                     { TestBehaviorA.ContextBName, new TestContextB() }
                 });
-            _app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+            _app = AppTests.SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
         }
 
@@ -808,13 +808,13 @@ namespace AppTests
         [SetUp]
         public void SetUp()
         {
-            IBehaviorFactory factory = Setup.BuildFactorySubstitute<TestBehaviorA>(
+            IBehaviorFactory factory = AppTests.SetUp.BuildFactorySubstitute<TestBehaviorA>(
                 new()
                 {
                     { TestBehaviorA.ContextAName, new TestContextA() },
                     { TestBehaviorA.ContextBName, new TestContextB() }
                 });
-            _app = Setup.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+            _app = AppTests.SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
         }
 
