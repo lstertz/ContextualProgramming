@@ -304,8 +304,9 @@ public partial class App
     /// <returns>True if there were changes evaluated, false otherwise.</returns>
     public bool Update()
     {
+        bool hadChanges = false;
         if (_contextChanges.Count == 0)
-            return false;
+            return hadChanges;
 
         ContextChange[] contextChanges = _contextChanges.ToArray();
         _contextChanges.Clear();
@@ -314,6 +315,13 @@ public partial class App
         {
             ContextChange change = contextChanges[c];
             object context = change.Context;
+
+            Type contextType = context.GetType();
+            if (!_contexts.ContainsKey(contextType) || !_contexts[contextType].Contains(context))
+                continue;
+
+            hadChanges = true;
+
             if (!_contextBehaviors.ContainsKey(context))
                 continue;
 
@@ -332,7 +340,7 @@ public partial class App
                 InvokeOperation(bInstance, stateOperations[so]);
         }
 
-        return true;
+        return hadChanges;
     }
 
     /// <summary>
