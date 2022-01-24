@@ -5,55 +5,152 @@ using System.Reflection;
 
 namespace BehaviorFactoryTests
 {
-    // TODO :: Do factory and instance tests.
-    // TODO :: Evaluator provides factories to app, update evaluator tests.
-    // TOOD :: Update app tests to substitute factories as needed.
-    // TODO :: Get back to actual functionality for the task.
-
-    public class AddDependency
+    public static class SetUp
     {
-        [Test]
-        public void DeterminesInstantiationIsNotPossible()
-        {
-            Assert.Ignore();
-        }
-
-        [Test]
-        public void DeterminesInstantiationIsPossible()
-        {
-            Assert.Ignore();
-        }
-
-        [Test]
-        public void IgnoresNonDependency()
-        {
-            Assert.Ignore();
-        }
-
-        [Test]
-        public void UpdatesPendingInstantiations()
-        {
-            Assert.Ignore();
-        }
-    }
-
-    public class Construction
-    {
-        public class TestBehavior { }
-
-        public class TestContextA { }
-
-        public class TestContextB { }
-
-        [Test]
-        public void DeterminesInfinitePendingInstantiations()
+        public static BehaviorFactory Factory(
+            Dictionary<string, Type>? requiredDependencies = null)
         {
             ConstructorInfo? constructor = typeof(TestBehavior)
                .GetConstructor(Array.Empty<Type>());
             if (constructor == null)
                 throw new NullReferenceException();
 
-            BehaviorFactory factory = new(constructor, new());
+             return new(constructor, requiredDependencies ?? new());
+        }
+    }
+
+    #region Shared Constructs
+    public class TestBehavior { }
+
+    public class TestContextA { }
+
+    public class TestContextB { }
+    #endregion
+
+    public class AddDependency
+    {
+        [Test]
+        public void IgnoresNonDependency()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "A", typeof(TestContextA) }
+            });
+
+            factory.AddAvailableDependency(new TestContextB());
+
+            Assert.AreEqual(0, factory.NumberOfPendingInstantiations);
+        }
+
+        [Test]
+        public void MultipleDependencies_CompleteFulfillment_DeterminesInstantiationIsPossible()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
+        public void MultipleDependencies_CompleteFulfillment_UpdatesPendingInstantiations()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
+        public void MultipleDependencies_PartialFulfillment_DeterminesInstantiationIsNotPossible()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
+        public void MultipleDependencies_PartialFulfillment_DoesNotUpdatePendingInstantiations()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
+        public void MultipleSameTypeDependencies_DeterminesInstantiationIsPossible()
+        {
+            Assert.Ignore();
+        }
+
+        [Test]
+        public void ProvidedNullDependencyThrowsException()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+            Assert.Throws<ArgumentNullException>(() => factory.AddAvailableDependency(null));
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+        }
+
+        [Test]
+        public void SingleDependency_DeterminesInstantiationIsPossible()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            Assert.IsTrue(factory.AddAvailableDependency(new TestContextA()));
+        }
+
+        [Test]
+        public void SingleDependency_UpdatesPendingInstantiations()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            factory.AddAvailableDependency(new TestContextA());
+
+            Assert.AreEqual(1, factory.NumberOfPendingInstantiations);
+        }
+    }
+
+    public class CanInstantiate
+    {
+        [Test]
+        public void AtLeastOnePendingInstantiation()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            factory.AddAvailableDependency(new TestContextA());
+
+            Assert.IsTrue(factory.CanInstantiate);
+        }
+
+        [Test]
+        public void InfinitePendingInstantiations()
+        {
+            BehaviorFactory factory = SetUp.Factory();
+
+            Assert.IsTrue(factory.CanInstantiate);
+        }
+
+        [Test]
+        public void NoPendingInstantiations()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            Assert.IsFalse(factory.CanInstantiate);
+        }
+    }
+
+    public class Construction
+    {
+        [Test]
+        public void DeterminesInfinitePendingInstantiations()
+        {
+            BehaviorFactory factory = SetUp.Factory();
 
             Assert.AreEqual(-1, factory.NumberOfPendingInstantiations);
         }
@@ -61,7 +158,12 @@ namespace BehaviorFactoryTests
         [Test]
         public void DeterminesNoPendingInstantiations()
         {
-            Assert.Ignore();
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "A", typeof(TestContextA) }
+            });
+
+            Assert.AreEqual(0, factory.NumberOfPendingInstantiations);
         }
 
         [Test]
@@ -75,12 +177,7 @@ namespace BehaviorFactoryTests
         [Test]
         public void SetsRequiredDependencies_DuplicateDependencyTypes()
         {
-            ConstructorInfo? constructor = typeof(TestBehavior)
-               .GetConstructor(Array.Empty<Type>());
-            if (constructor == null)
-                throw new NullReferenceException();
-
-            BehaviorFactory factory = new(constructor, new Dictionary<string, Type>
+            BehaviorFactory factory = SetUp.Factory(new()
             {
                 { "A1", typeof(TestContextA) },
                 { "A2", typeof(TestContextA) }
@@ -93,12 +190,7 @@ namespace BehaviorFactoryTests
         [Test]
         public void SetsRequiredDependencies_MultipleDependencies()
         {
-            ConstructorInfo? constructor = typeof(TestBehavior)
-               .GetConstructor(Array.Empty<Type>());
-            if (constructor == null)
-                throw new NullReferenceException();
-
-            BehaviorFactory factory = new(constructor, new Dictionary<string, Type>
+            BehaviorFactory factory = SetUp.Factory(new()
             {
                 { "A", typeof(TestContextA) },
                 { "B", typeof(TestContextB) }
@@ -112,12 +204,7 @@ namespace BehaviorFactoryTests
         [Test]
         public void SetsRequiredDependencies_NoDependencies()
         {
-            ConstructorInfo? constructor = typeof(TestBehavior)
-               .GetConstructor(Array.Empty<Type>());
-            if (constructor == null)
-                throw new NullReferenceException();
-
-            BehaviorFactory factory = new(constructor, new());
+            BehaviorFactory factory = SetUp.Factory();
 
             Assert.IsEmpty(factory.RequiredDependencyTypes);
         }

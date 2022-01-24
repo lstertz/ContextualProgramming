@@ -68,7 +68,7 @@ public class BehaviorFactory : IBehaviorFactory
 
     private readonly ConstructorInfo _constructor;
 
-    private readonly Dictionary<Type, string[]> _dependencyTypesNames = new();
+    private readonly Dictionary<Type, List<string>> _dependencyTypesNames = new();
 
 
     /// <summary>
@@ -86,8 +86,14 @@ public class BehaviorFactory : IBehaviorFactory
         HashSet<Type> dependencyTypes = new();
         foreach (string dependencyName in requiredDependencies.Keys)
         {
-            dependencyTypes.Add(requiredDependencies[dependencyName]);
-            // TODO :: Parse the dependencies.
+            Type dependencyType = requiredDependencies[dependencyName];
+            dependencyTypes.Add(dependencyType);
+            _availableDependencies.Add(dependencyName, new());
+
+            if (!_dependencyTypesNames.ContainsKey(dependencyType))
+                _dependencyTypesNames.Add(dependencyType, new());
+
+            _dependencyTypesNames[dependencyType].Add(dependencyName);
         }
 
         RequiredDependencyTypes = dependencyTypes.ToArray();
@@ -98,7 +104,16 @@ public class BehaviorFactory : IBehaviorFactory
     /// <inheritdoc/>
     public bool AddAvailableDependency(object dependency)
     {
-        // TODO :: Add dependency.
+        dependency.EnsureNotNull();
+
+        Type dependencyType = dependency.GetType();
+        if (!_dependencyTypesNames.ContainsKey(dependencyType))
+            return false;
+        
+        List<string> dependencyNames = _dependencyTypesNames[dependencyType];
+        _availableDependencies[dependencyNames[0]].Add(dependency);
+
+        //for (int c = dependencyNames.Length - 1; c > 0; c--)
 
         NumberOfPendingInstantiations = DeterminePendingInstantiations();
         return CanInstantiate;
