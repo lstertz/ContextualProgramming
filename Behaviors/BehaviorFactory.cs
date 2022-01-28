@@ -111,9 +111,22 @@ public class BehaviorFactory : IBehaviorFactory
             return false;
         
         List<string> dependencyNames = _dependencyTypesNames[dependencyType];
-        _availableDependencies[dependencyNames[0]].Add(dependency);
+        for (int c = 0, count = dependencyNames.Count; c < count; c++)
+        {
+            if (c == count - 1)
+            {
+                _availableDependencies[dependencyNames[c]].Add(dependency);
+                break;
+            }
 
-        //for (int c = dependencyNames.Length - 1; c > 0; c--)
+            int current = _availableDependencies[dependencyNames[c]].Count;
+            int next = _availableDependencies[dependencyNames[c + 1]].Count;
+            if (current < next)
+            {
+                _availableDependencies[dependencyNames[c]].Add(dependency);
+                break;
+            }
+        }
 
         NumberOfPendingInstantiations = DeterminePendingInstantiations();
         return CanInstantiate;
@@ -133,6 +146,8 @@ public class BehaviorFactory : IBehaviorFactory
         for (int c = 0, count = newInstances.Length; c < count; c++)
             newInstances[c] = InstantiateBehavior();
 
+        NumberOfPendingInstantiations = DeterminePendingInstantiations();
+
         return newInstances;
     }
 
@@ -150,7 +165,7 @@ public class BehaviorFactory : IBehaviorFactory
         {
             if (instantiationCount == -1)
                 instantiationCount = dependencySet.Count;
-            else if (instantiationCount < dependencySet.Count)
+            else if (instantiationCount > dependencySet.Count)
                 instantiationCount = dependencySet.Count;
 
             if (instantiationCount == 0)
@@ -187,6 +202,13 @@ public class BehaviorFactory : IBehaviorFactory
                     $"behavior of type {behaviorType.FullName} did not construct an " +
                     $"expected dependency of type {parameters[c].ParameterType.FullName}.");
             }
+        }
+
+        foreach(string dependencyName in _availableDependencies.Keys)
+        {
+            object dependency = _availableDependencies[dependencyName].First();
+            contexts.Add(dependencyName, dependency);
+            _availableDependencies[dependencyName].Remove(dependency);
         }
 
         return new(behavior, contexts, arguments);
