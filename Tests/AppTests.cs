@@ -49,8 +49,8 @@ namespace AppTests
         }
 
         public static IBehaviorFactory BuildFactorySubstitute<TBehavior>(
-            Dictionary<string, object> selfCreatedContexts, 
-            Dictionary<string, object>? existingContexts = null, 
+            Dictionary<string, object> selfCreatedContexts,
+            Dictionary<string, object>? existingContexts = null,
             Type[]? behaviorUnfulfilledDependencies = null) where TBehavior : new()
         {
             Dictionary<string, object> allContexts = new();
@@ -58,7 +58,7 @@ namespace AppTests
             if (existingContexts != null)
                 existingContexts.ToList().ForEach(kvp => allContexts.Add(kvp.Key, kvp.Value));
 
-            Type[] unfulfilledDependencies = behaviorUnfulfilledDependencies ?? 
+            Type[] unfulfilledDependencies = behaviorUnfulfilledDependencies ??
                 Array.Empty<Type>();
 
             IBehaviorFactory factory = Substitute.For<IBehaviorFactory>();
@@ -70,12 +70,38 @@ namespace AppTests
             {
                 BehaviorInstance bi = new(
                     new TBehavior(),
-                    allContexts, 
+                    allContexts,
                     selfCreatedContexts.Values.ToArray());
                 factory.Process().Returns(new BehaviorInstance[] { bi });
             }
             else
+            {
+                List<Type> missing = new(unfulfilledDependencies);
                 factory.Process().Returns(Array.Empty<BehaviorInstance>());
+
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+                factory.AddAvailableDependency(null).ReturnsForAnyArgs((ci) => missing.Count == 0);
+                factory.WhenForAnyArgs((bf) => bf.AddAvailableDependency(null)).Do((ci) =>
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+                {
+                    Type contextType = ci.Args()[0].GetType();
+                    if (missing.Remove(contextType))
+                    {
+                        allContexts.Add(Mappings.ContextNames[contextType], ci.Args()[0]);
+                        if (missing.Count == 0)
+                        {
+                            factory.NumberOfPendingInstantiations.Returns(1);
+                            factory.CanInstantiate.Returns(true);
+
+                            BehaviorInstance bi = new(
+                                new TBehavior(),
+                                allContexts,
+                                selfCreatedContexts.Values.ToArray());
+                            factory.Process().Returns(new BehaviorInstance[] { bi });
+                        }
+                    }
+                });
+            }
 
             return factory;
         }
@@ -84,8 +110,8 @@ namespace AppTests
             IBehaviorFactory factory, Type[]? behaviorUnfulfilledDependencies = null)
         {
             Type type = typeof(TBehavior);
-            Type[] unfulfilledDependencies = behaviorUnfulfilledDependencies == null ?
-                Array.Empty<Type>() : behaviorUnfulfilledDependencies;
+            Type[] unfulfilledDependencies = behaviorUnfulfilledDependencies ?? 
+                Array.Empty<Type>();
 
 
             evaluator.GetBehaviorTypes().Returns(new Type[] { type });
@@ -110,10 +136,19 @@ namespace AppTests
     }
 
     #region Shared Constructs
+    public static class Mappings
+    {
+        public static readonly Dictionary<Type, string> ContextNames = new()
+        {
+            { typeof(TestContextA), "contextA" },
+            { typeof(TestContextB), "contextB" }
+        };
+    }
+
     public class TestBehaviorA
     {
-        public const string ContextAName = "contextA";
-        public const string ContextBName = "contextB";
+        public static readonly string ContextAName = Mappings.ContextNames[typeof(TestContextA)];
+        public static readonly string ContextBName = Mappings.ContextNames[typeof(TestContextB)];
 
         private void OnContextAIntChange(TestContextA contextA, TestContextB contextB)
         {
@@ -175,27 +210,6 @@ namespace AppTests
         }
     }
 
-    public class BehaviorHandling
-    {
-        [Test]
-        public void FulfilledBehaviorContextualizesSelfCreatedDependencies()
-        {
-            Assert.Ignore();
-        }
-
-        [Test]
-        public void DecontextualizationPreventsFulfillment()
-        {
-            Assert.Ignore();
-        }
-
-        [Test]
-        public void DestroyedBehaviorsRemainingDependenciesUsedForInstantiation()
-        {
-            Assert.Ignore();
-        }
-    }
-
     public class Contextualization
     {
         [Test]
@@ -231,18 +245,42 @@ namespace AppTests
         }
 
         [Test]
-        public void DependentFulfilledBehavior_NewChangesInvokeOnContextChange()
+        public void DependentFulfilledBehavior_ContextualizesSelfCreatedDependencies()
         {
-            Assert.Ignore();
+            TestContextA expectedContextA = new();
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextB)
+            };
 
-            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(
-                new(), new(), new Type[] 
-                {
-                    typeof(TestContextA), 
-                    typeof(TestContextB)
-                });
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(new()
+            {
+                { TestBehaviorA.ContextAName, expectedContextA }
+            }, new(), requiredDependencies);
             App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
-                TestContextB>(factory);
+                TestContextB>(factory, requiredDependencies);
+
+            Assert.IsNull(app.GetContext<TestContextA>());
+
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
+            Assert.AreEqual(expectedContextA, app.GetContext<TestContextA>());
+        }
+
+        [Test]
+        public void DependentFulfilledBehavior_ExistingChangesInvokeOnContextChange()
+        {
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
+
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(new(), new(), 
+                requiredDependencies);
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory, requiredDependencies);
 
             MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAChange");
             if (mi == null)
@@ -256,24 +294,27 @@ namespace AppTests
             int expectedValue = 11;
             contextA.Int.Value = expectedValue;
 
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
             app.Update(); // Behavior A updates Context A's context change value.
 
             Assert.AreEqual(expectedValue, contextA.OnContextChangeIntValue);
         }
 
         [Test]
-        public void DependentFulfilledBehavior_NewChangesInvokeOnStateChange()
+        public void DependentFulfilledBehavior_ExistingChangesInvokeOnStateChange()
         {
-            Assert.Ignore();
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
 
-            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(
-                new(), new(), new Type[]
-                {
-                    typeof(TestContextA),
-                    typeof(TestContextB)
-                });
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(new(), new(),
+                requiredDependencies);
             App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
-                TestContextB>(factory);
+                TestContextB>(factory, requiredDependencies);
 
             MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
                 BindingFlags.Instance | BindingFlags.NonPublic);
@@ -286,6 +327,81 @@ namespace AppTests
 
             TestContextA contextA = new();
             app.Contextualize(contextA);
+            int expectedValue = 11;
+            contextA.Int.Value = expectedValue;
+
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
+            app.Update(); // Behavior A updates Context A's context change value.
+
+            Assert.AreEqual(expectedValue, contextA.OnStateChangeIntValue);
+        }
+
+        [Test]
+        public void DependentFulfilledBehavior_NewChangesInvokeOnContextChange()
+        {
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
+
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(new(), new(),
+                requiredDependencies);
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory, requiredDependencies);
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAChange");
+            if (mi == null)
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextAName).Returns(new MethodInfo[] { mi });
+
+            TestContextA contextA = new();
+            app.Contextualize(contextA);
+
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
+            int expectedValue = 11;
+            contextA.Int.Value = expectedValue;
+
+            app.Update(); // Behavior A updates Context A's context change value.
+
+            Assert.AreEqual(expectedValue, contextA.OnContextChangeIntValue);
+        }
+
+        [Test]
+        public void DependentFulfilledBehavior_NewChangesInvokeOnStateChange()
+        {
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
+
+            IBehaviorFactory factory = SetUp.BuildFactorySubstitute<TestBehaviorA>(new(), new(),
+                requiredDependencies);
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory, requiredDependencies);
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            if (mi == null)
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int))
+                .Returns(new MethodInfo[] { mi });
+
+            TestContextA contextA = new();
+            app.Contextualize(contextA);
+
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
             int expectedValue = 11;
             contextA.Int.Value = expectedValue;
 
@@ -360,111 +476,7 @@ namespace AppTests
         }
 
         [Test]
-        public void DependentFulfilledBehavior_ExistingChangesIgnoredForOnContextChange()
-        {
-            Assert.Ignore();
-
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
-                throw new NullReferenceException();
-
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAChange");
-            if (mi == null)
-                throw new NullReferenceException();
-
-            _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextAName).Returns(new MethodInfo[] { mi });
-
-            int expectedValue = 11;
-            contextA.Int.Value = expectedValue;
-            _app.Decontextualize(contextA);
-
-            _app.Update(); // Behavior A would update Context A's context change value.
-
-            Assert.AreNotEqual(expectedValue, contextA.OnContextChangeIntValue);
-        }
-
-        [Test]
-        public void DependentFulfilledBehavior_ExistingChangesIgnoredForOnStateChange()
-        {
-            Assert.Ignore();
-
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
-                throw new NullReferenceException();
-
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            if (mi == null)
-                throw new NullReferenceException();
-
-            _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextAName, nameof(TestContextA.Int))
-                .Returns(new MethodInfo[] { mi });
-
-            int expectedValue = 11;
-            contextA.Int.Value = expectedValue;
-            _app.Decontextualize(contextA);
-
-            _app.Update(); // Behavior A would update Context A's context change value.
-
-            Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValue);
-        }
-
-        [Test]
-        public void DependentFulfilledBehavior_NewChangesIgnoredForOnContextChange()
-        {
-            Assert.Ignore();
-
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
-                throw new NullReferenceException();
-
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAChange");
-            if (mi == null)
-                throw new NullReferenceException();
-
-            _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextAName).Returns(new MethodInfo[] { mi });
-
-            _app.Decontextualize(contextA);
-            int expectedValue = 11;
-            contextA.Int.Value = expectedValue;
-
-            _app.Update(); // Behavior A would update Context A's context change value.
-
-            Assert.AreNotEqual(expectedValue, contextA.OnContextChangeIntValue);
-        }
-
-        [Test]
-        public void DependentFulfilledBehavior_NewChangesIgnoredForOnStateChange()
-        {
-            Assert.Ignore();
-
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
-                throw new NullReferenceException();
-
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            if (mi == null)
-                throw new NullReferenceException();
-
-            _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
-                TestBehaviorA.ContextAName, nameof(TestContextA.Int))
-                .Returns(new MethodInfo[] { mi });
-
-            _app.Decontextualize(contextA);
-            int expectedValue = 11;
-            contextA.Int.Value = expectedValue;
-
-            _app.Update(); // Behavior A would update Context A's context change value.
-
-            Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValue);
-        }
-
-        [Test]
-        public void DependentInitializationBehavior_ExistingChangesIgnoredForOnContextChange()
+        public void DependentBehavior_ExistingChangesIgnoredForOnContextChange()
         {
             TestContextA? contextA = _app.GetContext<TestContextA>();
             if (contextA == null)
@@ -487,7 +499,7 @@ namespace AppTests
         }
 
         [Test]
-        public void DependentInitializationBehavior_ExistingChangesIgnoredForOnStateChange()
+        public void DependentBehavior_ExistingChangesIgnoredForOnStateChange()
         {
             TestContextA? contextA = _app.GetContext<TestContextA>();
             if (contextA == null)
@@ -512,7 +524,7 @@ namespace AppTests
         }
 
         [Test]
-        public void DependentInitializationBehavior_NewChangesIgnoredForOnContextChange()
+        public void DependentBehavior_NewChangesIgnoredForOnContextChange()
         {
             TestContextA? contextA = _app.GetContext<TestContextA>();
             if (contextA == null)
@@ -535,7 +547,7 @@ namespace AppTests
         }
 
         [Test]
-        public void DependentInitializationBehavior_NewChangesIgnoredForOnStateChange()
+        public void DependentBehavior_NewChangesIgnoredForOnStateChange()
         {
             TestContextA? contextA = _app.GetContext<TestContextA>();
             if (contextA == null)
@@ -557,6 +569,33 @@ namespace AppTests
             _app.Update(); // Behavior A would update Context A's context change value.
 
             Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValue);
+        }
+
+        [Test]
+        public void DependentFulfilledBehavior_RemainingDependenciesUsedForNewInstantiation()
+        {
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
+
+            IBehaviorFactory factory = AppTests.SetUp.BuildFactorySubstitute<TestBehaviorA>(new(), 
+                new(), requiredDependencies);
+            App app = AppTests.SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory, requiredDependencies);
+
+            TestContextA contextA = new();
+            app.Contextualize(contextA);
+
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
+            factory.ClearReceivedCalls();
+
+            app.Decontextualize(contextB);
+
+            Assert.True(factory.Received().AddAvailableDependency(contextA));
         }
 
         [Test]
@@ -580,6 +619,12 @@ namespace AppTests
             Assert.Throws<ArgumentNullException>(() =>
                 _app.Decontextualize<TestContextA>(null));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+        }
+
+        [Test]
+        public void PreventsFulfillmentOfDependentBehavior()
+        {
+            Assert.Ignore();
         }
 
         [Test]

@@ -47,6 +47,12 @@ public partial class App
     private readonly Dictionary<Type, HashSet<object>> _contexts = new();
 
     /// <summary>
+    /// A mapping of context types to the behavior factories that require them 
+    /// to be fulfill behavior instances.
+    /// </summary>
+    private readonly Dictionary<Type, List<IBehaviorFactory>> _contextBehaviorFactories = new();
+
+    /// <summary>
     /// A mapping of context instances to the behavior instances that depend upon them.
     /// </summary>
     private readonly Dictionary<object, BehaviorInstance> _contextBehaviors = new();
@@ -61,12 +67,6 @@ public partial class App
     /// instantiate new behaviors.
     /// </summary>
     private readonly Queue<IBehaviorFactory> _pendingFactories = new();
-
-    /// <summary>
-    /// A mapping of context types to the behavior types that require them 
-    /// to be fulfilled.
-    /// </summary>
-    private readonly Dictionary<Type, List<Type>> _requiredContextBehaviorTypes = new();
 
     private bool _isInitialized = false;
 
@@ -104,68 +104,34 @@ public partial class App
 
         Type[] behaviorTypes = Evaluator.GetBehaviorTypes();
         for (int c = 0, count = behaviorTypes.Length; c < count; c++)
-            CreateBehaviorFactory(behaviorTypes[c]);
+            RegisterBehaviorFactory(behaviorTypes[c]);
 
         ProcessPendingFactories();
 
         _isInitialized = true;
     }
 
-    private void CreateBehaviorFactory(Type behaviorType)
+    /// <summary>
+    /// Registers the factory for the provided type of behavior by mapping the behavior's 
+    /// dependencies to the factory and queueing any initialization behavior factories 
+    /// for instantiation.
+    /// </summary>
+    /// <param name="behaviorType">The type of the behavior whose factory 
+    /// is being registered.</param>
+    private void RegisterBehaviorFactory(Type behaviorType)
     {
         IBehaviorFactory factory = Evaluator.BuildBehaviorFactory(behaviorType);
-        Type[] deps = Evaluator.GetBehaviorRequiredDependencies(behaviorType);
-        //BehaviorFactory factory = new(constructor, deps);
-        for (int c = 0, count = deps.Length; c < count; c++)
+        Type[] dependencies = Evaluator.GetBehaviorRequiredDependencies(behaviorType);
+        for (int c = 0, count = dependencies.Length; c < count; c++)
         {
-            // TODO :: Create behavior factory object that holds data about 
-            //          its required dependencies, the behavior type, and how many of
-            //          each dependency exists for fulfillment.
-            // TODO :: context type mapping to behavior factory.
-            // TODO :: behavior type mapping to behavior factory
+            if (!_contextBehaviorFactories.ContainsKey(dependencies[c]))
+                _contextBehaviorFactories.Add(dependencies[c], new());
 
-            /*
-            if (!_requiredContextBehaviorTypes.ContainsKey(requiredContextTypes[c]))
-                _requiredContextBehaviorTypes.Add(requiredContextTypes[c], new());
-
-            List<Type> requiringBehaviors = _requiredContextBehaviorTypes[requiredContextTypes[c]];
-            if (!requiringBehaviors.Contains(behaviorType))
-                requiringBehaviors.Add(behaviorType);
-            */
-
-            // TODO :: Contextualization gets factories and adds the new context to them.
-            //          Any time a behavior is fulfilled, its factory instantiates it.
+            _contextBehaviorFactories[dependencies[c]].Add(factory);
         }
 
         if (factory.CanInstantiate)
             _pendingFactories.Enqueue(factory);
-    }
-
-    /// <summary>
-    /// Processes the app's pending factories until there are no more remaining.
-    /// </summary>
-    private void ProcessPendingFactories()
-    {
-        while (_pendingFactories.Count > 0)
-        {
-            BehaviorInstance[] newInstances = _pendingFactories.Dequeue().Process();
-            for (int c = 0, count = newInstances.Length; c < count; c++)
-                RegisterBehaviorInstance(newInstances[c]);
-        }
-    }
-    
-    /// <summary>
-    /// Registers the provided behavior instance by contextualizing its self created contexts 
-    /// and associating the instance's contexts with the instance.
-    /// </summary>
-    /// <param name="instance">The instance to be registered.</param>
-    private void RegisterBehaviorInstance(BehaviorInstance instance)
-    {
-        for (int c = 0, count = instance.SelfCreatedContexts.Length; c < count; c++)
-            Contextualize(instance.SelfCreatedContexts[c]);
-
-        foreach (object context in instance.Contexts.Values)
-            _contextBehaviors.Add(context, instance);
     }
 
     /// <summary>
@@ -222,7 +188,12 @@ public partial class App
                 _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
         }
 
-        // TODO :: Fulfill behavior dependencies when possible.
+        if (_contextBehaviorFactories.ContainsKey(type))
+            for (int c = 0, count = _contextBehaviorFactories[type].Count; c < count; c++)
+                if (_contextBehaviorFactories[type][c].AddAvailableDependency(context))
+                    _pendingFactories.Enqueue(_contextBehaviorFactories[type][c]);
+
+        ProcessPendingFactories();
     }
 
     /// <summary>
@@ -343,6 +314,7 @@ public partial class App
         return hadChanges;
     }
 
+
     /// <summary>
     /// Invokes the provided operation for the provided behavior instance.
     /// </summary>
@@ -358,5 +330,32 @@ public partial class App
             arguments[pco] = bInstance.Contexts[parameters[pco].Name.EnsureNotNull()];
 
         operation.Invoke(bInstance.Behavior, arguments);
+    }
+
+    /// <summary>
+    /// Processes the app's pending factories until there are no more remaining.
+    /// </summary>
+    private void ProcessPendingFactories()
+    {
+        while (_pendingFactories.Count > 0)
+        {
+            BehaviorInstance[] newInstances = _pendingFactories.Dequeue().Process();
+            for (int c = 0, count = newInstances.Length; c < count; c++)
+                RegisterBehaviorInstance(newInstances[c]);
+        }
+    }
+
+    /// <summary>
+    /// Registers the provided behavior instance by contextualizing its self created contexts 
+    /// and associating the instance's contexts with the instance.
+    /// </summary>
+    /// <param name="instance">The instance to be registered.</param>
+    private void RegisterBehaviorInstance(BehaviorInstance instance)
+    {
+        for (int c = 0, count = instance.SelfCreatedContexts.Length; c < count; c++)
+            Contextualize(instance.SelfCreatedContexts[c]);
+
+        foreach (object context in instance.Contexts.Values)
+            _contextBehaviors.Add(context, instance);
     }
 }
