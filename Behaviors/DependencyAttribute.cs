@@ -89,6 +89,12 @@ public class DependencyAttribute<T> : DependencyAttribute
 public enum Fulfillment
 {
     ///// <summary>
+    ///// The dependency that shares its existence with its behavior. The dependency is 
+    ///// expected to be created by the dependent behavior during its construction. 
+    ///// The dependnecy will be decontextualized if the dependent behavior is ever destroyed.
+    ///// </summary>
+    //Coexistent,  // Not currently supported.
+    ///// <summary>
     ///// The dependency will automatically be satisfied by a default instance of the context.
     ///// </summary>
     //Default,  // Not currently supported.
