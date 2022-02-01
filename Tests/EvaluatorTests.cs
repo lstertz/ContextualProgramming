@@ -445,9 +445,11 @@ namespace EvaluatorTests
         public class HasOperationsBehaviorAttribute : BaseBehaviorAttribute { }
         [HasOperationsBehavior]
         [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        [TD<TestContextB>(Binding.Unique, Fulfillment.Existing, ContextB)]
         public class HasOperationsBehavior
         {
             public const string ContextA = "contextA";
+            public const string ContextB = "contextB";
 
             public HasOperationsBehavior(out TestContextA contextA) => contextA = new();
 
@@ -458,11 +460,25 @@ namespace EvaluatorTests
             [TO]
             [OnChange(ContextA, nameof(TestContextA.Int))]
             private void OnContextAIntChange(TestContextA contextA) { }
+
+            [TO]
+            [OnChange(ContextB)]
+            public void OnContextBChange(TestContextB contextB) { }
+
+            [TO]
+            [OnChange(ContextB, nameof(TestContextB.Int))]
+            private void OnContextBIntChange(TestContextB contextB) { }
         }
 
         public class TCAttribute : BaseContextAttribute { }
         [TC]
         public class TestContextA
+        {
+            public ContextState<int> Int { get; init; } = 0;
+        }
+
+        [TC]
+        public class TestContextB
         {
             public ContextState<int> Int { get; init; } = 0;
         }

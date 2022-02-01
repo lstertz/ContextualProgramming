@@ -575,7 +575,12 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     {
         string dName = attribute.DependencyName;
 
-        if (!_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(dName))
+        int dependencyIndex;
+        if (_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(dName))
+            dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][dName];
+        else if (_behaviorExistingDependencies[behaviorType].ContainsKey(dName))
+            dependencyIndex = _behaviorExistingDependencies[behaviorType][dName];
+        else
             throw new InvalidOperationException($"The on change declaration of " +
                 $"the operation {operation.Name} of the behavior type {behaviorType.FullName} " +
                 $"has an invalid dependency name, {dName}. All dependency names must match the " +
@@ -585,7 +590,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         if (csName == null)
             return;
 
-        int dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][dName];
         Type dependencyType = _behaviorDependencies[behaviorType][dependencyIndex];
         if (!_contextBindableProperties[dependencyType].Select(p => p.Name).Contains(csName))
             throw new InvalidOperationException($"The on change declaration of " +
@@ -610,13 +614,17 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
             string pName = parameters[c].Name.EnsureNotNull();
             Type pType = parameters[c].ParameterType;
 
-            if (!_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(pName))
+            int dependencyIndex;
+            if (_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(pName))
+                dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][pName];
+            else if (_behaviorExistingDependencies[behaviorType].ContainsKey(pName))
+                dependencyIndex = _behaviorExistingDependencies[behaviorType][pName];
+            else
                 throw new InvalidOperationException($"The operation {operation.Name} " +
                     $"of the behavior type {behaviorType.FullName} has an invalid " +
                     $"parameter name, {pName}. All parameter names must match the name " +
                     $"of the dependency expected to be provided to the operation.");
 
-            int dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][pName];
             if (pType != _behaviorDependencies[behaviorType][dependencyIndex])
                 throw new InvalidOperationException($"The operation {operation.Name} " +
                     $"of the behavior type {behaviorType.FullName} has an invalid " +
