@@ -156,14 +156,20 @@ namespace BehaviorFactoryTests
         }
 
         [Test]
-        public void NonDependency_ReturnsFalse()
+        public void NonDependency_ReturnsCanInstantiate()
         {
             BehaviorFactory factory = SetUp.Factory(new()
             {
                 { "A", typeof(TestContextA) }
             });
 
-            Assert.IsFalse(factory.AddAvailableDependency(new TestContextB()));
+            bool expected = factory.CanInstantiate;
+            Assert.AreEqual(expected, factory.AddAvailableDependency(new TestContextB()));
+
+            factory.AddAvailableDependency(new TestContextA());
+
+            expected = factory.CanInstantiate;
+            Assert.AreEqual(expected, factory.AddAvailableDependency(new TestContextB()));
         }
 
         [Test]
@@ -212,6 +218,21 @@ namespace BehaviorFactoryTests
             BehaviorFactory factory = SetUp.Factory();
 
             Assert.IsTrue(factory.CanInstantiate);
+        }
+
+        [Test]
+        public void LosesPendingInstantiation()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(contextA);
+            factory.RemoveAvailableDependency(contextA);
+
+            Assert.IsFalse(factory.CanInstantiate);
         }
 
         [Test]
@@ -630,6 +651,29 @@ namespace BehaviorFactoryTests
         }
 
         [Test]
+        public void RemovedDependency_DoesNotUseRemovedDependencyInInstantiation()
+        {
+            string expectedContextName = "contextA";
+
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { expectedContextName, typeof(TestContextA) }
+            });
+
+            TestContextA context1 = new();
+            TestContextA context2 = new();
+            factory.AddAvailableDependency(context1);
+            factory.AddAvailableDependency(context2);
+
+            factory.RemoveAvailableDependency(context2);
+
+            BehaviorInstance[] instances = factory.Process();
+
+            Assert.AreEqual(1, instances.Length);
+            Assert.AreEqual(context1, instances[0].Contexts[expectedContextName]);
+        }
+
+        [Test]
         public void SelfFulfilledBehavior_InstantiatesOneWithSelfCreatedDependencies()
         {
             BehaviorFactory factory = SetUp.SelfFulfilledFactory();
@@ -655,6 +699,213 @@ namespace BehaviorFactoryTests
             factory.Process();
 
             Assert.AreEqual(pendingInstantiations, factory.NumberOfPendingInstantiations);
+        }
+    }
+
+    public class RemoveDependency
+    {
+        [Test]
+        public void MultipleDependencies_LosesFulfillment_ReturnsFalse()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) },
+                { "contextB", typeof(TestContextB) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(contextA);
+            factory.AddAvailableDependency(new TestContextB());
+
+            Assert.IsFalse(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void MultipleDependencies_MaintainsFulfillment_ReturnsTrue()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) },
+                { "contextB", typeof(TestContextB) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(contextA);
+            factory.AddAvailableDependency(new TestContextA());
+            factory.AddAvailableDependency(new TestContextB());
+
+            Assert.IsTrue(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void MultipleDependencies_PartialDuplicateFulfillment_ReturnsFalse()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) },
+                { "contextB", typeof(TestContextB) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(new TestContextA());
+            factory.AddAvailableDependency(new TestContextA());
+            factory.AddAvailableDependency(contextA);
+
+            Assert.IsFalse(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void MultipleDependencies_PartialFulfillment_ReturnsFalse()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) },
+                { "contextB", typeof(TestContextB) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(new TestContextB());
+            factory.AddAvailableDependency(contextA);
+
+            Assert.IsFalse(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void MultipleSameTypeDependencies_LosesFulfillment_ReturnsFalse()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA1", typeof(TestContextA) },
+                { "contextA2", typeof(TestContextA) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(contextA);
+            factory.AddAvailableDependency(new TestContextA());
+
+            Assert.IsFalse(factory.RemoveAvailableDependency(contextA));
+
+            // Rule out order of dependencies.
+
+            factory = SetUp.Factory(new()
+            {
+                { "contextA1", typeof(TestContextA) },
+                { "contextA2", typeof(TestContextA) }
+            });
+
+            factory.AddAvailableDependency(new TestContextA());
+            factory.AddAvailableDependency(contextA);
+
+            Assert.IsFalse(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void MultipleSameTypeDependencies_MaintainsFulfillment_ReturnsTrue()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA1", typeof(TestContextA) },
+                { "contextA2", typeof(TestContextA) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(new TestContextA());
+            factory.AddAvailableDependency(contextA);
+            factory.AddAvailableDependency(new TestContextA());
+
+            Assert.IsTrue(factory.RemoveAvailableDependency(contextA));
+
+            // Rule out order of dependencies.
+            factory = SetUp.Factory(new()
+            {
+                { "contextA1", typeof(TestContextA) },
+                { "contextA2", typeof(TestContextA) }
+            });
+
+            factory.AddAvailableDependency(new TestContextA());
+            factory.AddAvailableDependency(new TestContextA());
+            factory.AddAvailableDependency(contextA);
+
+            Assert.IsTrue(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void NonDependency_ReturnsCanInstantiate()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "A", typeof(TestContextA) }
+            });
+
+            bool expected = factory.CanInstantiate;
+            Assert.AreEqual(expected, factory.AddAvailableDependency(new TestContextB()));
+
+            factory.RemoveAvailableDependency(new TestContextA());
+
+            expected = factory.CanInstantiate;
+            Assert.AreEqual(expected, factory.RemoveAvailableDependency(new TestContextB()));
+        }
+
+        [Test]
+        public void NullDependency_ThrowsException()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+            Assert.Throws<ArgumentNullException>(() => factory.RemoveAvailableDependency(null));
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+        }
+
+        [Test]
+        public void SingleDependency_LosesFulfillment_ReturnsFalse()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(contextA);
+
+            Assert.IsFalse(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void SingleDependency_MaintainsFulfillment_ReturnsTrue()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            TestContextA contextA = new();
+            factory.AddAvailableDependency(contextA);
+            factory.AddAvailableDependency(new TestContextA());
+
+            Assert.IsTrue(factory.RemoveAvailableDependency(contextA));
+        }
+
+        [Test]
+        public void UnaddedDependency_ReturnsCanInstantiate()
+        {
+            BehaviorFactory factory = SetUp.Factory(new()
+            {
+                { "contextA", typeof(TestContextA) }
+            });
+
+            TestContextA addedContextA = new();
+            TestContextA unaddedContextA = new();
+
+            bool canInstantiate = factory.CanInstantiate;
+            Assert.AreEqual(canInstantiate, factory.RemoveAvailableDependency(unaddedContextA));
+
+            factory.AddAvailableDependency(addedContextA);
+
+            canInstantiate = factory.CanInstantiate;
+            Assert.AreEqual(canInstantiate, factory.AddAvailableDependency(unaddedContextA));
         }
     }
 }

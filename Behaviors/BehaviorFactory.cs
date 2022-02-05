@@ -48,6 +48,15 @@ public interface IBehaviorFactory
     /// </summary>
     /// <returns>Any newly instantiated behaviors.</returns>
     BehaviorInstance[] Process();
+
+    /// <summary>
+    /// Removes the provided dependency as an available dependency to be used in 
+    /// the instantiation of a behavior.
+    /// </summary>
+    /// <param name="dependency">The dependency to be removed.</param>
+    /// <returns>Whether an instantiation can be made with the dependencies 
+    /// that are available, after this removal.</returns>
+    bool RemoveAvailableDependency(object dependency);
 }
 
 
@@ -64,7 +73,7 @@ public class BehaviorFactory : IBehaviorFactory
     public Type[] RequiredDependencyTypes { get; private set; }
 
 
-    private readonly Dictionary<string, HashSet<object>> _availableDependencies = new();
+    private readonly Dictionary<Type, HashSet<object>> _availableDependencies = new();
 
     private readonly ConstructorInfo _constructor;
 
@@ -78,7 +87,7 @@ public class BehaviorFactory : IBehaviorFactory
     /// instantiated by this factory.</param>
     /// <param name="requiredDependencies">The dependencies that must be fulfilled for 
     /// a behavior to be instantiated.</param>
-    public BehaviorFactory(ConstructorInfo constructor, 
+    public BehaviorFactory(ConstructorInfo constructor,
         Dictionary<string, Type> requiredDependencies)
     {
         _constructor = constructor.EnsureNotNull();
@@ -88,7 +97,7 @@ public class BehaviorFactory : IBehaviorFactory
         {
             Type dependencyType = requiredDependencies[dependencyName];
             dependencyTypes.Add(dependencyType);
-            _availableDependencies.Add(dependencyName, new());
+            _availableDependencies.TryAdd(dependencyType, new());
 
             if (!_dependencyTypesNames.ContainsKey(dependencyType))
                 _dependencyTypesNames.Add(dependencyType, new());
@@ -108,25 +117,9 @@ public class BehaviorFactory : IBehaviorFactory
 
         Type dependencyType = dependency.GetType();
         if (!_dependencyTypesNames.ContainsKey(dependencyType))
-            return false;
-        
-        List<string> dependencyNames = _dependencyTypesNames[dependencyType];
-        for (int c = 0, count = dependencyNames.Count; c < count; c++)
-        {
-            if (c == count - 1)
-            {
-                _availableDependencies[dependencyNames[c]].Add(dependency);
-                break;
-            }
+            return CanInstantiate;
 
-            int current = _availableDependencies[dependencyNames[c]].Count;
-            int next = _availableDependencies[dependencyNames[c + 1]].Count;
-            if (current < next)
-            {
-                _availableDependencies[dependencyNames[c]].Add(dependency);
-                break;
-            }
-        }
+        _availableDependencies[dependencyType].Add(dependency);
 
         NumberOfPendingInstantiations = DeterminePendingInstantiations();
         return CanInstantiate;
@@ -151,6 +144,21 @@ public class BehaviorFactory : IBehaviorFactory
         return newInstances;
     }
 
+    /// <inheritdoc/>
+    public bool RemoveAvailableDependency(object dependency)
+    {
+        dependency.EnsureNotNull();
+
+        Type dependencyType = dependency.GetType();
+        if (!_dependencyTypesNames.ContainsKey(dependencyType))
+            return CanInstantiate;
+
+        _availableDependencies[dependencyType].Remove(dependency);
+
+        NumberOfPendingInstantiations = DeterminePendingInstantiations();
+        return CanInstantiate;
+    }
+
 
     /// <summary>
     /// Determines the number of instantiations that could be performed with the 
@@ -161,12 +169,15 @@ public class BehaviorFactory : IBehaviorFactory
     private int DeterminePendingInstantiations()
     {
         int instantiationCount = -1;
-        foreach (var dependencySet in _availableDependencies.Values)
+        foreach (var type in _availableDependencies.Keys)
         {
+            int setCount = _availableDependencies[type].Count / 
+                _dependencyTypesNames[type].Count;
+
             if (instantiationCount == -1)
-                instantiationCount = dependencySet.Count;
-            else if (instantiationCount > dependencySet.Count)
-                instantiationCount = dependencySet.Count;
+                instantiationCount = setCount;
+            else if (instantiationCount > setCount)
+                instantiationCount = setCount;
 
             if (instantiationCount == 0)
                 return 0;
@@ -204,11 +215,15 @@ public class BehaviorFactory : IBehaviorFactory
             }
         }
 
-        foreach(string dependencyName in _availableDependencies.Keys)
+        foreach (Type dependencyType in _availableDependencies.Keys)
         {
-            object dependency = _availableDependencies[dependencyName].First();
-            contexts.Add(dependencyName, dependency);
-            _availableDependencies[dependencyName].Remove(dependency);
+            List<string> dependencyNames = _dependencyTypesNames[dependencyType];
+            for (int c = 0, count = dependencyNames.Count; c < count; c++)
+            {
+                object dependency = _availableDependencies[dependencyType].First();
+                contexts.Add(dependencyNames[c], dependency);
+                _availableDependencies[dependencyType].Remove(dependency);
+            }
         }
 
         return new(behavior, contexts, arguments);
