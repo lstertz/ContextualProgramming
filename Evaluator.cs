@@ -63,13 +63,14 @@ public abstract class Evaluator
                 $"Initialize with {nameof(Evaluator.Initialize)} prior to using the evaluator.");
     }
 
+
     /// <summary>
-    /// Provides the constructor for the specified behavior.
+    /// Provides a new factory for instantiating the specified behavior.
     /// </summary>
-    /// <param name="behaviorType">The type of behavior whose constructor 
+    /// <param name="behaviorType">The type of behavior whose factory  
     /// is to be provided.</param>
-    /// <returns>The specified behavior's constructor.</returns>
-    public abstract ConstructorInfo GetBehaviorConstructor(Type behaviorType);
+    /// <returns>A factory for the specified behavior.</returns>
+    public abstract IBehaviorFactory BuildBehaviorFactory(Type behaviorType);
 
     /// <summary>
     /// Provides the dependencies required by the specified behavior for an 
@@ -103,14 +104,6 @@ public abstract class Evaluator
     /// </summary>
     /// <returns>All types found to be contexts.</returns>
     public abstract Type[] GetContextTypes();
-
-    /// <summary>
-    /// Provides the behavior types of behaviors that can instantiate without 
-    /// any required dependencies, as found by this evaluator.
-    /// </summary>
-    /// <returns>All behavior types found to be behaviors that can be 
-    /// instantiated without any required dependencies.</returns>
-    public abstract Type[] GetInitializationBehaviorTypes();
 
     /// <summary>
     /// Provides the operations of the specified behavior type that should 
@@ -187,19 +180,9 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     private readonly Dictionary<Type, PropertyInfo[]> _contextBindableProperties = new();
 
     /// <summary>
-    /// A mapping of context types to the behavior types that depend upon them.
-    /// </summary>
-    private readonly Dictionary<Type, List<Type>> _contextTypesToBehaviorTypes = new();
-
-    /// <summary>
     /// All found context types.
     /// </summary>
     private readonly HashSet<Type> _contextTypes = new();
-
-    /// <summary>
-    /// All found initializaiton behaviors.
-    /// </summary>
-    private Type[] _initializationBehaviors = Array.Empty<Type>();
 
     /// <summary>
     /// All found operations that should be invoked upon a context change.
@@ -222,8 +205,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                     CacheOperations(types[c]);
                 }
         }
-
-        CacheInitializationBehaviorTypes();
     }
 
     /// <inheritdoc/>
@@ -242,17 +223,22 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
 
 
     /// <inheritdoc/>
-    public override ConstructorInfo GetBehaviorConstructor(Type behaviorType)
+    public override IBehaviorFactory BuildBehaviorFactory(Type behaviorType)
     {
         ValidateInitialization();
 
         if (!_behaviorConstructors.ContainsKey(behaviorType))
-            throw new ArgumentException($"Behavior constructors cannot be retrieved " +
+            throw new ArgumentException($"A behavior factory cannot be retrieved " +
                 $"for type {behaviorType.FullName} since it is not a behavior " +
                 $"known to an evaluator with behaviors defined " +
                 $"by {typeof(TBehaviorAttribute).FullName}.");
 
-        return _behaviorConstructors[behaviorType];
+        Dictionary<string, Type> requiredDependencies = new();
+        foreach (var dependency in _behaviorExistingDependencies[behaviorType])
+            requiredDependencies.Add(dependency.Key,
+                _behaviorDependencies[behaviorType][dependency.Value]);
+
+        return new BehaviorFactory(_behaviorConstructors[behaviorType], requiredDependencies);
     }
 
     /// <inheritdoc/>
@@ -271,11 +257,11 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
             return Array.Empty<Type>();
 
         Type[] allDependencies = _behaviorDependencies[behaviorType];
-        Type[] requiredDependencies = new Type[existingDeps.Count];
+        HashSet<Type> requiredDependencies = new();
         foreach (int depIndex in existingDeps.Values)
-            requiredDependencies[depIndex] = allDependencies[depIndex];
+            requiredDependencies.Add(allDependencies[depIndex]);
 
-        return requiredDependencies;
+        return requiredDependencies.ToArray();
     }
 
     /// <inheritdoc/>
@@ -306,14 +292,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         ValidateInitialization();
 
         return _contextTypes.ToArray();
-    }
-
-    /// <inheritdoc/>
-    public override Type[] GetInitializationBehaviorTypes()
-    {
-        ValidateInitialization();
-
-        return _initializationBehaviors;
     }
 
     /// <inheritdoc/>
@@ -424,10 +402,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                     break;
             }
 
-            List<Type> dependents = _contextTypesToBehaviorTypes.GetValueOrDefault(t, new());
-            if (!dependents.Contains(behaviorType))
-                dependents.Add(behaviorType);
-
             depIndex++;
         }
 
@@ -490,20 +464,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
             _contextTypes.Add(type);
         }
         return false;
-    }
-
-    /// <summary>
-    /// Determines and caches the behavior types of initialization behaviors.
-    /// </summary>
-    private void CacheInitializationBehaviorTypes()
-    {
-        List<Type> initializationBehaviors = new();
-        foreach (Type behaviorType in _behaviorSelfCreatedDependencies.Keys)
-            if (_behaviorSelfCreatedDependencies[behaviorType].Count ==
-                _behaviorDependencies[behaviorType].Length)
-                initializationBehaviors.Add(behaviorType);
-
-        _initializationBehaviors = initializationBehaviors.ToArray();
     }
 
     /// <summary>
@@ -615,7 +575,12 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     {
         string dName = attribute.DependencyName;
 
-        if (!_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(dName))
+        int dependencyIndex;
+        if (_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(dName))
+            dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][dName];
+        else if (_behaviorExistingDependencies[behaviorType].ContainsKey(dName))
+            dependencyIndex = _behaviorExistingDependencies[behaviorType][dName];
+        else
             throw new InvalidOperationException($"The on change declaration of " +
                 $"the operation {operation.Name} of the behavior type {behaviorType.FullName} " +
                 $"has an invalid dependency name, {dName}. All dependency names must match the " +
@@ -625,7 +590,6 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         if (csName == null)
             return;
 
-        int dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][dName];
         Type dependencyType = _behaviorDependencies[behaviorType][dependencyIndex];
         if (!_contextBindableProperties[dependencyType].Select(p => p.Name).Contains(csName))
             throw new InvalidOperationException($"The on change declaration of " +
@@ -650,13 +614,17 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
             string pName = parameters[c].Name.EnsureNotNull();
             Type pType = parameters[c].ParameterType;
 
-            if (!_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(pName))
+            int dependencyIndex;
+            if (_behaviorSelfCreatedDependencies[behaviorType].ContainsKey(pName))
+                dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][pName];
+            else if (_behaviorExistingDependencies[behaviorType].ContainsKey(pName))
+                dependencyIndex = _behaviorExistingDependencies[behaviorType][pName];
+            else
                 throw new InvalidOperationException($"The operation {operation.Name} " +
                     $"of the behavior type {behaviorType.FullName} has an invalid " +
                     $"parameter name, {pName}. All parameter names must match the name " +
                     $"of the dependency expected to be provided to the operation.");
 
-            int dependencyIndex = _behaviorSelfCreatedDependencies[behaviorType][pName];
             if (pType != _behaviorDependencies[behaviorType][dependencyIndex])
                 throw new InvalidOperationException($"The operation {operation.Name} " +
                     $"of the behavior type {behaviorType.FullName} has an invalid " +

@@ -88,18 +88,24 @@ public class DependencyAttribute<T> : DependencyAttribute
 /// </summary>
 public enum Fulfillment
 {
-    /// <summary>
-    /// The dependency will automatically be satisfied by a default instance of the context.
-    /// </summary>
+    ///// <summary>
+    ///// The dependency that shares its existence with its behavior. The dependency is 
+    ///// expected to be created by the dependent behavior during its construction. 
+    ///// The dependnecy will be decontextualized if the dependent behavior is ever destroyed.
+    ///// </summary>
+    //Coexistent,  // Not currently supported.
+    ///// <summary>
+    ///// The dependency will automatically be satisfied by a default instance of the context.
+    ///// </summary>
     //Default,  // Not currently supported.
     /// <summary>
     /// The dependency can only be fulfilled by an existing qualifying context.
     /// </summary>
     Existing,
-    /// <summary>
-    /// The dependency will be fulfilled by an existing qualifying context, if one exists, 
-    /// otherwise it is expected to be created by the dependent behavior during its construction.
-    /// </summary>
+    ///// <summary>
+    ///// The dependency will be fulfilled by an existing qualifying context, if one exists, 
+    ///// otherwise it is expected to be created by the dependent behavior during its construction.
+    ///// </summary>
     //ExistingOrSelfCreated,  // Not currently supported.
     /// <summary>
     /// The dependency is expected to be created by the dependent behavior during its construction.
@@ -112,10 +118,10 @@ public enum Fulfillment
 /// </summary>
 public enum Binding
 {
-    /// <summary>
-    /// A shared binding, meaning that the dependency may fulfill the requirements of 
-    /// more than one of the same type of behavior.
-    /// </summary>
+    ///// <summary>
+    ///// A shared binding, meaning that the dependency may fulfill the requirements of 
+    ///// more than one of the same type of behavior.
+    ///// </summary>
     //Shared,  // Not currently supported.
     /// <summary>
     /// A unique binding, meaning that the dependency may fulfill the requirements of 

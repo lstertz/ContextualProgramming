@@ -10,38 +10,6 @@ namespace ContextualProgramming;
 public class App
 {
     /// <summary>
-    /// Encapsulates an instance of a behavior with its contexts.
-    /// </summary>
-    private class BehaviorInstance
-    {
-        /// <summary>
-        /// The encapsulated behavior instance.
-        /// </summary>
-        public object Behavior { get; set; }
-
-        /// <summary>
-        /// The contexts (dependencies) of the encapsulated behavior keyed by to their names.
-        /// </summary>
-        public Dictionary<string, object> Contexts { get; set; }
-
-        /// <summary>
-        /// The contexts (dependencies) of the encapsulated behavior mapped to their names.
-        /// </summary>
-        public Dictionary<object, string> ContextNames { get; set; }
-
-
-        /// <summary>
-        /// Constructs a new behavior instance to link an instance 
-        /// of a behavior with its contexts.
-        /// </summary>
-        /// <param name="behavior"><see cref="Behavior"/></param>
-        /// <param name="contexts"><see cref="Contexts"/></param>
-        public BehaviorInstance(object behavior, Dictionary<string, object> contexts) =>
-            (Behavior, Contexts, ContextNames) =
-            (behavior.EnsureNotNull(), contexts, contexts.Flip());
-    }
-
-    /// <summary>
     /// Represents a record of a change for a property of a context.
     /// </summary>
     private class ContextChange
@@ -74,20 +42,36 @@ public class App
 
 
     /// <summary>
+    /// A mapping of behavior types to their behavior factories.
+    /// </summary>
+    private readonly Dictionary<Type, IBehaviorFactory> _behaviorFactories = new();
+
+    /// <summary>
     /// All currently contextualized context instances, keyed by their class type.
     /// </summary>
     private readonly Dictionary<Type, HashSet<object>> _contexts = new();
 
     /// <summary>
-    /// A mapping of context instances to the behavior instances that created them 
-    /// as self-created dependencies.
+    /// A mapping of context types to the behavior factories that require them 
+    /// to be fulfill behavior instances.
     /// </summary>
-    private readonly Dictionary<object, BehaviorInstance> _contextBehaviors = new();
+    private readonly Dictionary<Type, List<IBehaviorFactory>> _contextBehaviorFactories = new();
+
+    /// <summary>
+    /// A mapping of context instances to the behavior instances that depend upon them.
+    /// </summary>
+    private readonly Dictionary<object, HashSet<BehaviorInstance>> _contextBehaviors = new();
 
     /// <summary>
     /// A record of context changes that have occurred since the last evaluation.
     /// </summary>
     private readonly List<ContextChange> _contextChanges = new();
+
+    /// <summary>
+    /// A queue of behavior factories that can (and should) be processed to 
+    /// instantiate new behaviors.
+    /// </summary>
+    private readonly Queue<IBehaviorFactory> _pendingFactories = new();
 
     private bool _isInitialized = false;
 
@@ -123,11 +107,38 @@ public class App
     {
         Evaluator.Initialize();
 
-        Type[] initializationBehaviors = Evaluator.GetInitializationBehaviorTypes();
-        for (int c = 0, count = initializationBehaviors.Length; c < count; c++)
-            InstantiateBehavior(initializationBehaviors[c]);
+        Type[] behaviorTypes = Evaluator.GetBehaviorTypes();
+        for (int c = 0, count = behaviorTypes.Length; c < count; c++)
+            RegisterBehaviorFactory(behaviorTypes[c]);
+
+        ProcessPendingFactories();
 
         _isInitialized = true;
+    }
+
+    /// <summary>
+    /// Registers the factory for the provided type of behavior by mapping the behavior's 
+    /// dependencies to the factory and queueing any initialization behavior factories 
+    /// for instantiation.
+    /// </summary>
+    /// <param name="behaviorType">The type of the behavior whose factory 
+    /// is being registered.</param>
+    private void RegisterBehaviorFactory(Type behaviorType)
+    {
+        IBehaviorFactory factory = Evaluator.BuildBehaviorFactory(behaviorType);
+        _behaviorFactories.Add(behaviorType, factory);
+
+        Type[] dependencies = Evaluator.GetBehaviorRequiredDependencies(behaviorType);
+        for (int c = 0, count = dependencies.Length; c < count; c++)
+        {
+            if (!_contextBehaviorFactories.ContainsKey(dependencies[c]))
+                _contextBehaviorFactories.Add(dependencies[c], new());
+
+            _contextBehaviorFactories[dependencies[c]].Add(factory);
+        }
+
+        if (factory.CanInstantiate)
+            _pendingFactories.Enqueue(factory);
     }
 
     /// <summary>
@@ -168,53 +179,41 @@ public class App
         Type type = context.GetType();
         if (!Evaluator.IsContextType(type))
             throw new InvalidOperationException($"The provided instance, {context}, " +
-                $"of type {type.FullName} cannot be contextualized as it is not a Context.");
+                $"of type {type.FullName} cannot be contextualized as it is not a context.");
 
         if (!_contexts.ContainsKey(type))
             _contexts.Add(type, new());
-        _contexts[type].Add(context);
 
-        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
-        for (int c = 0, count = bindableProperties.Length; c < count; c++)
-        {
-            int contextIndex = c;
-            (bindableProperties[c].GetValue(context) as IBindableState)?.Bind(() =>
-                _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
-        }
+        if (!_contexts[type].Add(context))
+            return;
 
-        // TODO :: Fulfill behavior dependencies when possible.
+        BindContext(context, type);
+        AddContextToBehaviorFactories(context, type);
+        ProcessPendingFactories();
     }
+
 
     /// <summary>
     /// Decontextualizes the provided context, removing it from the app's contextual state.
     /// </summary>
     /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context to be deregistered.</param>
-    public void Decontextualize<T>(T context)
+    public void Decontextualize<T>(T context) where T : notnull
     {
         ValidateInitialization();
 
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
+        Type type = typeof(T);
         if (!_contexts.ContainsKey(typeof(T)))
-            return;
+            throw new InvalidOperationException($"The provided instance, {context}, " +
+                $"of type {type.FullName} cannot be decontextualized as it is not a context.");
 
-        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(context.GetType());
-        for (int c = 0, count = bindableProperties.Length; c < count; c++)
-            (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
-
-        _contexts[typeof(T)].Remove(context);
-        if (_contexts[typeof(T)].Count == 0)
-            _contexts.Remove(typeof(T));
-
-        if (_contextBehaviors.ContainsKey(context))
-        {
-            BehaviorInstance behaviorInstance = _contextBehaviors[context];
-            foreach (object c in behaviorInstance.Contexts.Values)
-                if (_contextBehaviors.ContainsKey(c) && _contextBehaviors[c] == behaviorInstance)
-                    _contextBehaviors.Remove(c);
-        }
+        UnbindContext(context);
+        RemoveContext(context);
+        DeregisterContextBehaviorInstances(context);
+        RemoveContextFromFactories(context);
     }
 
     /// <summary>
@@ -262,8 +261,9 @@ public class App
     /// <returns>True if there were changes evaluated, false otherwise.</returns>
     public bool Update()
     {
+        bool hadChanges = false;
         if (_contextChanges.Count == 0)
-            return false;
+            return hadChanges;
 
         ContextChange[] contextChanges = _contextChanges.ToArray();
         _contextChanges.Clear();
@@ -272,26 +272,36 @@ public class App
         {
             ContextChange change = contextChanges[c];
             object context = change.Context;
+
+            Type contextType = context.GetType();
+            if (!_contexts.ContainsKey(contextType) || !_contexts[contextType].Contains(context))
+                continue;
+
+            hadChanges = true;
+
             if (!_contextBehaviors.ContainsKey(context))
                 continue;
 
-            BehaviorInstance bInstance = _contextBehaviors[context];
-            Type behaviorType = bInstance.Behavior.GetType();
-            string contextName = bInstance.ContextNames[context];
+            foreach (BehaviorInstance bInstance in _contextBehaviors[context])
+            {
+                Type behaviorType = bInstance.Behavior.GetType();
+                string contextName = bInstance.ContextNames[context];
 
-            MethodInfo[] contextOperations = Evaluator.GetOnChangeOperations(
-                behaviorType, contextName);
-            for (int co = 0, coCount = contextOperations.Length; co < coCount; co++)
-                InvokeOperation(bInstance, contextOperations[co]);
+                MethodInfo[] contextOperations = Evaluator.GetOnChangeOperations(
+                    behaviorType, contextName);
+                for (int co = 0, coCount = contextOperations.Length; co < coCount; co++)
+                    InvokeOperation(bInstance, contextOperations[co]);
 
-            MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
-                behaviorType, contextName, change.PropertyName);
-            for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
-                InvokeOperation(bInstance, stateOperations[so]);
+                MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
+                    behaviorType, contextName, change.PropertyName);
+                for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
+                    InvokeOperation(bInstance, stateOperations[so]);
+            }
         }
 
-        return true;
+        return hadChanges;
     }
+
 
     /// <summary>
     /// Invokes the provided operation for the provided behavior instance.
@@ -310,42 +320,123 @@ public class App
         operation.Invoke(bInstance.Behavior, arguments);
     }
 
-
     /// <summary>
-    /// Instantiates an instance of the behavior specified by the provided type.
+    /// Processes the app's pending factories until there are no more remaining.
     /// </summary>
-    /// <param name="behaviorType">The type of behavior to be instantiated.</param>
-    /// <exception cref="InvalidOperationException">Thrown if the behavior does not 
-    /// construct and expected self-created dependency during its instantiation.</exception>
-    private void InstantiateBehavior(Type behaviorType)
+    private void ProcessPendingFactories()
     {
-        ConstructorInfo constructor = Evaluator.GetBehaviorConstructor(behaviorType);
-        ParameterInfo[] parameters = constructor.GetParameters();
-
-
-        object[] arguments = new object[parameters.Length];
-        object behavior = constructor.Invoke(arguments);
-
-        Dictionary<string, object> contexts = new();
-        for (int c = 0, count = parameters.Length; c < count; c++)
+        while (_pendingFactories.Count > 0)
         {
-            try
-            {
-                contexts.Add(parameters[c].Name.EnsureNotNull(), arguments[c].EnsureNotNull());
-            }
-            catch (ArgumentNullException)
-            {
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorType.FullName} did not construct an expected dependency " +
-                    $"of type {parameters[c].ParameterType.FullName}.");
-            }
-        }
-
-        BehaviorInstance behaviorInstance = new(behavior, contexts);
-        for (int c = 0, count = arguments.Length; c < count; c++)
-        {
-            Contextualize(arguments[c]);
-            _contextBehaviors.Add(arguments[c], behaviorInstance);
+            BehaviorInstance[] newInstances = _pendingFactories.Dequeue().Process();
+            for (int c = 0, count = newInstances.Length; c < count; c++)
+                RegisterBehaviorInstance(newInstances[c]);
         }
     }
+
+    /// <summary>
+    /// Registers the provided behavior instance by contextualizing its self created contexts 
+    /// and associating the instance's contexts with the instance.
+    /// </summary>
+    /// <param name="instance">The instance to be registered.</param>
+    private void RegisterBehaviorInstance(BehaviorInstance instance)
+    {
+        for (int c = 0, count = instance.SelfCreatedContexts.Length; c < count; c++)
+            Contextualize(instance.SelfCreatedContexts[c]);
+
+        foreach (object context in instance.Contexts.Values)
+        {
+            if (!_contextBehaviors.ContainsKey(context))
+                _contextBehaviors.Add(context, new());
+
+            _contextBehaviors[context].Add(instance);
+        }
+    }
+
+    #region Contextualization Functions
+    /// <summary>
+    /// Adds the provided context to its dependent behavior factories.
+    /// </summary>
+    /// <param name="context">The context to be added.</param>
+    /// <param name="type">The type of the context.</param>
+    private void AddContextToBehaviorFactories(object context, Type type)
+    {
+        if (_contextBehaviorFactories.ContainsKey(type))
+            for (int c = 0, count = _contextBehaviorFactories[type].Count; c < count; c++)
+                if (_contextBehaviorFactories[type][c].AddAvailableDependency(context))
+                    _pendingFactories.Enqueue(_contextBehaviorFactories[type][c]);
+    }
+
+    /// <summary>
+    /// Binds the provided context for state changes.
+    /// </summary>
+    /// <param name="context">The context to be bound.</param>
+    /// <param name="type">The type of the context.</param>
+    private void BindContext(object context, Type type)
+    {
+        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
+        for (int c = 0, count = bindableProperties.Length; c < count; c++)
+        {
+            int contextIndex = c;
+            (bindableProperties[c].GetValue(context) as IBindableState)?.Bind(() =>
+                _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
+        }
+    }
+    #endregion
+
+    #region Decontextualization Functions
+    /// <summary>
+    /// Deregisters all behaviors dependent upon the provided context.
+    /// </summary>
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context whose behaviors are to be deregistered.</param>
+    private void DeregisterContextBehaviorInstances<T>(T context) where T : notnull
+    {
+        if (_contextBehaviors.ContainsKey(context))
+        {
+            foreach (BehaviorInstance behaviorInstance in _contextBehaviors[context])
+                foreach (object dependency in behaviorInstance.Contexts.Values)
+                    if (!dependency.Equals(context))
+                        _behaviorFactories[behaviorInstance.Behavior.GetType()]
+                            .AddAvailableDependency(dependency);
+
+            _contextBehaviors.Remove(context);
+        }
+    }
+
+    /// <summary>
+    /// Removes the provided context from the scope of the App.
+    /// </summary>
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context to be removed.</param>
+    private void RemoveContext<T>(T context) where T : notnull
+    {
+        _contexts[typeof(T)].Remove(context);
+        if (_contexts[typeof(T)].Count == 0)
+            _contexts.Remove(typeof(T));
+    }
+
+    /// <summary>
+    /// Removes the provided context from all of its dependent behavior factories.
+    /// </summary>
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context to be removed.</param>
+    private void RemoveContextFromFactories<T>(T context) where T : notnull
+    {
+        if (_contextBehaviorFactories.ContainsKey(typeof(T)))
+            for (int c = 0, count = _contextBehaviorFactories[typeof(T)].Count; c < count; c++)
+                _contextBehaviorFactories[typeof(T)][c].RemoveAvailableDependency(context);
+    }
+
+    /// <summary>
+    /// Unbinds the provided context from state changes.
+    /// </summary>
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context being unbound.</param>
+    private void UnbindContext<T>(T context) where T : notnull
+    {
+        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(typeof(T));
+        for (int c = 0, count = bindableProperties.Length; c < count; c++)
+            (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
+    }
+    #endregion
 }
