@@ -7,7 +7,7 @@ namespace ContextualProgramming;
 /// Handles the state and behavior of the running application by managing 
 /// registered contexts and the resulting behaviors within an encapsulated environment.
 /// </summary>
-public partial class App
+public class App
 {
     /// <summary>
     /// Represents a record of a change for a property of a context.
