@@ -42,6 +42,11 @@ public partial class App
 
 
     /// <summary>
+    /// A mapping of behavior types to their behavior factories.
+    /// </summary>
+    private readonly Dictionary<Type, IBehaviorFactory> _behaviorFactories = new();
+
+    /// <summary>
     /// All currently contextualized context instances, keyed by their class type.
     /// </summary>
     private readonly Dictionary<Type, HashSet<object>> _contexts = new();
@@ -55,7 +60,7 @@ public partial class App
     /// <summary>
     /// A mapping of context instances to the behavior instances that depend upon them.
     /// </summary>
-    private readonly Dictionary<object, BehaviorInstance> _contextBehaviors = new();
+    private readonly Dictionary<object, HashSet<BehaviorInstance>> _contextBehaviors = new();
 
     /// <summary>
     /// A record of context changes that have occurred since the last evaluation.
@@ -121,6 +126,8 @@ public partial class App
     private void RegisterBehaviorFactory(Type behaviorType)
     {
         IBehaviorFactory factory = Evaluator.BuildBehaviorFactory(behaviorType);
+        _behaviorFactories.Add(behaviorType, factory);
+
         Type[] dependencies = Evaluator.GetBehaviorRequiredDependencies(behaviorType);
         for (int c = 0, count = dependencies.Length; c < count; c++)
         {
@@ -275,19 +282,21 @@ public partial class App
             if (!_contextBehaviors.ContainsKey(context))
                 continue;
 
-            BehaviorInstance bInstance = _contextBehaviors[context];
-            Type behaviorType = bInstance.Behavior.GetType();
-            string contextName = bInstance.ContextNames[context];
+            foreach (BehaviorInstance bInstance in _contextBehaviors[context])
+            {
+                Type behaviorType = bInstance.Behavior.GetType();
+                string contextName = bInstance.ContextNames[context];
 
-            MethodInfo[] contextOperations = Evaluator.GetOnChangeOperations(
-                behaviorType, contextName);
-            for (int co = 0, coCount = contextOperations.Length; co < coCount; co++)
-                InvokeOperation(bInstance, contextOperations[co]);
+                MethodInfo[] contextOperations = Evaluator.GetOnChangeOperations(
+                    behaviorType, contextName);
+                for (int co = 0, coCount = contextOperations.Length; co < coCount; co++)
+                    InvokeOperation(bInstance, contextOperations[co]);
 
-            MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
-                behaviorType, contextName, change.PropertyName);
-            for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
-                InvokeOperation(bInstance, stateOperations[so]);
+                MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
+                    behaviorType, contextName, change.PropertyName);
+                for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
+                    InvokeOperation(bInstance, stateOperations[so]);
+            }
         }
 
         return hadChanges;
@@ -335,7 +344,12 @@ public partial class App
             Contextualize(instance.SelfCreatedContexts[c]);
 
         foreach (object context in instance.Contexts.Values)
-            _contextBehaviors.Add(context, instance);
+        {
+            if (!_contextBehaviors.ContainsKey(context))
+                _contextBehaviors.Add(context, new());
+
+            _contextBehaviors[context].Add(instance);
+        }
     }
 
     #region Contextualization Functions
@@ -379,22 +393,13 @@ public partial class App
     {
         if (_contextBehaviors.ContainsKey(context))
         {
-            BehaviorInstance behaviorInstance = _contextBehaviors[context];
-            foreach (object c in behaviorInstance.Contexts.Values)
-                if (_contextBehaviors.ContainsKey(c) && _contextBehaviors[c] == behaviorInstance)
-                {
-                    _contextBehaviors.Remove(c);
-                    if (c.Equals(context))
-                        continue;
+            foreach (BehaviorInstance behaviorInstance in _contextBehaviors[context])
+                foreach (object dependency in behaviorInstance.Contexts.Values)
+                    if (!dependency.Equals(context))
+                        _behaviorFactories[behaviorInstance.Behavior.GetType()]
+                            .AddAvailableDependency(dependency);
 
-                    Type cType = c.GetType();
-                    if (_contextBehaviorFactories.ContainsKey(cType))
-                    {
-                        List<IBehaviorFactory> factories = _contextBehaviorFactories[cType];
-                        for (int fc = 0, fCount = factories.Count; fc < fCount; fc++)
-                            factories[fc].AddAvailableDependency(c);
-                    }
-                }
+            _contextBehaviors.Remove(context);
         }
     }
 
