@@ -38,7 +38,8 @@ else
 
 
 // Validate the decontextualization of the first context, and destruction of its behavior.
-app.Decontextualize(initializedContextA);
+if (initializedContextA != null)
+    app.Decontextualize(initializedContextA);
 Console.WriteLine("Decontextualized the initialized instance of Context A.");
 
 if (app.GetContext<ContextA>() != null && app.GetContexts<ContextA>().Length == 1)
