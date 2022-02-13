@@ -1,8 +1,8 @@
-﻿namespace ContextualProgramming.Concepts.Contexts;
+﻿namespace ContextualProgramming.Concepts.Basics.Contexts;
 
 /// <summary>
 /// A context that defines the running state of the app.
-/// For a thorough overview of Contexts <see cref="SampleContext"/>
+/// For a thorough overview of Contexts <see cref="BasicContext"/>
 /// </summary>
 [Context]
 public class AppState

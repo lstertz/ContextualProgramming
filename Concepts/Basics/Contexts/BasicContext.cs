@@ -1,6 +1,6 @@
-﻿using ContextualProgramming.Concepts.Behaviors; 
+﻿using ContextualProgramming.Concepts.Basics.Behaviors; 
 
-namespace ContextualProgramming.Concepts.Contexts;
+namespace ContextualProgramming.Concepts.Basics.Contexts;
 
 
 /// <summary>
@@ -14,14 +14,14 @@ namespace ContextualProgramming.Concepts.Contexts;
 /// Any class can be designated as a context through the <see cref="ContextAttribute"/>.
 /// </summary>
 [Context]
-public class SampleContext
+public class BasicContext
 {
     // All members of a context should either be a state property or a qualifier.
 
     /// <summary>
     /// This is a standard state property.
     /// 
-    /// It must be of a type such <see cref="ContextState{T}"/> and its generic 
+    /// It must be of a type such as <see cref="ContextState{T}"/> and its generic 
     /// typing should be a primitive-like value (int, string, etc.).
     /// 
     /// The ContextState value itself should not change after the context is instantiated, so 
@@ -49,7 +49,8 @@ public class SampleContext
     /// It is the only type of method permitted on a context.
     /// 
     /// Qualifiers provide a means of evaluating more abstractly whether a context is in a 
-    /// specific state that will likely drive behavior.
+    /// specific state that will likely drive behavior. They should not change 
+    /// any state of the context.
     /// </summary>
     /// <returns>
     /// Whether the context has qualified for a certain condition.
