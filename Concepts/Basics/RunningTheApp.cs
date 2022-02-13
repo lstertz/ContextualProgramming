@@ -1,4 +1,4 @@
-﻿using ContextualProgramming.Concepts.Basics.Contexts;
+﻿global using ContextualProgramming.Concepts.Basics.Contexts;
 
 namespace ContextualProgramming.Concepts.Basics;
 

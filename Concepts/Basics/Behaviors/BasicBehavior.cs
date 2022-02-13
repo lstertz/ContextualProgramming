@@ -1,6 +1,4 @@
-﻿using ContextualProgramming.Concepts.Basics.Contexts;
-
-namespace ContextualProgramming.Concepts.Basics.Behaviors;
+﻿namespace ContextualProgramming.Concepts.Basics.Behaviors;
 
 /// <summary>
 /// Behaviors define the functionality of a Contextual Programming application.

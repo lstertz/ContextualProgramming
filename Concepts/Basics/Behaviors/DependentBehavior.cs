@@ -1,6 +1,4 @@
-﻿using ContextualProgramming.Concepts.Basics.Contexts;
-
-namespace ContextualProgramming.Concepts.Basics.Behaviors;
+﻿namespace ContextualProgramming.Concepts.Basics.Behaviors;
 
 [Behavior]
 [Dependency<BasicContext>(Binding.Unique, Fulfillment.Existing, BasicContext)]
