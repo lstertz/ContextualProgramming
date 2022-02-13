@@ -19,10 +19,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Remove="Concepts\**" />
 		<Compile Remove="Showcase\**" />
 		<Compile Remove="Tests\**" />
+		<EmbeddedResource Remove="Concepts\**" />
 		<EmbeddedResource Remove="Showcase\**" />
 		<EmbeddedResource Remove="Tests\**" />
+		<None Remove="Concepts\**" />
 		<None Remove="Showcase\**" />
 		<None Remove="Tests\**" />
 	</ItemGroup>
