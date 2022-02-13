@@ -8,7 +8,7 @@
 /// An instance of a behavior is instantiated by the app whenever its dependencies, 
 /// as defined through the <see cref="DependencyAttribute{T}"/>, have been fulfilled.
 /// Each dependency must be a context. The presence of a dependency when a behavior 
-/// performs its functionality is how state is persisted and progressed for the application.
+/// performs its functionality is how state is persisted and progressed for the application. 
 /// 
 /// Behaviors can have different types of dependency fulfillments:
 /// - Existing = Dependencies that must exist prior to the behavior's instantiation.
@@ -16,8 +16,17 @@
 /// 
 /// The dependencies can have different types of bindings, which specify how a dependency 
 /// is bound to the behavior. These bindings essentially determine whether a behavior 
-/// will use a context already bound to another behavior (Shared) or if it requires a context 
-/// that is not bound to any other behavior (Unique).
+/// will use a context already bound to another behavior of the same type (Shared) or if it 
+/// requires a context that is not bound to any other behavior of the same type (Unique). 
+/// A context may be re-used as a dependency for different types of behaviors regardless of 
+/// its use as a dependency for this type of behavior.
+/// 
+/// An instance of a behavior will continue to exist for as long as its dependencies 
+/// are contextualized. If any of its dependencies are decontextualized, then the 
+/// behavior instance is destroyed. Any of its dependencies that are still 
+/// contextualized are re-purposed by the app for future instances of the behavior and 
+/// are still able to be used by any other behavior instances that have them 
+/// as dependencies.
 ///
 /// Any class can be designated as a behavior through the <see cref="BehaviorAttribute"/>.
 /// </summary>
