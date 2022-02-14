@@ -9,35 +9,33 @@ namespace ContextualProgramming
     /// <typeparam name="T">The type of value encapsulated.
     /// This type should be a primitive-like type (int, string, etc.) and not 
     /// an object or struct with internal values.</typeparam>
-    public class ContextState<T> : IBindableState, IEquatable<ContextState<T>>
+    public class ContextState<T> : State<T>, IBindableState
     {
+        /// <summary>
+        /// Implicitly converts a value to its equivalent context state.
+        /// </summary>
+        /// <param name="value">The value to be converted.</param>
         public static implicit operator ContextState<T>(T? value) => new(value);
-        public static implicit operator T?(ContextState<T> contextState) => contextState._value;
-
-        public static bool operator ==(ContextState<T>? a, ContextState<T>? b) => 
-            Equals(a, null) ? Equals(b, null) : a.Equals(b);
-        public static bool operator !=(ContextState<T>? a, ContextState<T>? b) =>
-            Equals(a, null) ? !Equals(b, null) : !a.Equals(b);
 
 
         /// <summary>
         /// The encapsulated value of the context state.
         /// </summary>
-        public T? Value 
+        public new T? Value 
         {
-            get => _value; 
+            get => base.Value; 
             set
             {
-                if (_value == null && value == null)
+                T? v = base.Value;
+                if (v == null && value == null)
                     return;
-                else if (_value != null && _value.Equals(value))
+                else if (v != null && v.Equals(value))
                     return;
 
-                _value = value;
+                base.Value = value;
                 _onChange?.Invoke();
             }
         }
-        private T? _value;
 
         private Action? _onChange;
 
@@ -46,11 +44,12 @@ namespace ContextualProgramming
         /// Constructs a new context state with the specified value for it to encapsulate.
         /// </summary>
         /// <param name="value">The encapsulated value of the context state.</param>
-        public ContextState(T? value)
-        {
-            _value = value;
-        }
+        public ContextState(T? value) : base(value) { }
 
+
+        /// <inheritdoc/>
+        protected override State<T>? Convert(object? other) => other is T? ?
+            new ContextState<T>((T?)other) : null;
 
         /// <inheritdoc/>
         void IBindableState.Bind(Action onChange) => _onChange = onChange ?? 
@@ -59,33 +58,5 @@ namespace ContextualProgramming
 
         /// <inheritdoc/>
         void IBindableState.Unbind() => _onChange = null;
-
-
-        /// <inheritdoc/>
-        public override bool Equals(object? other) => Equals(other as ContextState<T>);
-
-        /// <inheritdoc/>
-        public bool Equals(ContextState<T>? other)
-        {
-            if (Equals(other, null))
-                return false;
-
-            if (_value == null)
-                return other._value == null;
-
-            return _value.Equals(other._value);
-        }
-
-        /// <inheritdoc/>
-        public override int GetHashCode()
-        {
-            if (_value == null)
-                return 0;
-
-            return _value.GetHashCode();
-        }
-
-        /// <inheritdoc/>
-        public override string? ToString() => _value == null ? "" : _value.ToString();
     }
 }
