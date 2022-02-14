@@ -21,18 +21,17 @@ namespace ContextualProgramming
         /// <summary>
         /// The encapsulated value of the context state.
         /// </summary>
-        public new T? Value 
+        public T? Value 
         {
-            get => base.Value; 
+            get => InternalValue; 
             set
             {
-                T? v = base.Value;
-                if (v == null && value == null)
+                if (InternalValue == null && value == null)
                     return;
-                else if (v != null && v.Equals(value))
+                else if (InternalValue != null && InternalValue.Equals(value))
                     return;
 
-                base.Value = value;
+                InternalValue = value;
                 _onChange?.Invoke();
             }
         }

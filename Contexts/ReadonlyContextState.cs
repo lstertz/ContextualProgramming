@@ -19,6 +19,11 @@ namespace ContextualProgramming
 
 
         /// <summary>
+        /// The encapsulated value of the context state.
+        /// </summary>
+        public T? Value => InternalValue;
+
+        /// <summary>
         /// Constructs a new readonly context state with the specified value for it to encapsulate.
         /// </summary>
         /// <param name="value">The encapsulated value of the readonly context state.</param>
