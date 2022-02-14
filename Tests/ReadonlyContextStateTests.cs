@@ -1,104 +1,8 @@
 using ContextualProgramming.Internal;
 using NUnit.Framework;
 
-namespace ContextStateTests
+namespace ReadonlyContextStateTests
 {
-    public class Binding
-    {
-        [Test]
-        public void BindStateToNull_ThrowsException()
-        {
-            ContextState<int> contextState = 10;
-#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-            Assert.Throws<ArgumentNullException>(() =>
-                (contextState as IBindableState)?.Bind(null));
-#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
-        }
-
-        [Test]
-        public void BoundState_ValueChangeWillNotify()
-        {
-            bool wasNotified = false;
-
-            ContextState<int> contextState = 10;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = 11;
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void BoundState_ValueChangeWillNotify_FromNull()
-        {
-            bool wasNotified = false;
-
-            ContextState<string> contextState = new(null);
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = "Test";
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void BoundState_ValueChangeWillNotify_ToNull()
-        {
-            bool wasNotified = false;
-
-            ContextState<string> contextState = new("Test");
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = null;
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void BoundState_ValueUnchangedDoesNotNotify()
-        {
-            bool wasNotified = false;
-
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = value;
-
-            Assert.IsFalse(wasNotified);
-        }
-
-        [Test]
-        public void ReboundState_ValueChangeWillNotify()
-        {
-            bool wasNotified = false;
-
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = false);
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-
-            contextState.Value = 11;
-
-            Assert.IsTrue(wasNotified);
-        }
-
-        [Test]
-        public void UnboundState_ValueChangeDoesNotNotify()
-        {
-            bool wasNotified = false;
-
-            int value = 10;
-            ContextState<int> contextState = value;
-            (contextState as IBindableState)?.Bind(() => wasNotified = true);
-            (contextState as IBindableState)?.Unbind();
-
-            contextState.Value = 11;
-
-            Assert.IsFalse(wasNotified);
-        }
-    }
-
     public class Construction
     {
         [Test]
@@ -302,25 +206,6 @@ namespace ContextStateTests
             ContextState<string> contextState = new ContextState<string>(null);
 
             Assert.AreEqual(string.Empty, contextState.ToString());
-        }
-    }
-
-    public class ValueSetting
-    {
-        [Test]
-        public void ValueSets()
-        {
-            int value = 10;
-            ContextState<int> contextState = value;
-
-            int newValue = 11;
-            contextState.Value = newValue;
-
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
-
-            Assert.AreEqual(newValue, directResult);
-            Assert.AreEqual(newValue, implicitResult);
         }
     }
 }

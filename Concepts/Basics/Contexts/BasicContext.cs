@@ -45,6 +45,15 @@ public class BasicContext
 
 
     /// <summary>
+    /// This is a readonly state property.
+    /// 
+    /// Readonly states can be set when the context is created, but are otherwise unable 
+    /// to be changed. These types of states offer immutability for contexts.
+    /// </summary>
+    public ReadonlyContextState<int> ReadonlyState { get; init; } = 1;
+
+
+    /// <summary>
     /// This is a qualifier.
     /// It is the only type of method permitted on a context.
     /// 
