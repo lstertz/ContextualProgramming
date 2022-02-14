@@ -1,13 +1,12 @@
 using ContextualProgramming.Internal;
 using NUnit.Framework;
 
-namespace Tests
+namespace ContextStateTests
 {
-    public class ContextStateTests
+    public class Binding
     {
-        #region Binding
         [Test]
-        public void Binding_BindStateToNull_ThrowsException()
+        public void BindStateToNull_ThrowsException()
         {
             ContextState<int> contextState = 10;
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -17,7 +16,7 @@ namespace Tests
         }
 
         [Test]
-        public void Binding_BoundState_ValueChangeWillNotify()
+        public void BoundState_ValueChangeWillNotify()
         {
             bool wasNotified = false;
 
@@ -30,7 +29,7 @@ namespace Tests
         }
 
         [Test]
-        public void Binding_BoundState_ValueChangeWillNotify_FromNull()
+        public void BoundState_ValueChangeWillNotify_FromNull()
         {
             bool wasNotified = false;
 
@@ -43,7 +42,7 @@ namespace Tests
         }
 
         [Test]
-        public void Binding_BoundState_ValueChangeWillNotify_ToNull()
+        public void BoundState_ValueChangeWillNotify_ToNull()
         {
             bool wasNotified = false;
 
@@ -56,7 +55,7 @@ namespace Tests
         }
 
         [Test]
-        public void Binding_BoundState_ValueUnchangedDoesNotNotify()
+        public void BoundState_ValueUnchangedDoesNotNotify()
         {
             bool wasNotified = false;
 
@@ -70,7 +69,7 @@ namespace Tests
         }
 
         [Test]
-        public void Binding_ReboundState_ValueChangeWillNotify()
+        public void ReboundState_ValueChangeWillNotify()
         {
             bool wasNotified = false;
 
@@ -85,7 +84,7 @@ namespace Tests
         }
 
         [Test]
-        public void Binding_UnboundState_ValueChangeDoesNotNotify()
+        public void UnboundState_ValueChangeDoesNotNotify()
         {
             bool wasNotified = false;
 
@@ -98,11 +97,12 @@ namespace Tests
 
             Assert.IsFalse(wasNotified);
         }
-        #endregion
+    }
 
-        #region Construction
+    public class Construction
+    {
         [Test]
-        public void Construction_ImplicitInt()
+        public void ImplicitInt()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -115,7 +115,7 @@ namespace Tests
         }
 
         [Test]
-        public void Construction_ImplicitString()
+        public void ImplicitString()
         {
             string value = "Test";
             ContextState<string> contextState = value;
@@ -128,7 +128,7 @@ namespace Tests
         }
 
         [Test]
-        public void Construction_NewInt()
+        public void NewInt()
         {
             int value = 10;
             ContextState<int> contextState = new(value);
@@ -141,7 +141,7 @@ namespace Tests
         }
 
         [Test]
-        public void Construction_NewString()
+        public void NewString()
         {
             string value = "Test";
             ContextState<string> contextState = new(value);
@@ -152,11 +152,12 @@ namespace Tests
             Assert.AreEqual(value, directResult);
             Assert.AreEqual(value, implicitResult);
         }
-        #endregion
+    }
 
-        #region Equality
+    public class Equality
+    {
         [Test]
-        public void Equality_EqualOperator_ContextState()
+        public void EqualOperator_ContextState()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -167,7 +168,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_EqualOperator_Int()
+        public void EqualOperator_Int()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -177,7 +178,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_EqualOperator_Null()
+        public void EqualOperator_Null()
         {
             ContextState<string>? contextState = null;
 
@@ -186,7 +187,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_Equals_ContextState()
+        public void Equals_ContextState()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -201,7 +202,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_Equals_DifferentTypes()
+        public void Equals_DifferentTypes()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -212,7 +213,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_Equals_Int()
+        public void Equals_Int()
         {
             int value = 10;
             int comparedValue = 11;
@@ -225,7 +226,7 @@ namespace Tests
             Assert.IsFalse(comparedValue.Equals(contextState));
         }
         [Test]
-        public void Equality_Equals_Null()
+        public void Equals_Null()
         {
             ContextState<int> contextState = 10;
 
@@ -233,7 +234,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_InequalOperator_ToContextState()
+        public void InequalOperator_ToContextState()
         {
             int value = 10;
             ContextState<int> a = new(value);
@@ -244,7 +245,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_InequalOperator_ToInt()
+        public void InequalOperator_ToInt()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -254,7 +255,7 @@ namespace Tests
         }
 
         [Test]
-        public void Equality_InequalOperator_ToNull()
+        public void InequalOperator_ToNull()
         {
             string value = "Test";
             ContextState<string> contextState = value;
@@ -262,11 +263,12 @@ namespace Tests
             Assert.IsTrue(null != contextState);
             Assert.IsTrue(contextState != null);
         }
-        #endregion
+    }
 
-        #region Get Hash Code
+    public class GetHashCode
+    {
         [Test]
-        public void GetHashCode_NonNullValue()
+        public void NonNullValue()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -275,17 +277,18 @@ namespace Tests
         }
 
         [Test]
-        public void GetHashCode_NullValue()
+        public void NullValue()
         {
             ContextState<string> contextState = new(null);
 
             Assert.AreEqual(0, contextState.GetHashCode());
         }
-        #endregion
+    }
 
-        #region To String
+    public class ToString
+    {
         [Test]
-        public void ToString_NonNullMatchesValueToString()
+        public void NonNullMatchesValueToString()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -294,17 +297,18 @@ namespace Tests
         }
 
         [Test]
-        public void ToString_NullProvidesEmptyString()
+        public void NullProvidesEmptyString()
         {
             ContextState<string> contextState = new ContextState<string>(null);
 
             Assert.AreEqual(string.Empty, contextState.ToString());
         }
-        #endregion
+    }
 
-        #region Value Setting
+    public class ValueSetting
+    {
         [Test]
-        public void ValueSetting_ValueSets()
+        public void ValueSets()
         {
             int value = 10;
             ContextState<int> contextState = value;
@@ -318,6 +322,5 @@ namespace Tests
             Assert.AreEqual(newValue, directResult);
             Assert.AreEqual(newValue, implicitResult);
         }
-        #endregion
     }
 }
