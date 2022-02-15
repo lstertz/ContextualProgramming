@@ -7,12 +7,6 @@
 public abstract class State<T> : IEquatable<State<T>>
 {
     /// <summary>
-    /// Implicitly converts a state to its underlying value.
-    /// </summary>
-    /// <param name="state">The state to be converted.</param>
-    public static implicit operator T?(State<T> state) => state.InternalValue;
-
-    /// <summary>
     /// Checks for equality between two states.
     /// </summary>
     /// <param name="a">The first state.</param>
@@ -34,14 +28,14 @@ public abstract class State<T> : IEquatable<State<T>>
     /// <summary>
     /// The encapsulated value of the state.
     /// </summary>
-    protected T? InternalValue { get; set; }
+    protected T InternalValue { get; set; }
 
 
     /// <summary>
     /// Constructs a new state with the specified value for it to encapsulate.
     /// </summary>
     /// <param name="value">The encapsulated value of the state.</param>
-    protected State(T? value) => InternalValue = value;
+    protected State(T value) => InternalValue = value;
 
 
     /// <summary>
@@ -55,7 +49,7 @@ public abstract class State<T> : IEquatable<State<T>>
     public override bool Equals(object? other) => Equals(Convert(other));
 
     /// <inheritdoc/>
-    public bool Equals(State<T>? other)
+    public virtual bool Equals(State<T>? other)
     {
         if (Equals(other, null))
             return false;
