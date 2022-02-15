@@ -9,7 +9,7 @@ namespace ContextualProgramming
     /// <typeparam name="T">The type of value encapsulated.
     /// This type should be a primitive-like type (int, string, etc.) and not 
     /// an object or struct with internal values.</typeparam>
-    public class ContextState<T> : State<T>, IBindableState
+    public class ContextState<T> : State<T?>, IBindableState
     {
         /// <summary>
         /// Implicitly converts a value to its equivalent context state.
@@ -17,22 +17,27 @@ namespace ContextualProgramming
         /// <param name="value">The value to be converted.</param>
         public static implicit operator ContextState<T>(T? value) => new(value);
 
+        /// <summary>
+        /// Implicitly converts a context state to its underlying value.
+        /// </summary>
+        /// <param name="state">The context state to be converted.</param>
+        public static implicit operator T?(ContextState<T> state) => state.InternalValue;
+
 
         /// <summary>
         /// The encapsulated value of the context state.
         /// </summary>
-        public new T? Value 
+        public T? Value 
         {
-            get => base.Value; 
+            get => InternalValue; 
             set
             {
-                T? v = base.Value;
-                if (v == null && value == null)
+                if (InternalValue == null && value == null)
                     return;
-                else if (v != null && v.Equals(value))
+                else if (InternalValue != null && InternalValue.Equals(value))
                     return;
 
-                base.Value = value;
+                InternalValue = value;
                 _onChange?.Invoke();
             }
         }
@@ -48,13 +53,14 @@ namespace ContextualProgramming
 
 
         /// <inheritdoc/>
-        protected override State<T>? Convert(object? other) => other is T? ?
+        protected override State<T?>? Convert(object? other) => other is T? ?
             new ContextState<T>((T?)other) : null;
+
 
         /// <inheritdoc/>
         void IBindableState.Bind(Action onChange) => _onChange = onChange ?? 
-            throw new ArgumentNullException($"The binding action cannot be null. " +
-                $"If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
+            throw new ArgumentNullException(nameof(onChange), $"The binding action cannot " +
+                $"be null. If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
 
         /// <inheritdoc/>
         void IBindableState.Unbind() => _onChange = null;

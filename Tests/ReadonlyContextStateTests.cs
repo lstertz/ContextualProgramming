@@ -1,4 +1,3 @@
-using ContextualProgramming.Internal;
 using NUnit.Framework;
 
 namespace ReadonlyContextStateTests
@@ -9,10 +8,10 @@ namespace ReadonlyContextStateTests
         public void ImplicitInt()
         {
             int value = 10;
-            ContextState<int> contextState = value;
+            ReadonlyContextState<int> ReadonlyContextState = value;
 
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
+            int directResult = ReadonlyContextState.Value;
+            int implicitResult = ReadonlyContextState;
 
             Assert.AreEqual(value, directResult);
             Assert.AreEqual(value, implicitResult);
@@ -22,10 +21,10 @@ namespace ReadonlyContextStateTests
         public void ImplicitString()
         {
             string value = "Test";
-            ContextState<string> contextState = value;
+            ReadonlyContextState<string> ReadonlyContextState = value;
 
-            string? directResult = contextState.Value;
-            string? implicitResult = contextState;
+            string? directResult = ReadonlyContextState.Value;
+            string? implicitResult = ReadonlyContextState;
 
             Assert.AreEqual(value, directResult);
             Assert.AreEqual(value, implicitResult);
@@ -35,10 +34,10 @@ namespace ReadonlyContextStateTests
         public void NewInt()
         {
             int value = 10;
-            ContextState<int> contextState = new(value);
+            ReadonlyContextState<int> ReadonlyContextState = new(value);
 
-            int directResult = contextState.Value;
-            int implicitResult = contextState;
+            int directResult = ReadonlyContextState.Value;
+            int implicitResult = ReadonlyContextState;
 
             Assert.AreEqual(value, directResult);
             Assert.AreEqual(value, implicitResult);
@@ -48,10 +47,10 @@ namespace ReadonlyContextStateTests
         public void NewString()
         {
             string value = "Test";
-            ContextState<string> contextState = new(value);
+            ReadonlyContextState<string> ReadonlyContextState = new(value);
 
-            string? directResult = contextState.Value;
-            string? implicitResult = contextState;
+            string? directResult = ReadonlyContextState.Value;
+            string? implicitResult = ReadonlyContextState;
 
             Assert.AreEqual(value, directResult);
             Assert.AreEqual(value, implicitResult);
@@ -61,11 +60,11 @@ namespace ReadonlyContextStateTests
     public class Equality
     {
         [Test]
-        public void EqualOperator_ContextState()
+        public void EqualOperator_ReadonlyContextState()
         {
             int value = 10;
-            ContextState<int> a = new(value);
-            ContextState<int> b = new(value);
+            ReadonlyContextState<int> a = new(value);
+            ReadonlyContextState<int> b = new(value);
 
             Assert.IsTrue(a == b);
             Assert.IsTrue(b == a);
@@ -75,28 +74,28 @@ namespace ReadonlyContextStateTests
         public void EqualOperator_Int()
         {
             int value = 10;
-            ContextState<int> contextState = value;
+            ReadonlyContextState<int> ReadonlyContextState = value;
 
-            Assert.IsTrue(value == contextState);
-            Assert.IsTrue(contextState == value);
+            Assert.IsTrue(value == ReadonlyContextState);
+            Assert.IsTrue(ReadonlyContextState == value);
         }
 
         [Test]
         public void EqualOperator_Null()
         {
-            ContextState<string>? contextState = null;
+            ReadonlyContextState<string>? ReadonlyContextState = null;
 
-            Assert.IsTrue(null == contextState);
-            Assert.IsTrue(contextState == null);
+            Assert.IsTrue(null == ReadonlyContextState);
+            Assert.IsTrue(ReadonlyContextState == null);
         }
 
         [Test]
-        public void Equals_ContextState()
+        public void Equals_ReadonlyContextState()
         {
             int value = 10;
-            ContextState<int> a = new(value);
-            ContextState<int> b = new(value);
-            ContextState<int> c = new(11);
+            ReadonlyContextState<int> a = new(value);
+            ReadonlyContextState<int> b = new(value);
+            ReadonlyContextState<int> c = new(11);
 
             Assert.IsTrue(a.Equals(b));
             Assert.IsTrue(b.Equals(a));
@@ -109,7 +108,7 @@ namespace ReadonlyContextStateTests
         public void Equals_DifferentTypes()
         {
             int value = 10;
-            ContextState<int> a = new(value);
+            ReadonlyContextState<int> a = new(value);
             string b = "Test";
 
             Assert.IsFalse(a.Equals(b));
@@ -121,28 +120,28 @@ namespace ReadonlyContextStateTests
         {
             int value = 10;
             int comparedValue = 11;
-            ContextState<int> contextState = value;
+            ReadonlyContextState<int> ReadonlyContextState = value;
 
-            Assert.IsTrue(contextState.Equals(value));
-            Assert.IsFalse(contextState.Equals(comparedValue));
+            Assert.IsTrue(ReadonlyContextState.Equals(value));
+            Assert.IsFalse(ReadonlyContextState.Equals(comparedValue));
 
-            Assert.IsTrue(value.Equals(contextState));
-            Assert.IsFalse(comparedValue.Equals(contextState));
+            Assert.IsTrue(value.Equals(ReadonlyContextState));
+            Assert.IsFalse(comparedValue.Equals(ReadonlyContextState));
         }
         [Test]
         public void Equals_Null()
         {
-            ContextState<int> contextState = 10;
+            ReadonlyContextState<int> ReadonlyContextState = 10;
 
-            Assert.IsFalse(contextState.Equals(null));
+            Assert.IsFalse(ReadonlyContextState.Equals(null));
         }
 
         [Test]
-        public void InequalOperator_ToContextState()
+        public void InequalOperator_ToReadonlyContextState()
         {
             int value = 10;
-            ContextState<int> a = new(value);
-            ContextState<int> b = new(11);
+            ReadonlyContextState<int> a = new(value);
+            ReadonlyContextState<int> b = new(11);
 
             Assert.IsTrue(a != b);
             Assert.IsTrue(b != a);
@@ -152,20 +151,20 @@ namespace ReadonlyContextStateTests
         public void InequalOperator_ToInt()
         {
             int value = 10;
-            ContextState<int> contextState = value;
+            ReadonlyContextState<int> ReadonlyContextState = value;
 
-            Assert.IsTrue(11 != contextState);
-            Assert.IsTrue(contextState != 11);
+            Assert.IsTrue(11 != ReadonlyContextState);
+            Assert.IsTrue(ReadonlyContextState != 11);
         }
 
         [Test]
         public void InequalOperator_ToNull()
         {
             string value = "Test";
-            ContextState<string> contextState = value;
+            ReadonlyContextState<string> ReadonlyContextState = value;
 
-            Assert.IsTrue(null != contextState);
-            Assert.IsTrue(contextState != null);
+            Assert.IsTrue(null != ReadonlyContextState);
+            Assert.IsTrue(ReadonlyContextState != null);
         }
     }
 
@@ -175,17 +174,17 @@ namespace ReadonlyContextStateTests
         public void NonNullValue()
         {
             int value = 10;
-            ContextState<int> contextState = value;
+            ReadonlyContextState<int> ReadonlyContextState = value;
 
-            Assert.AreEqual(value.GetHashCode(), contextState.GetHashCode());
+            Assert.AreEqual(value.GetHashCode(), ReadonlyContextState.GetHashCode());
         }
 
         [Test]
         public void NullValue()
         {
-            ContextState<string> contextState = new(null);
+            ReadonlyContextState<string> ReadonlyContextState = new(null);
 
-            Assert.AreEqual(0, contextState.GetHashCode());
+            Assert.AreEqual(0, ReadonlyContextState.GetHashCode());
         }
     }
 
@@ -195,17 +194,17 @@ namespace ReadonlyContextStateTests
         public void NonNullMatchesValueToString()
         {
             int value = 10;
-            ContextState<int> contextState = value;
+            ReadonlyContextState<int> ReadonlyContextState = value;
 
-            Assert.AreEqual(10.ToString(), contextState.ToString());
+            Assert.AreEqual(10.ToString(), ReadonlyContextState.ToString());
         }
 
         [Test]
         public void NullProvidesEmptyString()
         {
-            ContextState<string> contextState = new ContextState<string>(null);
+            ReadonlyContextState<string> ReadonlyContextState = new ReadonlyContextState<string>(null);
 
-            Assert.AreEqual(string.Empty, contextState.ToString());
+            Assert.AreEqual(string.Empty, ReadonlyContextState.ToString());
         }
     }
 }
