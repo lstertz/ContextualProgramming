@@ -9,24 +9,51 @@ namespace ContextualProgramming
     /// <typeparam name="T">The type of elements encapsulated.
     /// This type should be a primitive-like type (int, string, etc.) and not 
     /// an object or struct with internal values.</typeparam>
-    public class ContextStateList<T> : IBindableState, IEquatable<ContextStateList<T>>
+    public class ContextStateList<T> : State<List<T?>>, IBindableState
     {
+        /// <summary>
+        /// Implicitly converts an array of values to their equivalent context state list.
+        /// </summary>
+        /// <param name="values">The array of values to be converted.</param>
         public static implicit operator ContextStateList<T>(T?[]? values) => new(values);
-        public static implicit operator T?[]?(ContextStateList<T> contextStateList) =>
-            contextStateList._elements.ToArray();
 
-        public static bool operator ==(ContextStateList<T>? a, ContextStateList<T>? b) => 
+        /// <summary>
+        /// Implicitly converts a context state list to its underlying array of values.
+        /// </summary>
+        /// <param name="stateList">The context state list to be converted.</param>
+        public static implicit operator T?[]?(ContextStateList<T> stateList) =>
+            stateList.InternalValue.ToArray();
+
+        /// <summary>
+        /// Checks for equality between two context state lists.
+        /// </summary>
+        /// <param name="a">The first state.</param>
+        /// <param name="b">The second state.</param>
+        /// <returns>Whether the two states are equal.</returns>
+        public static bool operator ==(ContextStateList<T>? a, ContextStateList<T>? b) =>
             Equals(a, null) ? Equals(b, null) : a.Equals(b);
+
+        /// <summary>
+        /// Checks for inequality between two context state lists.
+        /// </summary>
+        /// <param name="a">The first state.</param>
+        /// <param name="b">The second state.</param>
+        /// <returns>Whether the two states are inequal.</returns>
         public static bool operator !=(ContextStateList<T>? a, ContextStateList<T>? b) =>
             Equals(a, null) ? !Equals(b, null) : !a.Equals(b);
 
 
+        /// <summary>
+        /// Provides the element of this context state list at the specified index.
+        /// </summary>
+        /// <param name="index">The index of the element to be provided.</param>
+        /// <returns>The element.</returns>
         public T? this[int index]
         {
-            get => _elements[index];
+            get => InternalValue[index];
             set
             {
-                T? element = _elements[index];
+                T? element = InternalValue[index];
                 if (element == null)
                 {
                     if (value == null)
@@ -35,7 +62,7 @@ namespace ContextualProgramming
                 else if (element.Equals(value))
                     return;
 
-                _elements[index] = value;
+                InternalValue[index] = value;
                 _onChange?.Invoke();
             }
         }
@@ -45,22 +72,23 @@ namespace ContextualProgramming
         /// </summary>
         public T?[]? Elements
         {
-            get => _elements.ToArray(); 
+            get => InternalValue.ToArray(); 
             set
             {
-                if (_elements.Count == 0 && (value == null || value.Length == 0))
+                List<T?> elements = InternalValue;
+
+                if (elements.Count == 0 && (value == null || value.Length == 0))
                     return;
-                else if (_elements.Equals(value))
+                if (elements.Equals(value))
                     return;
 
-                _elements.Clear();
+                elements.Clear();
                 if (value != null && value.Length != 0)
-                    _elements.AddRange(value);
+                    elements.AddRange(value);
 
                 _onChange?.Invoke();
             }
         }
-        private readonly List<T?> _elements;
 
         private Action? _onChange;
 
@@ -69,22 +97,57 @@ namespace ContextualProgramming
         /// Constructs a new context state list with the specified elements for it to encapsulate.
         /// </summary>
         /// <param name="values">The encapsulated elements of the context state list.</param>
-        public ContextStateList(T?[]? values)
+        public ContextStateList(T?[]? values) : base(values == null ? new() : new(values)) { }
+
+
+        /// <inheritdoc/>
+        protected override State<List<T?>>? Convert(object? other)
         {
-            if (values == null)
-                _elements = new();
-            else
-                _elements = new(values);
+            if (other is T?[] array)
+                return new ContextStateList<T>(array);
+
+            if (other is List<T?> list)
+                return new ContextStateList<T>(list.ToArray());
+
+            return null;
         }
 
 
         /// <inheritdoc/>
         void IBindableState.Bind(Action onChange) => _onChange = onChange ??
-            throw new ArgumentNullException($"The binding action cannot be null. " +
-                $"If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
+            throw new ArgumentNullException(nameof(onChange), $"The binding action cannot " +
+                $"be null. If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
 
         /// <inheritdoc/>
         void IBindableState.Unbind() => _onChange = null;
+
+
+        /// <inheritdoc/>
+        public override bool Equals(State<List<T?>>? other)
+        {
+            ContextStateList<T>? o = other as ContextStateList<T>;
+            if (Equals(o, null))
+                return false;
+
+            List<T?> elements = InternalValue;
+            List<T?> otherElements = o.InternalValue;
+            if (elements.Count != otherElements.Count)
+                return false;
+
+            for (int c = 0, count = elements.Count; c < count; c++)
+            {
+                T? element = elements[c];
+                if (element == null)
+                {
+                    if (otherElements[c] != null)
+                        return false;
+                }
+                else if (!element.Equals(otherElements[c]))
+                    return false;
+            }
+
+            return true;
+        }
 
 
         /// <summary>
@@ -96,7 +159,7 @@ namespace ContextualProgramming
         /// <param name="element">The element to be added.</param>
         public void Add(T element)
         {
-            _elements.Add(element);
+            InternalValue.Add(element);
             _onChange?.Invoke();
         }
 
@@ -109,7 +172,7 @@ namespace ContextualProgramming
         /// <param name="elements">The elements to be added.</param>
         public void AddRange(T?[] elements)
         {
-            _elements.AddRange(elements);
+            InternalValue.AddRange(elements);
             _onChange?.Invoke();
         }
 
@@ -121,10 +184,10 @@ namespace ContextualProgramming
         /// </remarks>
         public void Clear()
         {
-            if (_elements.Count == 0)
+            if (InternalValue.Count == 0)
                 return;
 
-            _elements.Clear();
+            InternalValue.Clear();
             _onChange?.Invoke();
         }
 
@@ -138,7 +201,7 @@ namespace ContextualProgramming
         /// <param name="element">The element to be inserted.</param>
         public void Insert(int index, T element)
         {
-            _elements.Insert(index, element);
+            InternalValue.Insert(index, element);
             _onChange?.Invoke();
         }
 
@@ -152,7 +215,7 @@ namespace ContextualProgramming
         /// <param name="elements">The elements to be inserted.</param>
         public void InsertRange(int index, T?[] elements)
         {
-            _elements.InsertRange(index, elements);
+            InternalValue.InsertRange(index, elements);
             _onChange?.Invoke();
         }
 
@@ -165,7 +228,7 @@ namespace ContextualProgramming
         /// <param name="element">The element to be removed.</param>
         public void Remove(T element)
         {
-            if (_elements.Remove(element))
+            if (InternalValue.Remove(element))
                 _onChange?.Invoke();
         }
 
@@ -178,42 +241,15 @@ namespace ContextualProgramming
         /// <param name="index">The index at which the removal is to occur.</param>
         public void RemoveAt(int index)
         {
-            _elements.RemoveAt(index);
+            InternalValue.RemoveAt(index);
             _onChange?.Invoke();
         }
 
 
         /// <inheritdoc/>
-        public override bool Equals(object? other) => Equals(other as ContextStateList<T>);
-
-        /// <inheritdoc/>
-        public bool Equals(ContextStateList<T>? other)
-        {
-            if (Equals(other, null))
-                return false;
-
-            if (_elements.Count != other._elements.Count)
-                return false;
-
-            for (int c = 0, count = _elements.Count; c < count; c++)
-            {
-                T? element = _elements[c];
-                if (element == null)
-                {
-                    if (other._elements[c] != null)
-                        return false;
-                }
-                else if (!element.Equals(other._elements[c]))
-                    return false;
-            }
-
-            return true;
-        }
+        public override bool Equals(object? obj) => base.Equals(obj);
 
         /// <inheritdoc/>
         public override int GetHashCode() => base.GetHashCode();
-
-        /// <inheritdoc/>
-        public override string? ToString() => _elements.ToString();
     }
 }
