@@ -52,6 +52,14 @@ public class BasicContext
     /// </summary>
     public ReadonlyContextState<int> ReadonlyState { get; init; } = 1;
 
+    /// <summary>
+    /// This is a readonly state list property.
+    /// 
+    /// It is the same as the above readonly state property, except it is a 
+    /// list of states that can not be changed after the context has been created.
+    /// </summary>
+    public ReadonlyContextStateList<int> ReadonlyStateList { get; init; } = Array.Empty<int>();
+
 
     /// <summary>
     /// This is a qualifier.
