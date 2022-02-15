@@ -31,7 +31,7 @@ public class DependentBehavior
     [OnChange(BasicContext)]
     private void SampleContextOperation(BasicContext basicContext)
     {
-        if (basicContext.State != 0 && basicContext.StateList.Elements?.Length == 0)
+        if (basicContext.State != 0 && basicContext.StateList.Count == 0)
             basicContext.StateList.Add(basicContext.State);
     }
 }

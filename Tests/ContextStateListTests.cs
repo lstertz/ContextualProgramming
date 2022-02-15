@@ -432,6 +432,94 @@ public class Construction
     }
 }
 
+public class Count
+{
+    [Test]
+    public void Add_ReturnsIncrementedCount()
+    {
+        ContextStateList<int> contextStateList = Array.Empty<int>();
+
+        contextStateList.Add(1);
+        Assert.AreEqual(1, contextStateList.Count);
+    }
+
+    [Test]
+    public void AddRange_ReturnsIncreasedCount()
+    {
+        int[] array = new int[] { 10, 11 };
+        int count = array.Length;
+
+        ContextStateList<int> contextStateList = Array.Empty<int>();
+
+        contextStateList.AddRange(array);
+        Assert.AreEqual(count, contextStateList.Count);
+    }
+
+    [Test]
+    public void Clear_ReturnsZero()
+    {
+        ContextStateList<int> contextStateList = new int[] {10, 11};
+
+        contextStateList.Clear();
+        Assert.AreEqual(0, contextStateList.Count);
+    }
+
+    [Test]
+    public void ConstructedEmpty_ReturnsZero()
+    {
+        ContextStateList<int> contextStateList = Array.Empty<int>();
+
+        Assert.AreEqual(0, contextStateList.Count);
+    }
+
+    [Test]
+    public void ConstructedPopulated_ReturnsCount()
+    {
+        int[] array = new int[] {10, 11};
+        int count = array.Length;
+
+        ContextStateList<int> contextStateList = array;
+
+        Assert.AreEqual(count, contextStateList.Count);
+    }
+
+    [Test]
+    public void Insert_ReturnsIncrementedCount()
+    {
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
+
+        contextStateList.Insert(1, 12);
+        Assert.AreEqual(3, contextStateList.Count);
+    }
+
+    [Test]
+    public void InsertRange_ReturnsIncreasedCount()
+    {
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
+
+        contextStateList.InsertRange(1, new int[] {12, 13});
+        Assert.AreEqual(4, contextStateList.Count);
+    }
+
+    [Test]
+    public void Remove_ReturnsDecrementedCount()
+    {
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
+
+        contextStateList.Remove(10);
+        Assert.AreEqual(1, contextStateList.Count);
+    }
+
+    [Test]
+    public void RemoveNonExisting_ReturnsOriginalCount()
+    {
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
+
+        contextStateList.Remove(1);
+        Assert.AreEqual(2, contextStateList.Count);
+    }
+}
+
 public class Equality
 {
     [Test]

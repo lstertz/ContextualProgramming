@@ -68,6 +68,11 @@ namespace ContextualProgramming
         }
 
         /// <summary>
+        /// Provides the number of encapsulated elements of the context state list.
+        /// </summary>
+        public int Count => InternalValue.Count;
+
+        /// <summary>
         /// The encapsulated elements of the context state list.
         /// </summary>
         public T?[]? Elements
