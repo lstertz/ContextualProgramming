@@ -1,50 +1,47 @@
 using NUnit.Framework;
 
-namespace Tests
+namespace OnChangeAttributeTests;
+
+public class Construction
 {
-    public class OnChangeAttributeTests
+    [Test]
+    public void AssignsProperties_NoSpecifiedContextState()
     {
-        #region Construction
-        [Test]
-        public void Construction_AssignsProperties_NoSpecifiedContextState()
-        {
-            string expectedDependencyName = "dependencyName";
-            string? expectedContextStateName = null;
+        string expectedDependencyName = "dependencyName";
+        string? expectedContextStateName = null;
 
-            OnChangeAttribute attr = new OnChangeAttribute(expectedDependencyName);
+        OnChangeAttribute attr = new OnChangeAttribute(expectedDependencyName);
 
-            Assert.AreEqual(expectedDependencyName, attr.DependencyName);
-            Assert.AreEqual(expectedContextStateName, attr.ContextStateName);
-        }
+        Assert.AreEqual(expectedDependencyName, attr.DependencyName);
+        Assert.AreEqual(expectedContextStateName, attr.ContextStateName);
+    }
 
-        [Test]
-        public void Construction_AssignsProperties_SpecifiedContextState()
-        {
-            string expectedDependencyName = "dependencyName";
-            string? expectedContextStateName = "contextStateName";
+    [Test]
+    public void AssignsProperties_SpecifiedContextState()
+    {
+        string expectedDependencyName = "dependencyName";
+        string? expectedContextStateName = "contextStateName";
 
-            OnChangeAttribute attr = new OnChangeAttribute(expectedDependencyName, 
-                expectedContextStateName);
+        OnChangeAttribute attr = new OnChangeAttribute(expectedDependencyName,
+            expectedContextStateName);
 
-            Assert.AreEqual(expectedDependencyName, attr.DependencyName);
-            Assert.AreEqual(expectedContextStateName, attr.ContextStateName);
-        }
+        Assert.AreEqual(expectedDependencyName, attr.DependencyName);
+        Assert.AreEqual(expectedContextStateName, attr.ContextStateName);
+    }
 
-        [Test]
-        public void Construction_EmptyDependencyNameThrowsException()
-        {
-            Assert.Throws<ArgumentException>(() =>
-                new OnChangeAttribute(string.Empty));
-        }
+    [Test]
+    public void EmptyDependencyNameThrowsException()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new OnChangeAttribute(string.Empty));
+    }
 
-        [Test]
-        public void Construction_NullDependencyNameThrowsException()
-        {
+    [Test]
+    public void NullDependencyNameThrowsException()
+    {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
-            Assert.Throws<ArgumentException>(() =>
-                new OnChangeAttribute(string.Empty));
+        Assert.Throws<ArgumentException>(() =>
+            new OnChangeAttribute(string.Empty));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
-        }
-        #endregion
     }
 }
