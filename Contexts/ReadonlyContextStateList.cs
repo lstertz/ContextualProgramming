@@ -51,10 +51,7 @@ namespace ContextualProgramming
         /// </summary>
         /// <param name="index">The index of the element to be provided.</param>
         /// <returns>The element.</returns>
-        public T? this[int index]
-        {
-            get => InternalValue[index];
-        }
+        public T? this[int index] => InternalValue[index];
 
         /// <summary>
         /// Provides the number of encapsulated elements of the readonly context state list.
@@ -64,10 +61,7 @@ namespace ContextualProgramming
         /// <summary>
         /// The encapsulated elements of the readonly context state list.
         /// </summary>
-        public T?[]? Elements
-        {
-            get => InternalValue.ToArray();
-        }
+        public T?[]? Elements => InternalValue.ToArray();
 
 
         /// <summary>
