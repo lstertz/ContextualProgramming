@@ -6,3 +6,5 @@ bin/Debug/net6.0
 Tests/bin/Debug
 Showcase/bin/Debug
 Concepts/bin
+bin
+obj
