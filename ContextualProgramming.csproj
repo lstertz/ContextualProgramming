@@ -5,13 +5,13 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<LangVersion>preview</LangVersion>
-		<Version>1.0.0</Version>
+		<Version>1.1.0</Version>
 		<Authors>Lucas Stertz</Authors>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<RepositoryType>git</RepositoryType>
 		<RepositoryUrl>https://github.com/lstertz/ContextualProgramming</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageReleaseNotes>Initial release providing behaviors with self-created dependencies (contexts) and operations invoked in response to value changes.</PackageReleaseNotes>
+		<PackageReleaseNotes>Adds support for behaviors with dependencies on contexts created by other behaviors.</PackageReleaseNotes>
 		<Description>An SDK for developing in accordance to the Contextual Programming paradigm.</Description>
 		<PackageProjectUrl>https://github.com/lstertz/ContextualProgramming</PackageProjectUrl>
 		<PackageTags>contextual;contextual programming;behaviors;behavior;operations;operation;contexts;context;compositions;composition;dynamic;framework</PackageTags>
