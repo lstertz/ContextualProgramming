@@ -11,7 +11,7 @@
 		<RepositoryType>git</RepositoryType>
 		<RepositoryUrl>https://github.com/lstertz/ContextualProgramming</RepositoryUrl>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageReleaseNotes>Adds support for behaviors with dependencies on contexts created by other behaviors.</PackageReleaseNotes>
+		<PackageReleaseNotes>Recorded in the changelog at: https://github.com/lstertz/ContextualProgramming/blob/master/CHANGELOG.md</PackageReleaseNotes>
 		<Description>An SDK for developing in accordance to the Contextual Programming paradigm.</Description>
 		<PackageProjectUrl>https://github.com/lstertz/ContextualProgramming</PackageProjectUrl>
 		<PackageTags>contextual;contextual programming;behaviors;behavior;operations;operation;contexts;context;compositions;composition;dynamic;framework</PackageTags>
@@ -31,6 +31,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <None Update="CHANGELOG.md">
+	    <PackagePath>\</PackagePath>
+	    <Pack>True</Pack>
+	  </None>
 	  <None Update="README.md">
 	    <Pack>True</Pack>
 	    <PackagePath>\</PackagePath>
