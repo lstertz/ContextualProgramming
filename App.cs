@@ -111,9 +111,9 @@ public class App
         for (int c = 0, count = behaviorTypes.Length; c < count; c++)
             RegisterBehaviorFactory(behaviorTypes[c]);
 
-        ProcessPendingFactories();
-
         _isInitialized = true;
+
+        ProcessPendingFactories();
     }
 
     /// <summary>
