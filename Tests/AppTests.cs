@@ -8,7 +8,8 @@ namespace AppTests
     public static class SetUp
     {
         public static App BehaviorAndContextApp<TBehavior, TContext>(
-            IBehaviorFactory factory, Type[]? behaviorUnfulfilledDependencies = null)
+            IBehaviorFactory factory, Type[]? behaviorUnfulfilledDependencies = null, 
+            bool initializeApp = true)
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
             App app = new(evaluator);
@@ -21,7 +22,9 @@ namespace AppTests
             PrimeEvaluatorForBehavior<TBehavior>(evaluator, factory,
                 behaviorUnfulfilledDependencies);
             PrimeEvaluatorForContext<TContext>(evaluator);
-            app.Initialize();
+
+            if (initializeApp)
+                app.Initialize();
 
             return app;
         }
@@ -1001,12 +1004,40 @@ namespace AppTests
 
     public class Initialization
     {
+        public class InitializationBehavior_CallsAppInConstructor
+        {
+            public static App? App { get; set; }
+
+            public InitializationBehavior_CallsAppInConstructor()
+            {
+                App?.GetContext<TestContextA>();
+            }
+        }
+
         [Test]
         public void FulfilledBehaviors_ContextualizeSelfCreatedContexts()
         {
             App app = SetUp.FullSuiteIndependentApp();
 
             Assert.NotNull(app.GetContext<TestContextC>());
+        }
+
+        [Test]
+        public void InitializationBehavior_CallsAppInConstructor_DoesNotThrowException()
+        {
+            BehaviorFactoryDouble<InitializationBehavior_CallsAppInConstructor> factory = new(
+                new()
+                {
+                    { "contextA", new TestContextA() }
+                });
+            App app = SetUp.BehaviorAndContextApp<InitializationBehavior_CallsAppInConstructor,
+                TestContextA>(factory, null, false);
+
+            InitializationBehavior_CallsAppInConstructor.App = app;
+
+            Assert.DoesNotThrow(() => app.Initialize());
+
+            InitializationBehavior_CallsAppInConstructor.App = null;
         }
 
         [Test]
