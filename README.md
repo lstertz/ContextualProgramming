@@ -24,7 +24,7 @@ samples of generalized constructs and functionality.
 Refer to the Showcase project for an example implementation.
 
 ## Release
-The latest release is 1.1.0 (02/15/2022), available on [NuGet](https://www.nuget.org/packages/ContextualProgramming/).
+The latest release is 1.1.1 (03/07/2022), available on [NuGet](https://www.nuget.org/packages/ContextualProgramming/).
 
 ## Follow Us
 * [Development](https://trello.com/b/IYk7na3D/contextual-programming)
