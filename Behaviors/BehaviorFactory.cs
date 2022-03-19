@@ -171,7 +171,7 @@ public class BehaviorFactory : IBehaviorFactory
         int instantiationCount = -1;
         foreach (var type in _availableDependencies.Keys)
         {
-            int setCount = _availableDependencies[type].Count / 
+            int setCount = _availableDependencies[type].Count /
                 _dependencyTypesNames[type].Count;
 
             if (instantiationCount == -1)
@@ -194,14 +194,39 @@ public class BehaviorFactory : IBehaviorFactory
     /// construct the expected self-created dependency during its instantiation.</exception>
     private BehaviorInstance InstantiateBehavior()
     {
+        Dictionary<string, object> contexts = new();
+        foreach (Type dependencyType in _availableDependencies.Keys)
+        {
+            List<string> dependencyNames = _dependencyTypesNames[dependencyType];
+            for (int c = 0, count = dependencyNames.Count; c < count; c++)
+            {
+                object dependency = _availableDependencies[dependencyType].First();
+                contexts.Add(dependencyNames[c], dependency);
+                _availableDependencies[dependencyType].Remove(dependency);
+            }
+        }
+
         ParameterInfo[] parameters = _constructor.GetParameters();
 
+        int selfCreatedContextCount = 0;
         object[] arguments = new object[parameters.Length];
+        for (int c = 0, count = parameters.Length; c < count; c++)
+            if (!parameters[c].IsOut)
+                arguments[c] = contexts[parameters[c].Name.EnsureNotNull()];
+            else
+                selfCreatedContextCount++;
+
+        object[] selfCreatedContexts = new object[selfCreatedContextCount];
         object behavior = _constructor.Invoke(arguments);
 
-        Dictionary<string, object> contexts = new();
-        for (int c = 0, count = parameters.Length; c < count; c++)
+        for (int c = 0, sc = 0, count = parameters.Length; c < count; c++)
         {
+            if (!parameters[c].IsOut)
+                continue;
+
+            selfCreatedContexts[sc] = arguments[c];
+            sc++;
+
             try
             {
                 contexts.Add(parameters[c].Name.EnsureNotNull(), arguments[c].EnsureNotNull());
@@ -215,17 +240,6 @@ public class BehaviorFactory : IBehaviorFactory
             }
         }
 
-        foreach (Type dependencyType in _availableDependencies.Keys)
-        {
-            List<string> dependencyNames = _dependencyTypesNames[dependencyType];
-            for (int c = 0, count = dependencyNames.Count; c < count; c++)
-            {
-                object dependency = _availableDependencies[dependencyType].First();
-                contexts.Add(dependencyNames[c], dependency);
-                _availableDependencies[dependencyType].Remove(dependency);
-            }
-        }
-
-        return new(behavior, contexts, arguments);
+        return new(behavior, contexts, selfCreatedContexts);
     }
 }

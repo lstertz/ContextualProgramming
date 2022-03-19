@@ -342,8 +342,8 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     {
         Type[] depTypes = _behaviorDependencies[behaviorType];
         Dictionary<string, int> selfCreatedDeps = _behaviorSelfCreatedDependencies[behaviorType];
+        Dictionary<string, int> existingDeps = _behaviorExistingDependencies[behaviorType];
 
-        // Only self-created dependencies are currently supported, so the Behavior can be created.
         ConstructorInfo[] constructors = behaviorType.GetConstructors(
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance |
             BindingFlags.FlattenHierarchy);
@@ -352,7 +352,8 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                 $"does not have a valid constructor.");
 
         ConstructorInfo constructor = constructors[0]; // Assume one constructor for now.
-        ValidateConstructor(behaviorType.FullName, depTypes, selfCreatedDeps, constructor);
+        ValidateConstructor(behaviorType.FullName, depTypes, existingDeps, 
+            selfCreatedDeps, constructor);
 
         _behaviorConstructors.Add(behaviorType, constructor);
     }
@@ -524,15 +525,23 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     /// <param name="behaviorName">The name of the behavior whose constructor 
     /// is to be validated.</param>
     /// <param name="depTypes">The types of the behavior's dependencies.</param>
+    /// <param name="existingDeps">The names and indices of the dependencies 
+    /// that the behavior requires to already be existing when it is instantiated.</param>
     /// <param name="selfCreatedDeps">The names and indices of the dependencies 
     /// that the behavior will create when it is instantiated.</param>
     /// <param name="constructor">The constructor of the behavior to be validated.</param>
-    /// <exception cref="InvalidOperationException"></exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if the constructor is not valid for the behavior with the specified dependencies.
+    /// </exception>
     private static void ValidateConstructor(string? behaviorName, Type[] depTypes,
-        Dictionary<string, int> selfCreatedDeps, ConstructorInfo constructor)
+        Dictionary<string, int> existingDeps, Dictionary<string, int> selfCreatedDeps, 
+        ConstructorInfo constructor)
     {
         ParameterInfo[] parameters = constructor.GetParameters();
-        if (parameters.Length != selfCreatedDeps.Count)
+        if (parameters.Length < selfCreatedDeps.Count)
+            throw new InvalidOperationException($"The default constructor for the behavior " +
+                $"of type {behaviorName} is not valid for its dependencies.");
+        else if (parameters.Length > selfCreatedDeps.Count + existingDeps.Count)
             throw new InvalidOperationException($"The default constructor for the behavior " +
                 $"of type {behaviorName} is not valid for its dependencies.");
 
@@ -545,18 +554,27 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                 throw new InvalidOperationException($"The default constructor for the behavior " +
                     $"of type {behaviorName} is not valid for its dependencies.");
 
-            if (!selfCreatedDeps.ContainsKey(parameterName))
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorName} is not valid for its dependencies.");
+            if (parameterInfo.IsOut)
+            {
+                if (!selfCreatedDeps.ContainsKey(parameterName))
+                    throw new InvalidOperationException($"The default constructor for the " +
+                        $"behavior of type {behaviorName} is not valid for its dependencies.");
 
-            if (!parameterInfo.IsOut)
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorName} is not valid for its dependencies.");
+                Type refDepType = depTypes[selfCreatedDeps[parameterName]].MakeByRefType();
+                if (refDepType != parameterInfo.ParameterType)
+                    throw new InvalidOperationException($"The default constructor for the " +
+                        $"behavior of type {behaviorName} is not valid for its dependencies.");
+            }
+            else
+            {
+                if (!existingDeps.ContainsKey(parameterName))
+                    throw new InvalidOperationException($"The default constructor for the " +
+                        $"behavior of type {behaviorName} is not valid for its dependencies.");
 
-            Type refDepType = depTypes[selfCreatedDeps[parameterName]].MakeByRefType();
-            if (refDepType != parameterInfo.ParameterType)
-                throw new InvalidOperationException($"The default constructor for the behavior " +
-                    $"of type {behaviorName} is not valid for its dependencies.");
+                if (depTypes[existingDeps[parameterName]] != parameterInfo.ParameterType)
+                    throw new InvalidOperationException($"The default constructor for the " +
+                        $"behavior of type {behaviorName} is not valid for its dependencies.");
+            }
         }
     }
 

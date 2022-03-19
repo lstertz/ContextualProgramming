@@ -55,15 +55,29 @@ namespace BehaviorFactoryTests
     #region Shared Constructs
     public class TestBehavior { }
 
+    public class TestBehaviorMixedDependencies
+    {
+        public TestContextA ContextA { get; set; }
+
+        public TestBehaviorMixedDependencies(TestContextA contextA, out TestContextB contextB)
+        {
+            ContextA = contextA;
+            contextB = new();
+        }
+    }
     public class TestBehaviorNullDependency
     {
-        public TestBehaviorNullDependency( out TestContextA? contextA)
-        { contextA = null; }
+        public TestBehaviorNullDependency( out TestContextA? contextA) => contextA = null;
+    }
+    public class TestBehaviorRequiresExisting
+    {
+        public TestContextA ContextA { get; set; }
+
+        public TestBehaviorRequiresExisting(TestContextA contextA) => ContextA = contextA;
     }
     public class TestBehaviorSelfFulfilled
     {
-        public TestBehaviorSelfFulfilled(out TestContextA contextA)
-        { contextA = new(); }
+        public TestBehaviorSelfFulfilled(out TestContextA contextA) => contextA = new();
     }
 
     public class TestContextA { }
@@ -527,6 +541,39 @@ namespace BehaviorFactoryTests
         }
 
         [Test]
+        public void MixedDependencyBehavior_ReceivesExistingAndInstantiatesSelfCreated()
+        {
+            string expectedContextNameA = "contextA";
+            string expectedContextNameB = "contextB";
+
+            ConstructorInfo? constructor = typeof(TestBehaviorMixedDependencies)
+               .GetConstructors()[0];
+            if (constructor == null)
+                throw new NullReferenceException();
+
+            BehaviorFactory factory = new(constructor, new()
+            {
+                { expectedContextNameA, typeof(TestContextA) }
+            });
+
+            TestContextA expectedExistingContextA = new();
+            factory.AddAvailableDependency(expectedExistingContextA);
+
+            BehaviorInstance[] instances = factory.Process();
+
+            Assert.AreEqual(1, instances.Length);
+            var instance = (TestBehaviorMixedDependencies)instances[0].Behavior;
+
+            Assert.AreEqual(expectedExistingContextA, instance.ContextA);
+            Validate.InstanceEquality<TestBehaviorMixedDependencies>(instances[0],
+                new Type[] { typeof(TestContextB) }, new()
+                {
+                    { expectedContextNameA, typeof(TestContextA) },
+                    { expectedContextNameB, typeof(TestContextB) }
+                });
+        }
+
+        [Test]
         public void MultiplePendingInstantiations_InstantiatesAllWithDependencies()
         {
             string expectedContextName = "contextA";
@@ -671,6 +718,37 @@ namespace BehaviorFactoryTests
 
             Assert.AreEqual(1, instances.Length);
             Assert.AreEqual(context1, instances[0].Contexts[expectedContextName]);
+        }
+
+        [Test]
+        public void RequiresExistingBehavior_ReceivesExisting()
+        {
+            string expectedContextNameA = "contextA";
+
+            ConstructorInfo? constructor = typeof(TestBehaviorRequiresExisting)
+               .GetConstructors()[0];
+            if (constructor == null)
+                throw new NullReferenceException();
+
+            BehaviorFactory factory = new(constructor, new()
+            {
+                { expectedContextNameA, typeof(TestContextA) }
+            });
+
+            TestContextA expectedExistingContextA = new();
+            factory.AddAvailableDependency(expectedExistingContextA);
+
+            BehaviorInstance[] instances = factory.Process();
+
+            Assert.AreEqual(1, instances.Length);
+            var instance = (TestBehaviorRequiresExisting)instances[0].Behavior;
+
+            Assert.AreEqual(expectedExistingContextA, instance.ContextA);
+            Validate.InstanceEquality<TestBehaviorRequiresExisting>(instances[0],
+                Array.Empty<Type>(), new()
+                {
+                    { expectedContextNameA, typeof(TestContextA) }
+                });
         }
 
         [Test]
