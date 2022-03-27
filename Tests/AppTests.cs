@@ -8,7 +8,7 @@ namespace AppTests
     public static class SetUp
     {
         public static App BehaviorAndContextApp<TBehavior, TContext>(
-            IBehaviorFactory factory, Type[]? behaviorUnfulfilledDependencies = null, 
+            IBehaviorFactory factory, Type[]? behaviorUnfulfilledDependencies = null,
             bool initializeApp = true)
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
@@ -90,10 +90,10 @@ namespace AppTests
 
             if (Operations.OnContextStateChange.ContainsKey(type))
                 evaluator.GetOnChangeOperations(type,
-                    contextName, stateName).Returns(new MethodInfo[]
-                    {
+                contextName, stateName).Returns(new MethodInfo[]
+                {
                     Operations.OnContextStateChange[type]
-                    });
+                });
         }
 
         public static App ContextOnlyApp<TContext>()
@@ -150,7 +150,7 @@ namespace AppTests
                 });
 
             return BehaviorAndContextApp<TestBehaviorA, TestBehaviorB, TestContextA,
-                TestContextB, TestContextC>(factoryA, factoryB, null, 
+                TestContextB, TestContextC>(factoryA, factoryB, null,
                 new Type[]
                 {
                     typeof(TestContextA)
@@ -226,8 +226,21 @@ namespace AppTests
     {
         public bool CanInstantiate => NumberOfPendingInstantiations > 0;
 
-        public int NumberOfPendingInstantiations =>
-            _availableDependencies.Count == RequiredDependencyTypes.Length ? 1 : 0;
+        public int NumberOfPendingInstantiations
+        {
+            get
+            {
+                for (int c = 0, count = RequiredDependencyTypes.Count(); c < count; c++)
+                {
+                    if (!_availableDependencies.ContainsKey(RequiredDependencyTypes[c]))
+                        return 0;
+                    if (_availableDependencies[RequiredDependencyTypes[c]].Count == 0)
+                        return 0;
+                }
+
+                return 1;
+            }
+        }
 
         public Type[] RequiredDependencyTypes { get; init; }
 
@@ -250,6 +263,8 @@ namespace AppTests
         public bool AddAvailableDependency(object dependency)
         {
             Type type = dependency.GetType();
+            if (!RequiredDependencyTypes.Contains(type))
+                return false;
 
             if (!_availableDependencies.ContainsKey(type))
                 _availableDependencies.Add(type, new());
@@ -390,7 +405,6 @@ namespace AppTests
             Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorA);
         }
 
-
         private static int TestBehaviorAChangeOperationDependentValue(App app,
             TestContextA contextA, int? existingValueChange = null)
         {
@@ -410,6 +424,7 @@ namespace AppTests
 
             return expectedValue;
         }
+
         public static void TestBehaviorsABDoNotExist(App app, TestContextA contextA)
         {
             // Existence is determined by operation invocation.
@@ -448,7 +463,6 @@ namespace AppTests
             Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorB);
         }
 
-
         private static int TestBehaviorsABChangeOperationDependentValue(App app,
             TestContextA contextA, int? existingValueChange = null)
         {
@@ -467,6 +481,59 @@ namespace AppTests
                 expectedValue = existingValueChange.Value;
 
             app.Update(); // Behavior A and B update Context A's context change values.
+
+            return expectedValue;
+        }
+
+
+        public static void TestBehaviorBDoesNotExist(App app, TestContextA contextA)
+        {
+            // Existence is determined by operation invocation.
+            TestBehaviorBOnChangeOperationsNotInvoked(app, contextA);
+        }
+
+        public static void TestBehaviorBExists(App app, TestContextA contextA)
+        {
+            // Existence is determined by operation invocation.
+            TestBehaviorBOnChangeOperationsInvoked(app, contextA);
+        }
+
+        public static void TestBehaviorBOnChangeOperationsInvoked(App app, TestContextA contextA,
+            int? existingValueChange = null)
+        {
+            int expectedValue = TestBehaviorBChangeOperationDependentValue(
+                app, contextA, existingValueChange);
+
+            Assert.AreEqual(expectedValue, contextA.OnContextChangeIntValueFromBehaviorB);
+            Assert.AreEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorB);
+        }
+
+        public static void TestBehaviorBOnChangeOperationsNotInvoked(App app,
+            TestContextA contextA, int? existingValueChange = null)
+        {
+            int expectedValue = TestBehaviorBChangeOperationDependentValue(
+                app, contextA, existingValueChange);
+
+            Assert.AreNotEqual(expectedValue, contextA.OnContextChangeIntValueFromBehaviorB);
+            Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorB);
+        }
+
+        private static int TestBehaviorBChangeOperationDependentValue(App app,
+            TestContextA contextA, int? existingValueChange = null)
+        {
+            SetUp.BehaviorOperations<TestBehaviorB>(app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+
+            int expectedValue;
+            if (!existingValueChange.HasValue)
+            {
+                expectedValue = 11;
+                contextA.Int.Value = expectedValue;
+            }
+            else
+                expectedValue = existingValueChange.Value;
+
+            app.Update(); // Behavior B update Context A's context change values.
 
             return expectedValue;
         }
@@ -550,6 +617,7 @@ namespace AppTests
 
             TestContextB contextB = new();
             app.Contextualize(contextB);
+            app.Update();
 
             Assert.AreEqual(expectedContextA, app.GetContext<TestContextA>());
         }
@@ -738,14 +806,18 @@ namespace AppTests
             TestContextA contextA = new();
             app.Contextualize(contextA);
 
+            app.Update();
+
             app.Decontextualize(contextB);
 
             app.Contextualize(new TestContextB());
+            app.Update();
+
             Validate.TestBehaviorAExists(app, contextA);
         }
 
         [Test]
-        public void DependentBehaviors_ExistingChangesIgnoredForOnContextChange()
+        public void DependentBehaviors_DecontextualizeA_ExistingChangesIgnoredForOnContextChange()
         {
             TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
@@ -754,18 +826,44 @@ namespace AppTests
             contextA.Int.Value = expectedValue;
             _app.Decontextualize(contextA);
 
-            Validate.TestBehaviorsABOnChangeOperationsNotInvoked(_app, contextA, expectedValue);
+            Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA, expectedValue);
         }
 
         [Test]
-        public void DependentBehaviors_NewChangesIgnoredForOnContextChange()
+        public void DependentBehaviors_DecontextualizeA_NewChangesIgnoredForOnContextChange()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             _app.Decontextualize(contextA);
-            Validate.TestBehaviorsABOnChangeOperationsNotInvoked(_app, contextA);
+            Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA);
+        }
+
+        [Test]
+        public void DependentBehaviors_DecontextualizeB_ExistingChangesIgnoredForOnContextChange()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+            TestContextB? contextB = _app.GetContext<TestContextB>() ??
+                throw new NullReferenceException();
+
+            int expectedValue = 11;
+            contextA.Int.Value = expectedValue;
+            _app.Decontextualize(contextB);
+
+            Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA, expectedValue);
+        }
+
+        [Test]
+        public void DependentBehaviors_DecontextualizeB_NewChangesIgnoredForOnContextChange()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+            TestContextB? contextB = _app.GetContext<TestContextB>() ??
+                throw new NullReferenceException();
+
+            _app.Decontextualize(contextB);
+            Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA);
         }
 
         [Test]
@@ -790,7 +888,19 @@ namespace AppTests
         }
 
         [Test]
-        public void DependentBehaviors_RemainingContextsReusedForNewBehaviorInstances()
+        public void DependentBehaviors_RecontextualizedBeforeUpdate_BehaviorsAreMaintained()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
+                throw new NullReferenceException();
+
+            _app.Decontextualize(contextA);
+            _app.Contextualize(contextA);
+
+            Validate.TestBehaviorsABExist(_app, contextA);
+        }
+
+        [Test]
+        public void DependentBehaviors_RemainingContextsReusedForNewBehaviorInstancesWithExisting()
         {
             App app = AppTests.SetUp.FullSuiteDependentApp();
 
@@ -803,11 +913,64 @@ namespace AppTests
             TestContextC contextC = new();
             app.Contextualize(contextC);
 
+            app.Update();
+
+            TestContextA finalContextA = new();
+            app.Contextualize(finalContextA);
+
+            app.Decontextualize(originalContextA);
+
+            app.Update();
+
+            Validate.TestBehaviorsABExist(app, finalContextA);
+        }
+
+        [Test]
+        public void DependentBehaviors_RemainingContextsReusedForNewBehaviorInstances_WithNew()
+        {
+            App app = AppTests.SetUp.FullSuiteDependentApp();
+
+            TestContextA originalContextA = new();
+            app.Contextualize(originalContextA);
+
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
+            TestContextC contextC = new();
+            app.Contextualize(contextC);
+
+            app.Update();
+
             app.Decontextualize(originalContextA);
 
             TestContextA finalContextA = new();
             app.Contextualize(finalContextA);
+            app.Update();
+
             Validate.TestBehaviorsABExist(app, finalContextA);
+        }
+
+        [Test]
+        public void DependentInitializationBehavior_DecontextualizeA_NewChangesIgnoredForOnContextChange()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+
+            _app.Decontextualize(contextA);
+            Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA);
+        }
+
+        [Test]
+        public void DependentInitializationBehavior_DecontextualizeB_NewChangesIgnoredForOnContextChange()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+
+            TestContextB? contextB = _app.GetContext<TestContextB>() ??
+                throw new NullReferenceException();
+
+            _app.Decontextualize(contextB);
+            Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA);
         }
 
         [Test]
@@ -821,17 +984,6 @@ namespace AppTests
             _app.Decontextualize(contextA);
 
             Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA, expectedValue);
-        }
-
-        [Test]
-        public void DependentInitializationBehavior_NewChangesIgnoredForOnContextChange()
-        {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
-                throw new NullReferenceException();
-
-            _app.Decontextualize(contextA);
-            Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA);
         }
 
         [Test]
@@ -862,8 +1014,11 @@ namespace AppTests
         {
             TestContextA context = new();
             _app.Contextualize(context);
+            _app.Update();
 
             _app.Decontextualize(context);
+            _app.Update();
+
             context.Int.Value = 10;
 
             Assert.IsFalse(_app.Update());
@@ -877,18 +1032,6 @@ namespace AppTests
 
             Assert.Throws<InvalidOperationException>(() =>
                 app.Decontextualize<TestContextA>(new()));
-        }
-
-        [Test]
-        public void UpdateIgnoresExistingChanges()
-        {
-            TestContextA context = new();
-            _app.Contextualize(context);
-            context.Int.Value = 10;
-
-            _app.Decontextualize(context);
-
-            Assert.IsFalse(_app.Update());
         }
     }
 
@@ -1015,9 +1158,11 @@ namespace AppTests
         }
 
         [Test]
-        public void FulfilledBehaviors_ContextualizeSelfCreatedContexts()
+        public void FulfilledBehaviors_ContextualizeSelfCreatedContextsAfterUpdate()
         {
             App app = SetUp.FullSuiteIndependentApp();
+
+            app.Update();
 
             Assert.NotNull(app.GetContext<TestContextC>());
         }
@@ -1074,21 +1219,34 @@ namespace AppTests
         }
 
         [Test]
+        public void FulfilledBehaviors_InstantiatedAfterUpdate()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
+                throw new NullReferenceException();
+
+            Assert.IsNull(_app.GetContext<TestContextC>());
+
+            _app.Update();
+
+            Assert.IsNotNull(_app.GetContext<TestContextC>());
+            Assert.AreEqual(0, contextA.OnContextChangeIntValueFromBehaviorA);
+        }
+
+        [Test]
         public void NoChanges_DoesNotInvokeContextChangeOperations()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
                 throw new NullReferenceException();
 
             _app.Update();
 
             Assert.AreEqual(0, contextA.OnContextChangeIntValueFromBehaviorA);
         }
+
         [Test]
         public void NoChanges_DoesNotInvokeStateChangeOperations()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             _app.Update();
@@ -1097,16 +1255,17 @@ namespace AppTests
         }
 
         [Test]
-        public void NoChanges_ReturnsFalse()
+        public void NoChangesAndNoPendingFactoriesAndNoDeregisteringBehaviors_ReturnsFalse()
         {
+            _app.Update();
+
             Assert.IsFalse(_app.Update());
         }
 
         [Test]
         public void WithChanges_ClearsPreviousChanges()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             contextA.Int.Value = 11;
@@ -1120,8 +1279,7 @@ namespace AppTests
         [Test]
         public void WithChanges_InvokesOnContextChangeOperations()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             Validate.TestBehaviorsABOnChangeOperationsInvoked(_app, contextA);
@@ -1130,24 +1288,20 @@ namespace AppTests
         [Test]
         public void WithChanges_RecordsAndInvokesForSubsequentChanges()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
-            TestContextB? contextB = _app.GetContext<TestContextB>();
-            if (contextB == null)
+            TestContextB? contextB = _app.GetContext<TestContextB>() ??
                 throw new NullReferenceException();
 
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange");
-            if (mi == null)
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange") ??
                 throw new NullReferenceException();
 
             _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
                 TestBehaviorA.ContextAName, nameof(TestContextA.Int))
                 .Returns(new MethodInfo[] { mi });
 
-            mi = typeof(TestBehaviorA).GetMethod("OnContextBIntChange");
-            if (mi == null)
+            mi = typeof(TestBehaviorA).GetMethod("OnContextBIntChange") ??
                 throw new NullReferenceException();
 
             _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
@@ -1166,12 +1320,47 @@ namespace AppTests
         [Test]
         public void WithChanges_ReturnsTrue()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
+
+            _app.Update();
 
             contextA.Int.Value = 11;
 
+            Assert.IsTrue(_app.Update());
+        }
+
+        [Test]
+        public void WithDeregisteringBehaviors_AfterUpdate_ReturnsFalse()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+
+            _app.Update();
+
+            _app.Decontextualize(contextA);
+
+            _app.Update();
+
+            Assert.IsFalse(_app.Update());
+        }
+
+        [Test]
+        public void WithDeregisteringBehaviors_BeforeUpdate_ReturnsTrue()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+
+            _app.Update();
+
+            _app.Decontextualize(contextA);
+
+            Assert.IsTrue(_app.Update());
+        }
+
+        [Test]
+        public void WithPendingFactories_ReturnsTrue()
+        {
             Assert.IsTrue(_app.Update());
         }
     }

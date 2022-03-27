@@ -71,7 +71,7 @@ public class App
     /// A queue of behavior factories that can (and should) be processed to 
     /// instantiate new behaviors.
     /// </summary>
-    private readonly Queue<IBehaviorFactory> _pendingFactories = new();
+    private readonly List<IBehaviorFactory> _pendingFactories = new();
 
     private bool _isInitialized = false;
 
@@ -138,7 +138,7 @@ public class App
         }
 
         if (factory.CanInstantiate)
-            _pendingFactories.Enqueue(factory);
+            _pendingFactories.Add(factory);
     }
 
     /// <summary>
@@ -187,9 +187,10 @@ public class App
         if (!_contexts[type].Add(context))
             return;
 
+        _decontextualizedContexts.Remove(context);
+
         BindContext(context, type);
         AddContextToBehaviorFactories(context, type);
-        ProcessPendingFactories();
     }
 
 
@@ -212,9 +213,11 @@ public class App
 
         UnbindContext(context);
         RemoveContext(context);
-        DeregisterContextBehaviorInstances(context);
+        _decontextualizedContexts.Add(context);
         RemoveContextFromFactories(context);
     }
+
+    private HashSet<object> _decontextualizedContexts = new();
 
     /// <summary>
     /// Provides the first found context of the specified type.
@@ -261,9 +264,16 @@ public class App
     /// <returns>True if there were changes evaluated, false otherwise.</returns>
     public bool Update()
     {
-        bool hadChanges = false;
-        if (_contextChanges.Count == 0)
-            return hadChanges;
+        if (_contextChanges.Count == 0 && _pendingFactories.Count == 0 && 
+            _decontextualizedContexts.Count == 0)
+            return false;
+
+        bool hadChanges = _decontextualizedContexts.Count != 0;
+        foreach (object context in _decontextualizedContexts)
+            DeregisterContextBehaviorInstances(context);
+        _decontextualizedContexts.Clear();
+
+        hadChanges = ProcessPendingFactories() || hadChanges;
 
         ContextChange[] contextChanges = _contextChanges.ToArray();
         _contextChanges.Clear();
@@ -323,14 +333,29 @@ public class App
     /// <summary>
     /// Processes the app's pending factories until there are no more remaining.
     /// </summary>
-    private void ProcessPendingFactories()
+    /// <returns>
+    /// Whether any instances were made from the pending factories.
+    /// </returns>
+    private bool ProcessPendingFactories()
     {
-        while (_pendingFactories.Count > 0)
+        bool hadNewInstances = false;
+
+        IBehaviorFactory[] pendingFactories = _pendingFactories.ToArray();
+        _pendingFactories.Clear();
+
+        for (int c = 0, count = pendingFactories.Length; c < count; c++)
         {
-            BehaviorInstance[] newInstances = _pendingFactories.Dequeue().Process();
-            for (int c = 0, count = newInstances.Length; c < count; c++)
-                RegisterBehaviorInstance(newInstances[c]);
+            BehaviorInstance[] newInstances = pendingFactories[c].Process();
+            if (newInstances.Length > 0)
+            {
+                hadNewInstances = true;
+
+                for (int cc = 0, cCount = newInstances.Length; cc < cCount; cc++)
+                    RegisterBehaviorInstance(newInstances[cc]);
+            }
         }
+
+        return hadNewInstances;
     }
 
     /// <summary>
@@ -363,7 +388,7 @@ public class App
         if (_contextBehaviorFactories.ContainsKey(type))
             for (int c = 0, count = _contextBehaviorFactories[type].Count; c < count; c++)
                 if (_contextBehaviorFactories[type][c].AddAvailableDependency(context))
-                    _pendingFactories.Enqueue(_contextBehaviorFactories[type][c]);
+                    _pendingFactories.Add(_contextBehaviorFactories[type][c]);
     }
 
     /// <summary>
@@ -389,15 +414,25 @@ public class App
     /// </summary>
     /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context whose behaviors are to be deregistered.</param>
-    private void DeregisterContextBehaviorInstances<T>(T context) where T : notnull
+    private void DeregisterContextBehaviorInstances(object context)
     {
         if (_contextBehaviors.ContainsKey(context))
         {
             foreach (BehaviorInstance behaviorInstance in _contextBehaviors[context])
                 foreach (object dependency in behaviorInstance.Contexts.Values)
                     if (!dependency.Equals(context))
-                        _behaviorFactories[behaviorInstance.Behavior.GetType()]
-                            .AddAvailableDependency(dependency);
+                    {
+                        IBehaviorFactory factory = _behaviorFactories[
+                            behaviorInstance.Behavior.GetType()];
+                        if (factory.AddAvailableDependency(dependency))
+                            _pendingFactories.Add(factory);
+
+                        // TODO :: If a context isn't used by any factories after all of its 
+                        //          behavior instances are removed, the context 
+                        //          should be removed, since it won't ever be used.
+
+                        _contextBehaviors[dependency].Remove(behaviorInstance);
+                    }
 
             _contextBehaviors.Remove(context);
         }
