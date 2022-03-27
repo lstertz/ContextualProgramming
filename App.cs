@@ -187,6 +187,8 @@ public class App
         if (!_contexts[type].Add(context))
             return;
 
+        _decontextualizedContexts.Remove(context);
+
         BindContext(context, type);
         AddContextToBehaviorFactories(context, type);
     }
@@ -211,9 +213,11 @@ public class App
 
         UnbindContext(context);
         RemoveContext(context);
-        DeregisterContextBehaviorInstances(context);
+        _decontextualizedContexts.Add(context);
         RemoveContextFromFactories(context);
     }
+
+    private HashSet<object> _decontextualizedContexts = new();
 
     /// <summary>
     /// Provides the first found context of the specified type.
@@ -261,6 +265,9 @@ public class App
     public bool Update()
     {
         bool hadChanges = false;
+        foreach (object context in _decontextualizedContexts)
+            DeregisterContextBehaviorInstances(context);
+
         if (_contextChanges.Count == 0 && _pendingFactories.Count == 0)
             return hadChanges;
 
@@ -405,15 +412,25 @@ public class App
     /// </summary>
     /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context whose behaviors are to be deregistered.</param>
-    private void DeregisterContextBehaviorInstances<T>(T context) where T : notnull
+    private void DeregisterContextBehaviorInstances(object context)
     {
         if (_contextBehaviors.ContainsKey(context))
         {
             foreach (BehaviorInstance behaviorInstance in _contextBehaviors[context])
                 foreach (object dependency in behaviorInstance.Contexts.Values)
                     if (!dependency.Equals(context))
-                        _behaviorFactories[behaviorInstance.Behavior.GetType()]
-                            .AddAvailableDependency(dependency);
+                    {
+                        IBehaviorFactory factory = _behaviorFactories[
+                            behaviorInstance.Behavior.GetType()];
+                        if (factory.AddAvailableDependency(dependency))
+                            _pendingFactories.Add(factory);
+
+                        // TODO :: If a context isn't used by any factories after all of its 
+                        //          behavior instances are removed, the context 
+                        //          should be removed, since it won't ever be used.
+
+                        _contextBehaviors[dependency].Remove(behaviorInstance);
+                    }
 
             _contextBehaviors.Remove(context);
         }
