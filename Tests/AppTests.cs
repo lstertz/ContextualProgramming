@@ -890,8 +890,7 @@ namespace AppTests
         [Test]
         public void DependentBehaviors_RecontextualizedBeforeUpdate_BehaviorsAreMaintained()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
                 throw new NullReferenceException();
 
             _app.Decontextualize(contextA);
@@ -950,9 +949,6 @@ namespace AppTests
 
             Validate.TestBehaviorsABExist(app, finalContextA);
         }
-
-        // TODO :: Test to confirm update returns true if an instance was deregistered.
-
 
         [Test]
         public void DependentInitializationBehavior_DecontextualizeA_NewChangesIgnoredForOnContextChange()
@@ -1021,6 +1017,8 @@ namespace AppTests
             _app.Update();
 
             _app.Decontextualize(context);
+            _app.Update();
+
             context.Int.Value = 10;
 
             Assert.IsFalse(_app.Update());
@@ -1034,20 +1032,6 @@ namespace AppTests
 
             Assert.Throws<InvalidOperationException>(() =>
                 app.Decontextualize<TestContextA>(new()));
-        }
-
-        [Test]
-        public void UpdateIgnoresExistingChanges()
-        {
-            TestContextA context = new();
-            _app.Contextualize(context);
-            _app.Update();
-
-            context.Int.Value = 10;
-
-            _app.Decontextualize(context);
-
-            Assert.IsFalse(_app.Update());
         }
     }
 
@@ -1237,8 +1221,7 @@ namespace AppTests
         [Test]
         public void FulfilledBehaviors_InstantiatedAfterUpdate()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
                 throw new NullReferenceException();
 
             Assert.IsNull(_app.GetContext<TestContextC>());
@@ -1252,8 +1235,7 @@ namespace AppTests
         [Test]
         public void NoChanges_DoesNotInvokeContextChangeOperations()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
                 throw new NullReferenceException();
 
             _app.Update();
@@ -1264,8 +1246,7 @@ namespace AppTests
         [Test]
         public void NoChanges_DoesNotInvokeStateChangeOperations()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             _app.Update();
@@ -1274,7 +1255,7 @@ namespace AppTests
         }
 
         [Test]
-        public void NoChangesAndNoPendingFactories_ReturnsFalse()
+        public void NoChangesAndNoPendingFactoriesAndNoDeregisteringBehaviors_ReturnsFalse()
         {
             _app.Update();
 
@@ -1284,8 +1265,7 @@ namespace AppTests
         [Test]
         public void WithChanges_ClearsPreviousChanges()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             contextA.Int.Value = 11;
@@ -1299,8 +1279,7 @@ namespace AppTests
         [Test]
         public void WithChanges_InvokesOnContextChangeOperations()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             Validate.TestBehaviorsABOnChangeOperationsInvoked(_app, contextA);
@@ -1309,24 +1288,20 @@ namespace AppTests
         [Test]
         public void WithChanges_RecordsAndInvokesForSubsequentChanges()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
-            TestContextB? contextB = _app.GetContext<TestContextB>();
-            if (contextB == null)
+            TestContextB? contextB = _app.GetContext<TestContextB>() ??
                 throw new NullReferenceException();
 
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange");
-            if (mi == null)
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange") ??
                 throw new NullReferenceException();
 
             _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
                 TestBehaviorA.ContextAName, nameof(TestContextA.Int))
                 .Returns(new MethodInfo[] { mi });
 
-            mi = typeof(TestBehaviorA).GetMethod("OnContextBIntChange");
-            if (mi == null)
+            mi = typeof(TestBehaviorA).GetMethod("OnContextBIntChange") ??
                 throw new NullReferenceException();
 
             _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
@@ -1345,8 +1320,7 @@ namespace AppTests
         [Test]
         public void WithChanges_ReturnsTrue()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             _app.Update();
@@ -1357,12 +1331,36 @@ namespace AppTests
         }
 
         [Test]
-        public void WithPendingFactories_ReturnsTrue()
+        public void WithDeregisteringBehaviors_AfterUpdate_ReturnsFalse()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>();
-            if (contextA == null)
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
+            _app.Update();
+
+            _app.Decontextualize(contextA);
+
+            _app.Update();
+
+            Assert.IsFalse(_app.Update());
+        }
+
+        [Test]
+        public void WithDeregisteringBehaviors_BeforeUpdate_ReturnsTrue()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+
+            _app.Update();
+
+            _app.Decontextualize(contextA);
+
+            Assert.IsTrue(_app.Update());
+        }
+
+        [Test]
+        public void WithPendingFactories_ReturnsTrue()
+        {
             Assert.IsTrue(_app.Update());
         }
     }

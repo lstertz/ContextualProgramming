@@ -264,14 +264,16 @@ public class App
     /// <returns>True if there were changes evaluated, false otherwise.</returns>
     public bool Update()
     {
-        bool hadChanges = false;
+        if (_contextChanges.Count == 0 && _pendingFactories.Count == 0 && 
+            _decontextualizedContexts.Count == 0)
+            return false;
+
+        bool hadChanges = _decontextualizedContexts.Count != 0;
         foreach (object context in _decontextualizedContexts)
             DeregisterContextBehaviorInstances(context);
+        _decontextualizedContexts.Clear();
 
-        if (_contextChanges.Count == 0 && _pendingFactories.Count == 0)
-            return hadChanges;
-
-        hadChanges = ProcessPendingFactories();
+        hadChanges = ProcessPendingFactories() || hadChanges;
 
         ContextChange[] contextChanges = _contextChanges.ToArray();
         _contextChanges.Clear();
