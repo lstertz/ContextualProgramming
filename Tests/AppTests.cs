@@ -405,7 +405,6 @@ namespace AppTests
             Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorA);
         }
 
-
         private static int TestBehaviorAChangeOperationDependentValue(App app,
             TestContextA contextA, int? existingValueChange = null)
         {
@@ -425,6 +424,7 @@ namespace AppTests
 
             return expectedValue;
         }
+
         public static void TestBehaviorsABDoNotExist(App app, TestContextA contextA)
         {
             // Existence is determined by operation invocation.
@@ -463,7 +463,6 @@ namespace AppTests
             Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorB);
         }
 
-
         private static int TestBehaviorsABChangeOperationDependentValue(App app,
             TestContextA contextA, int? existingValueChange = null)
         {
@@ -482,6 +481,59 @@ namespace AppTests
                 expectedValue = existingValueChange.Value;
 
             app.Update(); // Behavior A and B update Context A's context change values.
+
+            return expectedValue;
+        }
+
+
+        public static void TestBehaviorBDoesNotExist(App app, TestContextA contextA)
+        {
+            // Existence is determined by operation invocation.
+            TestBehaviorBOnChangeOperationsNotInvoked(app, contextA);
+        }
+
+        public static void TestBehaviorBExists(App app, TestContextA contextA)
+        {
+            // Existence is determined by operation invocation.
+            TestBehaviorBOnChangeOperationsInvoked(app, contextA);
+        }
+
+        public static void TestBehaviorBOnChangeOperationsInvoked(App app, TestContextA contextA,
+            int? existingValueChange = null)
+        {
+            int expectedValue = TestBehaviorBChangeOperationDependentValue(
+                app, contextA, existingValueChange);
+
+            Assert.AreEqual(expectedValue, contextA.OnContextChangeIntValueFromBehaviorB);
+            Assert.AreEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorB);
+        }
+
+        public static void TestBehaviorBOnChangeOperationsNotInvoked(App app,
+            TestContextA contextA, int? existingValueChange = null)
+        {
+            int expectedValue = TestBehaviorBChangeOperationDependentValue(
+                app, contextA, existingValueChange);
+
+            Assert.AreNotEqual(expectedValue, contextA.OnContextChangeIntValueFromBehaviorB);
+            Assert.AreNotEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorB);
+        }
+
+        private static int TestBehaviorBChangeOperationDependentValue(App app,
+            TestContextA contextA, int? existingValueChange = null)
+        {
+            SetUp.BehaviorOperations<TestBehaviorB>(app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+
+            int expectedValue;
+            if (!existingValueChange.HasValue)
+            {
+                expectedValue = 11;
+                contextA.Int.Value = expectedValue;
+            }
+            else
+                expectedValue = existingValueChange.Value;
+
+            app.Update(); // Behavior B update Context A's context change values.
 
             return expectedValue;
         }
@@ -849,7 +901,33 @@ namespace AppTests
         }
 
         [Test]
-        public void DependentBehaviors_RemainingContextsReusedForNewBehaviorInstances()
+        public void DependentBehaviors_RemainingContextsReusedForNewBehaviorInstancesWithExisting()
+        {
+            App app = AppTests.SetUp.FullSuiteDependentApp();
+
+            TestContextA originalContextA = new();
+            app.Contextualize(originalContextA);
+
+            TestContextB contextB = new();
+            app.Contextualize(contextB);
+
+            TestContextC contextC = new();
+            app.Contextualize(contextC);
+
+            app.Update();
+
+            TestContextA finalContextA = new();
+            app.Contextualize(finalContextA);
+
+            app.Decontextualize(originalContextA);
+
+            app.Update();
+
+            Validate.TestBehaviorsABExist(app, finalContextA);
+        }
+
+        [Test]
+        public void DependentBehaviors_RemainingContextsReusedForNewBehaviorInstances_WithNew()
         {
             App app = AppTests.SetUp.FullSuiteDependentApp();
 
@@ -873,8 +951,6 @@ namespace AppTests
             Validate.TestBehaviorsABExist(app, finalContextA);
         }
 
-        // TODO :: Test to confirm decontextualization may enable a new instance with 
-        //          previously contextualized contexts (instead of later contextualized contexts).
         // TODO :: Test to confirm update returns true if an instance was deregistered.
 
 
