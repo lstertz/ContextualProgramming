@@ -68,6 +68,12 @@ public class App
     private readonly List<ContextChange> _contextChanges = new();
 
     /// <summary>
+    /// The contexts that have been decontextualized since the deregistration of 
+    /// behaviors in the last update.
+    /// </summary>
+    private readonly HashSet<object> _decontextualizedContexts = new();
+
+    /// <summary>
     /// A queue of behavior factories that can (and should) be processed to 
     /// instantiate new behaviors.
     /// </summary>
@@ -216,8 +222,6 @@ public class App
         _decontextualizedContexts.Add(context);
         RemoveContextFromFactories(context);
     }
-
-    private HashSet<object> _decontextualizedContexts = new();
 
     /// <summary>
     /// Provides the first found context of the specified type.
