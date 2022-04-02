@@ -3,11 +3,38 @@ using System.Reflection;
 
 namespace ContextualProgramming;
 
+
+/// <summary>
+/// Handles contextualization and decontextualization of contexts 
+/// managed by behaviors.
+/// </summary>
+public interface IBehaviorApp
+{
+    /// <summary>
+    /// Contextualizes a new context, including it as part of the app's contextual state.
+    /// </summary>
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context to be registered.</param>
+    /// <exception cref="ArgumentNullException">Thrown if the provided context 
+    /// instance is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown if the provided instance is 
+    /// not a context instance.</exception>
+    public void Contextualize<T>(T context) where T : class;
+
+    /// <summary>
+    /// Decontextualizes the provided context, removing it from the app's contextual state.
+    /// </summary>
+    /// <typeparam name="T">The type of the context.</typeparam>
+    /// <param name="context">The context to be deregistered.</param>
+    public void Decontextualize<T>(T context) where T : notnull;
+}
+
+
 /// <summary>
 /// Handles the state and behavior of the running application by managing 
 /// registered contexts and the resulting behaviors within an encapsulated environment.
 /// </summary>
-public class App
+public class App : IBehaviorApp
 {
     /// <summary>
     /// Represents a record of a change for a property of a context.
@@ -32,6 +59,28 @@ public class App
         /// <param name="propertyName"><see cref="PropertyName"/></param>
         public ContextChange(object context, string propertyName) => (Context, PropertyName) =
             (context.EnsureNotNull(), propertyName.EnsureNotNull());
+    }
+
+
+    /// <summary>
+    /// Mapping of behavior instances to their encapsulating apps.
+    /// </summary>
+    private static readonly Dictionary<object, IBehaviorApp> _behaviorApps = new();
+
+    /// <summary>
+    /// Provides the app that the specified behavior belongs to.
+    /// </summary>
+    /// <param name="behavior">The behavior whose encapsulating app is to be provided.</param>
+    /// <returns>The app that encapsulates the specified behavior.</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the provided 
+    /// object is not an instance of a behavior known to any running app.</exception>
+    public static IBehaviorApp Of(object behavior)
+    {
+        if (_behaviorApps.TryGetValue(behavior, out IBehaviorApp? app))
+            return app;
+
+        throw new InvalidOperationException($"The provided behavior does not " +
+            $"belong to any running app.");
     }
 
 
@@ -268,7 +317,7 @@ public class App
     /// <returns>True if there were changes evaluated, false otherwise.</returns>
     public bool Update()
     {
-        if (_contextChanges.Count == 0 && _pendingFactories.Count == 0 && 
+        if (_contextChanges.Count == 0 && _pendingFactories.Count == 0 &&
             _decontextualizedContexts.Count == 0)
             return false;
 
@@ -379,6 +428,8 @@ public class App
 
             _contextBehaviors[context].Add(instance);
         }
+
+        _behaviorApps.Add(instance.Behavior, this);
     }
 
     #region Contextualization Functions
@@ -423,6 +474,7 @@ public class App
         if (_contextBehaviors.ContainsKey(context))
         {
             foreach (BehaviorInstance behaviorInstance in _contextBehaviors[context])
+            {
                 foreach (object dependency in behaviorInstance.Contexts.Values)
                     if (!dependency.Equals(context))
                     {
@@ -437,6 +489,9 @@ public class App
 
                         _contextBehaviors[dependency].Remove(behaviorInstance);
                     }
+
+                _behaviorApps.Remove(behaviorInstance.Behavior);
+            }
 
             _contextBehaviors.Remove(context);
         }

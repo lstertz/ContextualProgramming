@@ -224,6 +224,8 @@ namespace AppTests
     public class BehaviorFactoryDouble<TBehavior> : IBehaviorFactory
         where TBehavior : new()
     {
+        public List<TBehavior> CreatedInstances { get; init; } = new();
+
         public bool CanInstantiate => NumberOfPendingInstantiations > 0;
 
         public int NumberOfPendingInstantiations
@@ -289,7 +291,10 @@ namespace AppTests
                 _availableDependencies[kvp.Key].RemoveAt(0);
             }
 
-            BehaviorInstance instance = new(new TBehavior(), contexts,
+            TBehavior behavior = new();
+            CreatedInstances.Add(behavior);
+
+            BehaviorInstance instance = new(behavior, contexts,
                 _selfCreatedContexts.Values.ToArray());
             return new BehaviorInstance[] { instance };
         }
@@ -536,6 +541,57 @@ namespace AppTests
             app.Update(); // Behavior B update Context A's context change values.
 
             return expectedValue;
+        }
+    }
+
+    public class AppRetrieval
+    {
+        [Test]
+        public void WithBehaviorInstance_ReturnsApp()
+        {
+            BehaviorFactoryDouble<TestBehaviorA> factoryA = new(new());
+            App expectedAppA = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factoryA);
+
+            BehaviorFactoryDouble<TestBehaviorA> factoryB = new(new());
+            App expectedAppB = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factoryB);
+
+            IBehaviorApp appA = App.Of(factoryA.CreatedInstances[0]);
+            Assert.AreEqual(expectedAppA, appA);
+
+            IBehaviorApp appB = App.Of(factoryB.CreatedInstances[0]);
+            Assert.AreEqual(expectedAppB, appB);
+        }
+
+        [Test]
+        public void WithFormerBehaviorInstance_ThrowsException()
+        {
+            TestContextA contextA = new();
+
+            BehaviorFactoryDouble<TestBehaviorA> factory = new(new()
+            {
+                { TestBehaviorA.ContextAName, contextA }
+            });
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory);
+
+            app.Decontextualize(contextA);
+            app.Update();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                App.Of(factory.CreatedInstances[0]));
+        }
+
+        [Test]
+        public void WithNonBehaviorInstance_ThrowsException()
+        {
+            BehaviorFactoryDouble<TestBehaviorA> factory = new(new());
+            App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory);
+
+            Assert.Throws<InvalidOperationException>(() => 
+                App.Of(new TestBehaviorA()));
         }
     }
 
@@ -890,7 +946,7 @@ namespace AppTests
         [Test]
         public void DependentBehaviors_RecontextualizedBeforeUpdate_BehaviorsAreMaintained()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             _app.Decontextualize(contextA);
@@ -1221,7 +1277,7 @@ namespace AppTests
         [Test]
         public void FulfilledBehaviors_InstantiatedAfterUpdate()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             Assert.IsNull(_app.GetContext<TestContextC>());
@@ -1235,7 +1291,7 @@ namespace AppTests
         [Test]
         public void NoChanges_DoesNotInvokeContextChangeOperations()
         {
-            TestContextA? contextA = _app.GetContext<TestContextA>() ?? 
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
 
             _app.Update();
