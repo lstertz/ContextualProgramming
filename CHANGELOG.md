@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Support for existing dependencies to be used as parameters in behavior constructors.
+- App.Of so a behavior can retrieve its App to perform contextualization and decontextualization.
+
+### Changed
+- Contextualization and decontextualization behavior instantiations and destructions now occur 
+as part of the update cycle.
 
 
 ## [1.1.1] - 2022-03-07
