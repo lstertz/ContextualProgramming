@@ -9,4 +9,4 @@
 /// being decontextualized. Teardown happens immediately before the behavior's destruction.
 /// </remarks>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-public class TeardownAttribute : Attribute { }
+public class OnTeardownAttribute : Attribute { }
