@@ -321,16 +321,45 @@ public class App : IBehaviorApp
             _decontextualizedContexts.Count == 0)
             return false;
 
-        bool hadChanges = _decontextualizedContexts.Count != 0;
-        foreach (object context in _decontextualizedContexts)
-            DeregisterContextBehaviorInstances(context);
-        _decontextualizedContexts.Clear();
-
+        bool hadChanges = ProcessDecontextualizations();
         hadChanges = ProcessPendingFactories() || hadChanges;
+        hadChanges = ProcessContextChanges() || hadChanges;
+
+        return hadChanges;
+    }
+
+
+    /// <summary>
+    /// Invokes the provided operation for the provided behavior instance.
+    /// </summary>
+    /// <param name="bInstance">The behavior instance for which the 
+    /// operation is being invoked.</param>
+    /// <param name="operation">The operation to invoke.</param>
+    private static void InvokeOperation(BehaviorInstance bInstance, MethodInfo operation)
+    {
+        ParameterInfo[] parameters = operation.GetParameters();
+        object[] arguments = new object[parameters.Length];
+
+        for (int pco = 0, pcoCount = parameters.Length; pco < pcoCount; pco++)
+            arguments[pco] = bInstance.Contexts[parameters[pco].Name.EnsureNotNull()];
+
+        operation.Invoke(bInstance.Behavior, arguments);
+    }
+
+    /// <summary>
+    /// Processes any context changes that have occurred since the start of the last 
+    /// time context changes were processed.
+    /// </summary>
+    /// <returns>Whether any context changes were processed.</returns>
+    private bool ProcessContextChanges()
+    {
+        if (_contextChanges.Count == 0)
+            return false;
 
         ContextChange[] contextChanges = _contextChanges.ToArray();
         _contextChanges.Clear();
 
+        bool hadChanges = false;
         for (int c = 0, count = contextChanges.Length; c < count; c++)
         {
             ContextChange change = contextChanges[c];
@@ -365,30 +394,28 @@ public class App : IBehaviorApp
         return hadChanges;
     }
 
-
     /// <summary>
-    /// Invokes the provided operation for the provided behavior instance.
+    /// Processes the decontextualizations that have occurred since the last 
+    /// time decontextualizations started to be processed.
     /// </summary>
-    /// <param name="bInstance">The behavior instance for which the 
-    /// operation is being invoked.</param>
-    /// <param name="operation">The operation to invoke.</param>
-    private static void InvokeOperation(BehaviorInstance bInstance, MethodInfo operation)
+    /// <returns>Whether any decontextualizations were processed.</returns>
+    private bool ProcessDecontextualizations()
     {
-        ParameterInfo[] parameters = operation.GetParameters();
-        object[] arguments = new object[parameters.Length];
+        if (_decontextualizedContexts.Count == 0)
+            return false;
 
-        for (int pco = 0, pcoCount = parameters.Length; pco < pcoCount; pco++)
-            arguments[pco] = bInstance.Contexts[parameters[pco].Name.EnsureNotNull()];
+        object[] decontextualizedContexts = _decontextualizedContexts.ToArray();
+        _decontextualizedContexts.Clear();
 
-        operation.Invoke(bInstance.Behavior, arguments);
+        foreach (object context in decontextualizedContexts)
+            DeregisterContextBehaviorInstances(context);
+        return true;
     }
 
     /// <summary>
     /// Processes the app's pending factories until there are no more remaining.
     /// </summary>
-    /// <returns>
-    /// Whether any instances were made from the pending factories.
-    /// </returns>
+    /// <returns>Whether any instances were made from the pending factories.</returns>
     private bool ProcessPendingFactories()
     {
         bool hadNewInstances = false;
@@ -474,11 +501,11 @@ public class App : IBehaviorApp
         {
             foreach (BehaviorInstance behaviorInstance in _contextBehaviors[context])
             {
+                Type behaviorType = behaviorInstance.Behavior.GetType();
                 foreach (object dependency in behaviorInstance.Contexts.Values)
                     if (!dependency.Equals(context))
                     {
-                        IBehaviorFactory factory = _behaviorFactories[
-                            behaviorInstance.Behavior.GetType()];
+                        IBehaviorFactory factory = _behaviorFactories[behaviorType];
                         if (factory.AddAvailableDependency(dependency))
                             _pendingFactories.Add(factory);
 
@@ -488,6 +515,10 @@ public class App : IBehaviorApp
 
                         _contextBehaviors[dependency].Remove(behaviorInstance);
                     }
+
+                MethodInfo[] teardownOperations = Evaluator.GetOnTeardownOperations(behaviorType);
+                for (int c = 0, count = teardownOperations.Length; c < count; c++)
+                    InvokeOperation(behaviorInstance, teardownOperations[c]);
 
                 _behaviorApps.Remove(behaviorInstance.Behavior);
             }

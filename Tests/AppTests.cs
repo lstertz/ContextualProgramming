@@ -94,6 +94,12 @@ namespace AppTests
                 {
                     Operations.OnContextStateChange[type]
                 });
+
+            if (Operations.OnTeardown.ContainsKey(type))
+                evaluator.GetOnTeardownOperations(type).Returns(new MethodInfo[]
+                {
+                    Operations.OnTeardown[type]
+                });
         }
 
         public static App ContextOnlyApp<TContext>()
@@ -190,23 +196,34 @@ namespace AppTests
         public static readonly Dictionary<Type, MethodInfo> OnContextChange = new();
         public static readonly Dictionary<Type, MethodInfo> OnContextStateChange = new();
 
+        public static readonly Dictionary<Type, MethodInfo> OnTeardown = new();
+
         static Operations()
         {
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAChange");
+            MethodInfo? mi = null;
+            mi = typeof(TestBehaviorA).GetMethod(nameof(TestBehaviorA.OnContextAChange));
             if (mi != null)
                 OnContextChange.Add(typeof(TestBehaviorA), mi);
 
-            mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange");
+            mi = typeof(TestBehaviorA).GetMethod(nameof(TestBehaviorA.OnContextAIntChange));
             if (mi != null)
                 OnContextStateChange.Add(typeof(TestBehaviorA), mi);
 
-            mi = typeof(TestBehaviorB).GetMethod("OnContextAChange");
+            mi = typeof(TestBehaviorB).GetMethod(nameof(TestBehaviorB.OnContextAChange));
             if (mi != null)
                 OnContextChange.Add(typeof(TestBehaviorB), mi);
 
-            mi = typeof(TestBehaviorB).GetMethod("OnContextAIntChange");
+            mi = typeof(TestBehaviorB).GetMethod(nameof(TestBehaviorB.OnContextAIntChange));
             if (mi != null)
                 OnContextStateChange.Add(typeof(TestBehaviorB), mi);
+
+            mi = typeof(TestBehaviorA).GetMethod(nameof(TestBehaviorA.OnTeardown));
+            if (mi != null)
+                OnTeardown.Add(typeof(TestBehaviorA), mi);
+
+            mi = typeof(TestBehaviorB).GetMethod(nameof(TestBehaviorB.OnTeardown));
+            if (mi != null)
+                OnTeardown.Add(typeof(TestBehaviorB), mi);
         }
     }
 
@@ -334,6 +351,12 @@ namespace AppTests
         {
             contextB.OnContextChangeIntValue = contextB.Int;
         }
+
+        public void OnTeardown(TestContextA contextA, TestContextB contextB)
+        {
+            contextB.HasTornDown = true;
+            contextA.App?.Decontextualize(contextA);
+        }
     }
 
     public class TestBehaviorB
@@ -350,11 +373,18 @@ namespace AppTests
         {
             contextA.OnStateChangeIntValueFromBehaviorB = contextA.Int;
         }
+
+        public void OnTeardown(TestContextC contextC)
+        {
+            contextC.HasTornDown = true;
+        }
     }
 
 
     public class TestContextA
     {
+        public App? App { get; set; }
+
         public int OnStateChangeIntValueFromBehaviorA { get; set; } = 0;
         public int OnContextChangeIntValueFromBehaviorA { get; set; } = 0;
 
@@ -366,12 +396,17 @@ namespace AppTests
 
     public class TestContextB
     {
+        public bool HasTornDown { get; set; } = false;
+
         public int OnContextChangeIntValue { get; set; } = 0;
 
         public ContextState<int> Int { get; init; } = 0;
     }
 
-    public class TestContextC { }
+    public class TestContextC
+    {
+        public bool HasTornDown { get; set; } = false;
+    }
 
     public class TestNonContext { }
     #endregion
@@ -1412,6 +1447,62 @@ namespace AppTests
             _app.Decontextualize(contextA);
 
             Assert.IsTrue(_app.Update());
+        }
+
+        [Test]
+        public void WithDeregisteringBehaviors_InvokesTeardownOperations()
+        {
+            _app.Update();
+
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+            TestContextB? contextB = _app.GetContext<TestContextB>() ??
+                throw new NullReferenceException();
+            TestContextC? contextC = _app.GetContext<TestContextC>() ??
+                throw new NullReferenceException();
+
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+            AppTests.SetUp.BehaviorOperations<TestBehaviorB>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+
+            _app.Decontextualize(contextA);
+
+            _app.Update();
+
+            Assert.IsTrue(contextB.HasTornDown);
+            Assert.IsTrue(contextC.HasTornDown);
+        }
+
+        [Test]
+        public void WithDeregisteringBehaviors_RecordsAndInvokesForSubsequentDeregistrations()
+        {
+            _app.Update();
+
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+            TestContextB? contextB = _app.GetContext<TestContextB>() ??
+                throw new NullReferenceException();
+            TestContextC? contextC = _app.GetContext<TestContextC>() ??
+                throw new NullReferenceException();
+
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+            AppTests.SetUp.BehaviorOperations<TestBehaviorB>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+
+            contextA.App = _app; // Set app so TestBehaviorA teardown decontextualizes contextA.
+
+            _app.Decontextualize(contextB);
+            _app.Update(); // Deregisters only TestBehaviorA for contextB decontextualization.
+
+            Assert.IsTrue(contextB.HasTornDown);
+            Assert.IsFalse(contextC.HasTornDown);
+
+            _app.Update(); // Deregisters TestBehaviorB for contextA decontextualization.
+
+            Assert.IsTrue(contextB.HasTornDown);
+            Assert.IsTrue(contextC.HasTornDown);
         }
 
         [Test]
