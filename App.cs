@@ -467,7 +467,6 @@ public class App : IBehaviorApp
     /// <summary>
     /// Deregisters all behaviors dependent upon the provided context.
     /// </summary>
-    /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context whose behaviors are to be deregistered.</param>
     private void DeregisterContextBehaviorInstances(object context)
     {
