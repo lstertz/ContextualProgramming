@@ -610,6 +610,99 @@ namespace EvaluatorTests
         }
     }
 
+    public class GetTeardownOperations
+    {
+        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseBehaviorAttribute => new();
+
+        public class HasNoOperationsBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasNoOperationsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        public class HasNoOperationsBehavior
+        {
+            public const string ContextA = "contextA";
+
+            public HasNoOperationsBehavior(out TestContextA contextA) => contextA = new();
+        }
+        public class HasOperationsBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasOperationsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        public class HasOperationsBehavior
+        {
+            public const string ContextA = "contextA";
+
+            public HasOperationsBehavior(out TestContextA contextA) => contextA = new();
+
+            [TO]
+            [OnTeardown]
+            public void OnTeardownA(TestContextA contextA) { }
+
+            [TO]
+            [OnTeardown]
+            public void OnTeardownB() { }
+        }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA { }
+
+        public class TOAttribute : BaseOperationAttribute { }
+
+
+        [Test]
+        public void NonBehavior_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Assert.Throws<ArgumentException>(() =>
+                evaluator.GetOnTeardownOperations(typeof(NonBehavior)));
+        }
+
+        [Test]
+        public void ProvidesOnTeardownOperations_HasNoOperations()
+        {
+            var evaluator = GetEvaluator<HasNoOperationsBehaviorAttribute>();
+            evaluator.Initialize();
+
+            MethodInfo[] operations = evaluator.GetOnTeardownOperations(
+                typeof(HasNoOperationsBehavior));
+
+            Assert.IsEmpty(operations);
+        }
+
+        [Test]
+        public void ProvidesOnTeardownOperations_HasOperations()
+        {
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
+            evaluator.Initialize();
+
+            MethodInfo?[] expectedOperations = new MethodInfo?[]
+            {
+                    typeof(HasOperationsBehavior).GetMethod(
+                        nameof(HasOperationsBehavior.OnTeardownA)),
+                    typeof(HasOperationsBehavior).GetMethod(
+                        nameof(HasOperationsBehavior.OnTeardownB))
+            };
+
+            MethodInfo[] operations = evaluator.GetOnTeardownOperations(
+                typeof(HasOperationsBehavior));
+
+            Assert.AreEqual(expectedOperations.Length, operations.Length);
+            Assert.Contains(expectedOperations[0], operations);
+            Assert.Contains(expectedOperations[1], operations);
+        }
+
+        [Test]
+        public void Uninitialized_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.GetOnTeardownOperations(typeof(HasOperationsBehavior)));
+        }
+    }
+
     public class Initialization
     {
         public static Evaluator<TCAttribute, T1, TDAttribute, T2> GetEvaluator<T1, T2>()
