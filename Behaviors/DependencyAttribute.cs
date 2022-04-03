@@ -46,21 +46,15 @@ public abstract class BaseDependencyAttribute : Attribute
             throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", 
                 nameof(name));
 
-        if (type is null)
-            throw new ArgumentNullException(nameof(type));
-
         Binding = binding;
         Name = name;
         Fulfillment = fulfillment;
-        Type = type;
+        Type = type.EnsureNotNull();
     }
 }
 
 
-/// <summary>
-/// Declares a dependency of a behavior (<see cref="BehaviorAttribute"/>) for the 
-/// specified type of context.
-/// </summary>
+/// <inheritdoc/>
 public abstract class DependencyAttribute : BaseDependencyAttribute
 {
     /// <inheritdoc/>

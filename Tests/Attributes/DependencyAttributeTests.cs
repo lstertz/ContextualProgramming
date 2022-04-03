@@ -12,7 +12,7 @@ public class Construction
     }
 
     [Test]
-    public void AssignsProperties()
+    public void Construction_AssignsProperties()
     {
         string expectedName = "name";
         Binding expectedBinding = Binding.Unique;
@@ -27,7 +27,7 @@ public class Construction
     }
 
     [Test]
-    public void EmptyNameThrowsException()
+    public void EmptyName_ThrowsException()
     {
         Assert.Throws<ArgumentException>(() =>
             new DependencyAttribute<TestContextA>(Binding.Unique, Fulfillment.SelfCreated,
@@ -35,7 +35,7 @@ public class Construction
     }
 
     [Test]
-    public void NullNameThrowsException()
+    public void NullName_ThrowsException()
     {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
         Assert.Throws<ArgumentException>(() =>
@@ -45,7 +45,7 @@ public class Construction
     }
 
     [Test]
-    public void NullTypeThrowsException()
+    public void NullType_ThrowsException()
     {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
         Assert.Throws<ArgumentNullException>(() =>
