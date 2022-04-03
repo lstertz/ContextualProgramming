@@ -73,6 +73,15 @@ public abstract class Evaluator
     public abstract IBehaviorFactory BuildBehaviorFactory(Type behaviorType);
 
     /// <summary>
+    /// Provides a new factory for instantiating the contracted contexts of 
+    /// the specified context.
+    /// </summary>
+    /// <param name="contextType">The type of context whose contract factory 
+    /// is to be provided.</param>
+    /// <returns>A factory for the contracted contexts of the specified context.</returns>
+    public abstract IContractFulfiller BuildContractFulfiller(Type contextType);
+
+    /// <summary>
     /// Provides the dependencies required by the specified behavior for an 
     /// instance of that behavior to be instantiated.
     /// </summary>
@@ -257,6 +266,12 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
                 _behaviorDependencies[behaviorType][dependency.Value]);
 
         return new BehaviorFactory(_behaviorConstructors[behaviorType], requiredDependencies);
+    }
+
+    /// <inheritdoc/>
+    public override IContractFulfiller BuildContractFulfiller(Type contextType)
+    {
+        return new ContractFulfiller(null);
     }
 
     /// <inheritdoc/>
