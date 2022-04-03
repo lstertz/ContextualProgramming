@@ -28,7 +28,7 @@ namespace EvaluatorTests
     }
     #endregion
 
-    public class GetBehaviorFactory
+    public class BuildBehaviorFactory
     {
         public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
@@ -389,6 +389,81 @@ namespace EvaluatorTests
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.GetBindableStateInfos(typeof(HasStatesContext)));
+        }
+    }
+
+    public class BuildContractFulfiller
+    {
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseContextAttribute => new();
+
+        public class HasNoContractsContextAttribute : BaseContextAttribute { }
+        [HasNoContractsContext]
+        public class HasNoContractsContext { }
+
+        public class HasContractsContextAttribute : BaseContextAttribute { }
+        [HasContractsContext]
+        [TCC<HasNoContractsContext>(ContractA)]
+        [TCC<HasNoContractsContext>(ContractB)]
+        public class HasContractsContext
+        {
+            public const string ContractA = "ContractA";
+            public const string ContractB = "ContractB";
+        }
+
+        public class NonContext { }
+
+        public class TBAttribute : BaseBehaviorAttribute { }
+        public class TOAttribute : BaseOperationAttribute { }
+
+
+        [Test]
+        public void NonContext_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasNoContractsContextAttribute>();
+            evaluator.Initialize();
+
+            Assert.Throws<ArgumentException>(() =>
+                evaluator.BuildContractFulfiller(typeof(NonContext)));
+        }
+
+        [Test]
+        public void Uninitalized_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasNoContractsContextAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.BuildContractFulfiller(typeof(HasNoContractsContext)));
+        }
+
+        [Test]
+        public void WithContracts_ProvidesMatchingFactory()
+        {
+            var evaluator = GetEvaluator<HasContractsContextAttribute>();
+            evaluator.Initialize();
+
+            IContractFulfiller fulfiller = evaluator.BuildContractFulfiller(
+                typeof(HasContractsContext));
+
+            Assert.IsNotNull(fulfiller);
+            Assert.AreEqual(new Type[]
+            {
+                typeof(HasNoContractsContext),
+                typeof(HasNoContractsContext)
+            }, fulfiller.ContractedContextTypes);
+        }
+
+        [Test]
+        public void WithNoContracts_ProvidesMatchingFactory()
+        {
+            var evaluator = GetEvaluator<HasNoContractsContextAttribute>();
+            evaluator.Initialize();
+
+            IContractFulfiller fulfiller = evaluator.BuildContractFulfiller(
+                typeof(HasNoContractsContext));
+
+            Assert.IsNotNull(fulfiller);
+            Assert.AreEqual(Array.Empty<Type>(), fulfiller.ContractedContextTypes);
         }
     }
 
@@ -917,6 +992,7 @@ namespace EvaluatorTests
         public class NonContext { }
 
 
+
         [Test]
         public void InvalidDependencyConstructorEx_ThrowsException()
         {
@@ -941,6 +1017,18 @@ namespace EvaluatorTests
         public void InvalidDuplicateDependencyNames_ThrowsException()
         {
             var evaluator = GetEvaluator<InvalidDuplicateDependencyNamesBehaviorAttribute,
+                TOAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
+        [Test]
+        public void InvalidDuplicateContractNames_ThrowsException()
+        {
+            Assert.Ignore();
+
+            var evaluator = GetEvaluator<InvalidDependencyConstructorBehaviorExAttribute,
                 TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
@@ -1077,7 +1165,7 @@ namespace EvaluatorTests
         [Test]
         public void ValidExistingDependencyConstructor_CompletesInitialization()
         {
-            var evaluator = GetEvaluator<ValidExistingDependencyConstructorBehaviorAttribute, 
+            var evaluator = GetEvaluator<ValidExistingDependencyConstructorBehaviorAttribute,
                 TOAttribute>();
 
             evaluator.Initialize();
