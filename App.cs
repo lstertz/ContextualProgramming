@@ -133,12 +133,12 @@ public class App : IBehaviorApp
 
     /// <summary>
     /// Constructs a new app with the default evaluator, 
-    /// <see cref="Evaluator{TContextAttribute, TBehaviorAttribute, 
+    /// <see cref="Evaluator{TContextAttribute, TContractAttribute, TBehaviorAttribute, 
     /// TBaseDependencyAttribute, TOperationAttribute}"/>.
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute,
+        Evaluator = new Evaluator<ContextAttribute, ContractAttribute, BehaviorAttribute,
             DependencyAttribute, OperationAttribute>();
     }
 

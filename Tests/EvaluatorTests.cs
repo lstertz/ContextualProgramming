@@ -7,6 +7,15 @@ namespace EvaluatorTests
     #region Shared Constructs
     public class NonBehavior { }
 
+    public abstract class TCCAttribute : BaseContractAttribute
+    {
+        protected TCCAttribute(string name, Type type) : base(name, type) { }
+    }
+    public class TCCAttribute<T> : TCCAttribute
+    {
+        public TCCAttribute(string name) : base(name, typeof(T)) { }
+    }
+
     public abstract class TDAttribute : BaseDependencyAttribute
     {
         protected TDAttribute(Binding binding, Fulfillment fulfillment,
@@ -21,7 +30,7 @@ namespace EvaluatorTests
 
     public class GetBehaviorFactory
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class ForBehaviorWithExistingAndSelfCreatedDependenciesBehaviorAttribute :
@@ -143,7 +152,7 @@ namespace EvaluatorTests
 
     public class GetBehaviorRequiredDependencies
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class ExcludesSelfCreatedDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
@@ -273,7 +282,7 @@ namespace EvaluatorTests
 
     public class GetBehaviorTypes
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class HasBehaviorTypesBehaviorAttribute : BaseBehaviorAttribute { }
@@ -321,7 +330,7 @@ namespace EvaluatorTests
 
     public class GetBindableStateInfos
     {
-        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseContextAttribute => new();
 
         public class HasStatesContextAttribute : BaseContextAttribute { }
@@ -385,7 +394,7 @@ namespace EvaluatorTests
 
     public class GetContextTypes
     {
-        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseContextAttribute => new();
 
         public class HasContextTypesContextAttribute : BaseContextAttribute { }
@@ -433,7 +442,7 @@ namespace EvaluatorTests
 
     public class GetOnChangeOperations
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class HasNoOperationsBehaviorAttribute : BaseBehaviorAttribute { }
@@ -612,7 +621,7 @@ namespace EvaluatorTests
 
     public class GetTeardownOperations
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class HasNoOperationsBehaviorAttribute : BaseBehaviorAttribute { }
@@ -705,7 +714,7 @@ namespace EvaluatorTests
 
     public class Initialization
     {
-        public static Evaluator<TCAttribute, T1, TDAttribute, T2> GetEvaluator<T1, T2>()
+        public static Evaluator<TCAttribute, TCCAttribute, T1, TDAttribute, T2> GetEvaluator<T1, T2>()
             where T1 : BaseBehaviorAttribute where T2 : BaseOperationAttribute => new();
 
         public class InvalidDependencyConstructorBehaviorExAttribute :
@@ -921,7 +930,7 @@ namespace EvaluatorTests
         [Test]
         public void InvalidDependencyConstructorSc_ThrowsException()
         {
-            Evaluator<TCAttribute, InvalidDependencyConstructorBehaviorScAttribute,
+            Evaluator<TCAttribute, TCCAttribute, InvalidDependencyConstructorBehaviorScAttribute,
                 TDAttribute, TOAttribute> evaluator = new();
 
             Assert.Throws<InvalidOperationException>(() =>
@@ -1095,7 +1104,7 @@ namespace EvaluatorTests
 
     public class IsContextType
     {
-        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseContextAttribute => new();
 
         public class InvalidContextTypeContextAttribute : BaseContextAttribute { }

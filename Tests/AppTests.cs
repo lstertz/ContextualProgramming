@@ -635,8 +635,8 @@ namespace AppTests
         [Test]
         public void DefaultEvaluator()
         {
-            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, BehaviorAttribute,
-                DependencyAttribute, OperationAttribute>);
+            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, ContractAttribute, 
+                BehaviorAttribute, DependencyAttribute, OperationAttribute>);
 
             App app = new();
 
