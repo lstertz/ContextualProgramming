@@ -202,6 +202,14 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     private readonly Dictionary<Type, PropertyInfo[]> _contextBindableProperties = new();
 
     /// <summary>
+    /// The names and contract context types for all context types.
+    /// </summary>
+    /// <remarks>
+    /// Contexts without contracts are not included in this collection.
+    /// </remarks>
+    private Dictionary<Type, Dictionary<string, Type>?> _contextContracts = new();
+
+    /// <summary>
     /// All found context types.
     /// </summary>
     private readonly HashSet<Type> _contextTypes = new();
@@ -241,9 +249,12 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
         {
             Type[] types = assembly.GetTypes();
             for (int c = 0, count = types.Length; c < count; c++)
-            {
                 CacheContextType(types[c]);
-                CacheBindableStateInfos(types[c]);
+
+            foreach (Type type in _contextTypes)
+            {
+                CacheContextContracts(type);
+                CacheBindableStateInfos(type);
             }
         }
     }
@@ -255,7 +266,7 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
         ValidateInitialization();
 
         if (!_behaviorConstructors.ContainsKey(behaviorType))
-            throw new ArgumentException($"A behavior factory cannot be retrieved " +
+            throw new ArgumentException($"A behavior factory cannot be built " +
                 $"for type {behaviorType.FullName} since it is not a behavior " +
                 $"known to an evaluator with behaviors defined " +
                 $"by {typeof(TBehaviorAttribute).FullName}.");
@@ -271,7 +282,15 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     /// <inheritdoc/>
     public override IContractFulfiller BuildContractFulfiller(Type contextType)
     {
-        return new ContractFulfiller(null);
+        ValidateInitialization();
+
+        if (!_contextTypes.Contains(contextType))
+            throw new ArgumentException($"A contract fulfiller cannot be built " +
+                $"for type {contextType.FullName} since it is not a context " +
+                $"known to an evaluator with contexts defined " +
+                $"by {typeof(TContextAttribute).FullName}.");
+
+        return new ContractFulfiller(_contextContracts.GetValueOrDefault(contextType, null));
     }
 
     /// <inheritdoc/>
@@ -414,7 +433,8 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     /// <param name="behaviorType">The type of behavior whose dependency-related details 
     /// are to be cached.</param>
     /// <exception cref="InvalidOperationException">Thrown if a dependency is 
-    /// not a type of context known to this evaluator.</exception>
+    /// not a type of context known to this evaluator or if multiple dependencies 
+    /// have the same name.</exception>
     private void CacheBehaviorDependencies(Type behaviorType)
     {
         IEnumerable<TDependencyAttribute> attrs =
@@ -430,13 +450,13 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
             Type t = attr.Type;
             string name = attr.Name;
             if (!_contextTypes.Contains(t))
-                throw new InvalidOperationException($"The dependency named {name} of type" +
+                throw new InvalidOperationException($"The dependency named {name} of type " +
                     $"{t.FullName} for the behavior of type {behaviorType.FullName} is not a " +
                     $"context known to an evaluator with contexts defined " +
                     $"by {typeof(TContextAttribute).FullName}.");
 
             if (existingDeps.ContainsKey(name) || selfCreatedDeps.ContainsKey(name))
-                throw new InvalidOperationException($"The dependency named {name} of type" +
+                throw new InvalidOperationException($"The dependency named {name} of type " +
                     $"{t.FullName} for the behavior of type {behaviorType.FullName} has the " +
                     $"same name as another of its behavior's dependencies.");
 
@@ -480,16 +500,13 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     }
 
     /// <summary>
-    /// If not already cached, finds and caches all bindable state property infos 
-    /// found within the provided context type.
+    /// Validates and caches all bindable state property infos found within the 
+    /// provided context type.
     /// </summary>
     /// <param name="contextType">The type of context whose bindable state property 
     /// infos should be cached.</param>
     private void CacheBindableStateInfos(Type contextType)
     {
-        if (_contextBindableProperties.ContainsKey(contextType))
-            return;
-
         PropertyInfo[] properties = contextType.GetProperties(BindingFlags.Instance |
             BindingFlags.Public | BindingFlags.NonPublic);
         List<PropertyInfo> bindableProperties = new();
@@ -498,6 +515,44 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
                 bindableProperties.Add(properties[c]);
 
         _contextBindableProperties.Add(contextType, bindableProperties.ToArray());
+    }
+    /// <summary>
+    /// Validates and caches the contract-related details of the context type.
+    /// </summary>
+    /// <param name="contextType">The type of context whose contract-related details 
+    /// are to be cached.</param>
+    /// <exception cref="InvalidOperationException">Thrown if a contract is 
+    /// not a type of context known to this evaluator or if multiple contracts 
+    /// have the same name.</exception>
+    private void CacheContextContracts(Type contextType)
+    {
+        IEnumerable<TContractAttribute> attrs =
+            contextType.GetCustomAttributes<TContractAttribute>(true);
+
+        if (attrs.Count() == 0)
+            return;
+
+        Dictionary<string, Type> contracts = new();
+
+        foreach (TContractAttribute attr in attrs)
+        {
+            Type t = attr.Type;
+            string name = attr.Name;
+            if (!_contextTypes.Contains(t))
+                throw new InvalidOperationException($"The contract named {name} of type " +
+                    $"{t.FullName} for the context of type {contextType.FullName} is not a " +
+                    $"context known to an evaluator with contexts defined " +
+                    $"by {typeof(TContextAttribute).FullName}.");
+
+            if (contracts.ContainsKey(name))
+                throw new InvalidOperationException($"The contract named {name} of type " +
+                    $"{t.FullName} for the context of type {contextType.FullName} has the " +
+                    $"same name as another of its context's contracts.");
+
+            contracts.Add(name, t);
+        }
+
+        _contextContracts.Add(contextType, contracts);
     }
 
     /// <summary>

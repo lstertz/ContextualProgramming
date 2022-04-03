@@ -40,7 +40,7 @@ public class ContractFulfiller : IContractFulfiller
     /// <param name="contracts">The names and types of contracted contexts that 
     /// would be instantiated and set up to fulfill the contracts of 
     /// the fulfiller's context.</param>
-    public ContractFulfiller(Dictionary<string, Type> contracts)
+    public ContractFulfiller(Dictionary<string, Type>? contracts)
     {
         ContractedContextTypes = contracts != null ? 
             contracts.Values.ToArray() : Array.Empty<Type>();

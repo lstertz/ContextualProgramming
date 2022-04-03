@@ -403,19 +403,27 @@ namespace EvaluatorTests
 
         public class HasContractsContextAttribute : BaseContextAttribute { }
         [HasContractsContext]
-        [TCC<HasNoContractsContext>(ContractA)]
-        [TCC<HasNoContractsContext>(ContractB)]
+        [TCC<ContractedContext>(ContractA)]
+        [TCC<ContractedContext>(ContractB)]
         public class HasContractsContext
         {
             public const string ContractA = "ContractA";
             public const string ContractB = "ContractB";
         }
 
+        [HasContractsContext]
+        public class ContractedContext { }
+
         public class NonContext { }
 
         public class TBAttribute : BaseBehaviorAttribute { }
         public class TOAttribute : BaseOperationAttribute { }
 
+
+        // TODO :: Pass these tests.
+        // TODO :: Finish and pass the invalid initializatoin tests.
+        // TODO :: Write related app tests.
+        // TODO :: Pass related app tests.
 
         [Test]
         public void NonContext_ThrowsException()
@@ -448,8 +456,8 @@ namespace EvaluatorTests
             Assert.IsNotNull(fulfiller);
             Assert.AreEqual(new Type[]
             {
-                typeof(HasNoContractsContext),
-                typeof(HasNoContractsContext)
+                typeof(ContractedContext),
+                typeof(ContractedContext)
             }, fulfiller.ContractedContextTypes);
         }
 
@@ -792,6 +800,8 @@ namespace EvaluatorTests
         public static Evaluator<TCAttribute, TCCAttribute, T1, TDAttribute, T2> GetEvaluator<T1, T2>()
             where T1 : BaseBehaviorAttribute where T2 : BaseOperationAttribute => new();
 
+        public class TBAttribute : BaseBehaviorAttribute { }
+
         public class InvalidDependencyConstructorBehaviorExAttribute :
             BaseBehaviorAttribute
         { }
@@ -989,6 +999,20 @@ namespace EvaluatorTests
         [TC]
         public class TestContextB { }
 
+        public class InvalidDuplicateContractNamesContextAttribute : BaseContextAttribute { }
+        [InvalidDuplicateContractNamesContext]
+        [TCC<ContractedContext>("DuplicateName")]
+        [TCC<ContractedContext>("DuplicateName")]
+        public class InvalidDuplicateContractNamesContext { }
+
+        public class NonContextContractContextAttribute : BaseContextAttribute { }
+        [NonContextContractContext]
+        [TCC<NonContext>("NonContextContractName")]
+        public class NonContextContractContext { }
+
+        [InvalidDuplicateContractNamesContext]
+        public class ContractedContext { }
+
         public class NonContext { }
 
 
@@ -1006,8 +1030,8 @@ namespace EvaluatorTests
         [Test]
         public void InvalidDependencyConstructorSc_ThrowsException()
         {
-            Evaluator<TCAttribute, TCCAttribute, InvalidDependencyConstructorBehaviorScAttribute,
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = new Evaluator<TCAttribute, TCCAttribute, 
+                InvalidDependencyConstructorBehaviorScAttribute, TDAttribute, TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -1026,12 +1050,10 @@ namespace EvaluatorTests
         [Test]
         public void InvalidDuplicateContractNames_ThrowsException()
         {
-            Assert.Ignore();
+            var evaluator = new Evaluator<InvalidDuplicateContractNamesContextAttribute, 
+                TCCAttribute, TBAttribute, TDAttribute, TOAttribute>();
 
-            var evaluator = GetEvaluator<InvalidDependencyConstructorBehaviorExAttribute,
-                TOAttribute>();
-
-            Assert.Throws<InvalidOperationException>(() =>
+              Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
         }
 
@@ -1139,6 +1161,16 @@ namespace EvaluatorTests
         public void MissingConstructor_ThrowsException()
         {
             var evaluator = GetEvaluator<MissingConstructorBehaviorAttribute, TOAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
+        [Test]
+        public void NonContextContract_ThrowsException()
+        {
+            var evaluator = new Evaluator<NonContextContractContextAttribute,
+                TCCAttribute, TBAttribute, TDAttribute, TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
