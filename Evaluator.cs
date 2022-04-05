@@ -500,13 +500,16 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     }
 
     /// <summary>
-    /// Validates and caches all bindable state property infos found within the 
-    /// provided context type.
+    /// If not already cached, validates and caches all bindable state property infos 
+    /// found within the provided context type.
     /// </summary>
     /// <param name="contextType">The type of context whose bindable state property 
     /// infos should be cached.</param>
     private void CacheBindableStateInfos(Type contextType)
     {
+        if (_contextBindableProperties.ContainsKey(contextType))
+            return;
+
         PropertyInfo[] properties = contextType.GetProperties(BindingFlags.Instance |
             BindingFlags.Public | BindingFlags.NonPublic);
         List<PropertyInfo> bindableProperties = new();
@@ -517,7 +520,8 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
         _contextBindableProperties.Add(contextType, bindableProperties.ToArray());
     }
     /// <summary>
-    /// Validates and caches the contract-related details of the context type.
+    /// If not already cached, validates and caches the contract-related details of 
+    /// the provided context type.
     /// </summary>
     /// <param name="contextType">The type of context whose contract-related details 
     /// are to be cached.</param>
@@ -526,6 +530,9 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     /// have the same name.</exception>
     private void CacheContextContracts(Type contextType)
     {
+        if (_contextContracts.ContainsKey(contextType))
+            return;
+
         IEnumerable<TContractAttribute> attrs =
             contextType.GetCustomAttributes<TContractAttribute>(true);
 
