@@ -114,6 +114,19 @@ namespace AppTests
             return app;
         }
 
+        public static App ContextOnlyApp<TContextA, TContextB>()
+        {
+            Evaluator evaluator = Substitute.For<Evaluator>();
+            App app = new(evaluator);
+
+            evaluator.GetBehaviorTypes().Returns(Array.Empty<Type>());
+            PrimeEvaluatorForContext<TContextA>(evaluator);
+            PrimeEvaluatorForContext<TContextB>(evaluator);
+            app.Initialize();
+
+            return app;
+        }
+
         public static App FullSuiteDependentApp()
         {
             Type[] aDependencies = new Type[]
@@ -792,6 +805,25 @@ namespace AppTests
         }
 
         [Test]
+        public void HasContract_ContextualizesContractContext()
+        {
+            IContractFulfiller fulfiller = Substitute.For<IContractFulfiller>();
+            App app = SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            TestContextA contextA = new();
+            TestContextB expectedContractedContext = new();
+            app.Evaluator.BuildContractFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            fulfiller.Fulfill(contextA).Returns(new object[]
+            {
+                expectedContractedContext
+            });
+
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(expectedContractedContext, app.GetContext<TestContextB>());
+        }
+
+        [Test]
         public void NonContextTypeThrowsException()
         {
             Evaluator evaluator = Substitute.For<Evaluator>();
@@ -1075,6 +1107,48 @@ namespace AppTests
             _app.Decontextualize(contextA);
 
             Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA, expectedValue);
+        }
+
+        [Test]
+        public void HasContract_DecontextualizesContractContext()
+        {
+            Assert.Ignore();
+
+            IContractFulfiller fulfiller = Substitute.For<IContractFulfiller>();
+            App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            TestContextA contextA = new();
+            TestContextB expectedContractedContext = new();
+            app.Evaluator.BuildContractFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            fulfiller.Fulfill(contextA).Returns(new object[]
+            {
+                expectedContractedContext
+            });
+
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(expectedContractedContext, app.GetContext<TestContextB>());
+        }
+
+        [Test]
+        public void IsContractedContext_DecontextualizesContractingContext()
+        {
+            Assert.Ignore();
+
+            IContractFulfiller fulfiller = Substitute.For<IContractFulfiller>();
+            App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            TestContextA contextA = new();
+            TestContextB expectedContractedContext = new();
+            app.Evaluator.BuildContractFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            fulfiller.Fulfill(contextA).Returns(new object[]
+            {
+                expectedContractedContext
+            });
+
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(expectedContractedContext, app.GetContext<TestContextB>());
         }
 
         [Test]

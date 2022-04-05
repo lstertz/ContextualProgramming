@@ -420,11 +420,6 @@ namespace EvaluatorTests
         public class TOAttribute : BaseOperationAttribute { }
 
 
-        // TODO :: Pass these tests.
-        // TODO :: Finish and pass the invalid initializatoin tests.
-        // TODO :: Write related app tests.
-        // TODO :: Pass related app tests.
-
         [Test]
         public void NonContext_ThrowsException()
         {

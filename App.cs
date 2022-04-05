@@ -102,9 +102,15 @@ public class App : IBehaviorApp
 
     /// <summary>
     /// A mapping of context types to the behavior factories that require them 
-    /// to be fulfill behavior instances.
+    /// to fulfill behavior instances.
     /// </summary>
     private readonly Dictionary<Type, List<IBehaviorFactory>> _contextBehaviorFactories = new();
+
+    /// <summary>
+    /// A mapping of context types to the contract fulfillers that will fulfill any 
+    /// contracts of their context type.
+    /// </summary>
+    private readonly Dictionary<Type, IContractFulfiller> _contextContractFulfillers = new();
 
     /// <summary>
     /// A mapping of context instances to the behavior instances that depend upon them.
@@ -243,11 +249,11 @@ public class App : IBehaviorApp
             return;
 
         _decontextualizedContexts.Remove(context);
-
+        
         BindContext(context, type);
+        FulfillContracts(context, type);
         AddContextToBehaviorFactories(context, type);
     }
-
 
     /// <summary>
     /// Decontextualizes the provided context, removing it from the app's contextual state.
@@ -487,6 +493,21 @@ public class App : IBehaviorApp
             (bindableProperties[c].GetValue(context) as IBindableState)?.Bind(() =>
                 _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
         }
+    }
+
+    /// <summary>
+    /// Fulfills and contextualizes the contracts of the provided context.
+    /// </summary>
+    /// <param name="context">The context whose contracts should be fulfilled.</param>
+    /// <param name="type">The type of the provided context.</param>
+    private void FulfillContracts(object context, Type type)
+    {
+        if (!_contextContractFulfillers.ContainsKey(type))
+            _contextContractFulfillers.Add(type, Evaluator.BuildContractFulfiller(type));
+
+        object[] contractedContexts = _contextContractFulfillers[type].Fulfill(context);
+        for (int c = 0, count = contractedContexts.Length; c < count; c++)
+            Contextualize(contractedContexts[c]);
     }
     #endregion
 
