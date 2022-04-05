@@ -79,7 +79,7 @@ public abstract class Evaluator
     /// <param name="contextType">The type of context whose contract factory 
     /// is to be provided.</param>
     /// <returns>A factory for the contracted contexts of the specified context.</returns>
-    public abstract IContractFulfiller BuildContractFulfiller(Type contextType);
+    public abstract IMutualismFulfiller BuildMutualismFulfiller(Type contextType);
 
     /// <summary>
     /// Provides the dependencies required by the specified behavior for an 
@@ -151,17 +151,17 @@ public abstract class Evaluator
 
 /// <inheritdoc/>
 /// <typeparam name="TContextAttribute">The type of attribute that defines a context.</typeparam>
-/// <typeparam name="TContractAttribute">The base type of attribute that defines a 
-/// a contracted context of a context.</typeparam>
+/// <typeparam name="TMutualismAttribute">The base type of attribute that defines a 
+/// a mutualistic relationship of a context with a context.</typeparam>
 /// <typeparam name="TBehaviorAttribute">The type of attribute that defines a behavior.</typeparam>
 /// <typeparam name="TDependencyAttribute">The base type of attribute 
 /// that defines a dependency of a behavior.</typeparam>
 /// <typeparam name="TOperationAttribute">The type of attribute 
 /// that defines an operation of a behavior.</typeparam>
-public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute,
+public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribute,
     TDependencyAttribute, TOperationAttribute> : Evaluator
     where TContextAttribute : BaseContextAttribute
-    where TContractAttribute : BaseContractAttribute
+    where TMutualismAttribute : BaseMutualismAttribute
     where TBehaviorAttribute : BaseBehaviorAttribute
     where TDependencyAttribute : BaseDependencyAttribute
     where TOperationAttribute : BaseOperationAttribute
@@ -202,12 +202,12 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     private readonly Dictionary<Type, PropertyInfo[]> _contextBindableProperties = new();
 
     /// <summary>
-    /// The names and contract context types for all context types.
+    /// The names and mutualist context types for all context types.
     /// </summary>
     /// <remarks>
-    /// Contexts without contracts are not included in this collection.
+    /// Contexts without mutualistic relationships are not included in this collection.
     /// </remarks>
-    private Dictionary<Type, Dictionary<string, Type>?> _contextContracts = new();
+    private Dictionary<Type, Dictionary<string, Type>?> _contextMutualists = new();
 
     /// <summary>
     /// All found context types.
@@ -253,7 +253,7 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
 
             foreach (Type type in _contextTypes)
             {
-                CacheContextContracts(type);
+                CacheContextMutualisms(type);
                 CacheBindableStateInfos(type);
             }
         }
@@ -280,17 +280,17 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
     }
 
     /// <inheritdoc/>
-    public override IContractFulfiller BuildContractFulfiller(Type contextType)
+    public override IMutualismFulfiller BuildMutualismFulfiller(Type contextType)
     {
         ValidateInitialization();
 
         if (!_contextTypes.Contains(contextType))
-            throw new ArgumentException($"A contract fulfiller cannot be built " +
+            throw new ArgumentException($"A mutualism fulfiller cannot be built " +
                 $"for type {contextType.FullName} since it is not a context " +
                 $"known to an evaluator with contexts defined " +
                 $"by {typeof(TContextAttribute).FullName}.");
 
-        return new ContractFulfiller(_contextContracts.GetValueOrDefault(contextType, null));
+        return new MutualismFulfiller(_contextMutualists.GetValueOrDefault(contextType, null));
     }
 
     /// <inheritdoc/>
@@ -520,46 +520,46 @@ public class Evaluator<TContextAttribute, TContractAttribute, TBehaviorAttribute
         _contextBindableProperties.Add(contextType, bindableProperties.ToArray());
     }
     /// <summary>
-    /// If not already cached, validates and caches the contract-related details of 
+    /// If not already cached, validates and caches the mutualism-related details of 
     /// the provided context type.
     /// </summary>
-    /// <param name="contextType">The type of context whose contract-related details 
+    /// <param name="contextType">The type of context whose mutualism-related details 
     /// are to be cached.</param>
-    /// <exception cref="InvalidOperationException">Thrown if a contract is 
-    /// not a type of context known to this evaluator or if multiple contracts 
+    /// <exception cref="InvalidOperationException">Thrown if a mutualist is 
+    /// not a type of context known to this evaluator or if multiple mutualists 
     /// have the same name.</exception>
-    private void CacheContextContracts(Type contextType)
+    private void CacheContextMutualisms(Type contextType)
     {
-        if (_contextContracts.ContainsKey(contextType))
+        if (_contextMutualists.ContainsKey(contextType))
             return;
 
-        IEnumerable<TContractAttribute> attrs =
-            contextType.GetCustomAttributes<TContractAttribute>(true);
+        IEnumerable<TMutualismAttribute> attrs =
+            contextType.GetCustomAttributes<TMutualismAttribute>(true);
 
         if (attrs.Count() == 0)
             return;
 
-        Dictionary<string, Type> contracts = new();
+        Dictionary<string, Type> mutualists = new();
 
-        foreach (TContractAttribute attr in attrs)
+        foreach (TMutualismAttribute attr in attrs)
         {
             Type t = attr.Type;
             string name = attr.Name;
             if (!_contextTypes.Contains(t))
-                throw new InvalidOperationException($"The contract named {name} of type " +
+                throw new InvalidOperationException($"The mutualist named {name} of type " +
                     $"{t.FullName} for the context of type {contextType.FullName} is not a " +
                     $"context known to an evaluator with contexts defined " +
                     $"by {typeof(TContextAttribute).FullName}.");
 
-            if (contracts.ContainsKey(name))
-                throw new InvalidOperationException($"The contract named {name} of type " +
+            if (mutualists.ContainsKey(name))
+                throw new InvalidOperationException($"The mutualist named {name} of type " +
                     $"{t.FullName} for the context of type {contextType.FullName} has the " +
                     $"same name as another of its context's contracts.");
 
-            contracts.Add(name, t);
+            mutualists.Add(name, t);
         }
 
-        _contextContracts.Add(contextType, contracts);
+        _contextMutualists.Add(contextType, mutualists);
     }
 
     /// <summary>

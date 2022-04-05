@@ -107,12 +107,6 @@ public class App : IBehaviorApp
     private readonly Dictionary<Type, List<IBehaviorFactory>> _contextBehaviorFactories = new();
 
     /// <summary>
-    /// A mapping of context types to the contract fulfillers that will fulfill any 
-    /// contracts of their context type.
-    /// </summary>
-    private readonly Dictionary<Type, IContractFulfiller> _contextContractFulfillers = new();
-
-    /// <summary>
     /// A mapping of context instances to the behavior instances that depend upon them.
     /// </summary>
     private readonly Dictionary<object, HashSet<BehaviorInstance>> _contextBehaviors = new();
@@ -121,6 +115,12 @@ public class App : IBehaviorApp
     /// A record of context changes that have occurred since the last evaluation.
     /// </summary>
     private readonly List<ContextChange> _contextChanges = new();
+
+    /// <summary>
+    /// A mapping of context types to the mutualism fulfillers that will fulfill any 
+    /// mutualistic relationships of their context type.
+    /// </summary>
+    private readonly Dictionary<Type, IMutualismFulfiller> _contextMutualismFulfillers = new();
 
     /// <summary>
     /// The contexts that have been decontextualized since the deregistration of 
@@ -139,12 +139,12 @@ public class App : IBehaviorApp
 
     /// <summary>
     /// Constructs a new app with the default evaluator, 
-    /// <see cref="Evaluator{TContextAttribute, TContractAttribute, TBehaviorAttribute, 
+    /// <see cref="Evaluator{TContextAttribute, TMutualismAttribute, TBehaviorAttribute, 
     /// TBaseDependencyAttribute, TOperationAttribute}"/>.
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, ContractAttribute, BehaviorAttribute,
+        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, BehaviorAttribute,
             DependencyAttribute, OperationAttribute>();
     }
 
@@ -251,7 +251,7 @@ public class App : IBehaviorApp
         _decontextualizedContexts.Remove(context);
         
         BindContext(context, type);
-        FulfillContracts(context, type);
+        FulfillMutualisms(context, type);
         AddContextToBehaviorFactories(context, type);
     }
 
@@ -496,18 +496,19 @@ public class App : IBehaviorApp
     }
 
     /// <summary>
-    /// Fulfills and contextualizes the contracts of the provided context.
+    /// Fulfills and contextualizes the mutualistic relationships of the provided context.
     /// </summary>
-    /// <param name="context">The context whose contracts should be fulfilled.</param>
+    /// <param name="context">The context whose mutualistic relationships 
+    /// should be fulfilled.</param>
     /// <param name="type">The type of the provided context.</param>
-    private void FulfillContracts(object context, Type type)
+    private void FulfillMutualisms(object context, Type type)
     {
-        if (!_contextContractFulfillers.ContainsKey(type))
-            _contextContractFulfillers.Add(type, Evaluator.BuildContractFulfiller(type));
+        if (!_contextMutualismFulfillers.ContainsKey(type))
+            _contextMutualismFulfillers.Add(type, Evaluator.BuildMutualismFulfiller(type));
 
-        object[] contractedContexts = _contextContractFulfillers[type].Fulfill(context);
-        for (int c = 0, count = contractedContexts.Length; c < count; c++)
-            Contextualize(contractedContexts[c]);
+        object[] mutualists = _contextMutualismFulfillers[type].Fulfill(context);
+        for (int c = 0, count = mutualists.Length; c < count; c++)
+            Contextualize(mutualists[c]);
     }
     #endregion
 

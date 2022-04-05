@@ -1,25 +1,25 @@
 ﻿namespace ContextualProgramming;
 
 /// <summary>
-/// Declares a contract of a context (<see cref="BaseContextAttribute"/>) for 
-/// a type of context.
+/// Declares a mutulistic relationship of a type of context (<see cref="BaseContextAttribute"/>) 
+/// with a type of context.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
-public abstract class BaseContractAttribute : Attribute
+public abstract class BaseMutualismAttribute : Attribute
 {
     /// <summary>
-    /// The name that identifies the contracted context.
+    /// The name that identifies the mutualist context.
     /// </summary>
     public string Name { get; init; }
 
     /// <summary>
-    /// The type of the context that is being contracted.
+    /// The type of the mutualist context.
     /// </summary>
     public Type Type { get; init; }
 
 
     /// <summary>
-    /// Constructs a new contract attribute.
+    /// Constructs a new mutualism attribute.
     /// </summary>
     /// <param name="name"><see cref="Name"/></param>
     /// <param name="type"><see cref="Type"/></param>
@@ -27,7 +27,7 @@ public abstract class BaseContractAttribute : Attribute
     /// is null or empty.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="type"/> 
     /// is null.</exception>
-    protected BaseContractAttribute(string name, Type type)
+    protected BaseMutualismAttribute(string name, Type type)
     {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", 
@@ -40,19 +40,19 @@ public abstract class BaseContractAttribute : Attribute
 
 
 /// <inheritdoc/>
-public abstract class ContractAttribute : BaseContractAttribute
+public abstract class MutualismAttribute : BaseMutualismAttribute
 {
     /// <inheritdoc/>
-    public ContractAttribute(string name, Type type) : base(name, type) { }
+    public MutualismAttribute(string name, Type type) : base(name, type) { }
 }
 
 /// <inheritdoc/>
-/// <typeparam name="T">The type of the contracted context.</typeparam>
-public class ContractAttribute<T> : ContractAttribute
+/// <typeparam name="T">The type of the mutualist context.</typeparam>
+public class MutualismAttribute<T> : MutualismAttribute
 {
     /// <summary>
-    /// Constructs a new contract attribute.
+    /// Constructs a new mutualism attribute.
     /// </summary>
-    /// <param name="name"><see cref="BaseContractAttribute.Name"/></param>
-    public ContractAttribute(string name) : base(name, typeof(T)) { }
+    /// <param name="name"><see cref="BaseMutualismAttribute.Name"/></param>
+    public MutualismAttribute(string name) : base(name, typeof(T)) { }
 }

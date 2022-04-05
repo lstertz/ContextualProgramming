@@ -648,7 +648,7 @@ namespace AppTests
         [Test]
         public void DefaultEvaluator()
         {
-            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, ContractAttribute, 
+            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, MutualismAttribute, 
                 BehaviorAttribute, DependencyAttribute, OperationAttribute>);
 
             App app = new();
@@ -805,22 +805,22 @@ namespace AppTests
         }
 
         [Test]
-        public void HasContract_ContextualizesContractContext()
+        public void HasMutualism_ContextualizesMutualistContext()
         {
-            IContractFulfiller fulfiller = Substitute.For<IContractFulfiller>();
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
             App app = SetUp.ContextOnlyApp<TestContextA, TestContextB>();
 
             TestContextA contextA = new();
-            TestContextB expectedContractedContext = new();
-            app.Evaluator.BuildContractFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            TestContextB expectedMutualistContext = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
             fulfiller.Fulfill(contextA).Returns(new object[]
             {
-                expectedContractedContext
+                expectedMutualistContext
             });
 
             app.Contextualize(contextA);
 
-            Assert.AreEqual(expectedContractedContext, app.GetContext<TestContextB>());
+            Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
         }
 
         [Test]
@@ -1110,45 +1110,45 @@ namespace AppTests
         }
 
         [Test]
-        public void HasContract_DecontextualizesContractContext()
+        public void HasMutualism_DecontextualizesMutualistContext()
         {
             Assert.Ignore();
 
-            IContractFulfiller fulfiller = Substitute.For<IContractFulfiller>();
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
             App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
 
             TestContextA contextA = new();
-            TestContextB expectedContractedContext = new();
-            app.Evaluator.BuildContractFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            TestContextB expectedMutualistContext = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
             fulfiller.Fulfill(contextA).Returns(new object[]
             {
-                expectedContractedContext
+                expectedMutualistContext
             });
 
             app.Contextualize(contextA);
 
-            Assert.AreEqual(expectedContractedContext, app.GetContext<TestContextB>());
+            Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
         }
 
         [Test]
-        public void IsContractedContext_DecontextualizesContractingContext()
+        public void IsMutualistContext_DecontextualizesHostContext()
         {
             Assert.Ignore();
 
-            IContractFulfiller fulfiller = Substitute.For<IContractFulfiller>();
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
             App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
 
             TestContextA contextA = new();
-            TestContextB expectedContractedContext = new();
-            app.Evaluator.BuildContractFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            TestContextB expectedMutualistContext = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
             fulfiller.Fulfill(contextA).Returns(new object[]
             {
-                expectedContractedContext
+                expectedMutualistContext
             });
 
             app.Contextualize(contextA);
 
-            Assert.AreEqual(expectedContractedContext, app.GetContext<TestContextB>());
+            Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
         }
 
         [Test]

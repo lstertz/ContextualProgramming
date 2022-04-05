@@ -1,13 +1,13 @@
 using NUnit.Framework;
 using Tests.Constructs;
 
-namespace ContractAttributeTests;
+namespace MutualismAttributeTests;
 
 public class Construction
 {
-    private class NonGenericContractAttribute : ContractAttribute
+    private class NonGenericMutualismAttribute : MutualismAttribute
     {
-        public NonGenericContractAttribute(string name, Type type) : base(name, type) { }
+        public NonGenericMutualismAttribute(string name, Type type) : base(name, type) { }
     }
 
     [Test]
@@ -15,7 +15,7 @@ public class Construction
     {
         string expectedName = "name";
 
-        ContractAttribute attr = new ContractAttribute<TestContextA>(expectedName);
+        MutualismAttribute attr = new MutualismAttribute<TestContextA>(expectedName);
 
         Assert.AreEqual(expectedName, attr.Name);
     }
@@ -24,7 +24,7 @@ public class Construction
     public void EmptyName_ThrowsException()
     {
         Assert.Throws<ArgumentException>(() => 
-        new ContractAttribute<TestContextA>(string.Empty));
+        new MutualismAttribute<TestContextA>(string.Empty));
     }
 
     [Test]
@@ -32,7 +32,7 @@ public class Construction
     {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
         Assert.Throws<ArgumentException>(() =>
-            new ContractAttribute<TestContextA>(null));
+            new MutualismAttribute<TestContextA>(null));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     }
 
@@ -41,7 +41,7 @@ public class Construction
     {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
         Assert.Throws<ArgumentNullException>(() =>
-            new NonGenericContractAttribute("name", null));
+            new NonGenericMutualismAttribute("name", null));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     }
 }

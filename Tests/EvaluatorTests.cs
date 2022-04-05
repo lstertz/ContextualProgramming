@@ -7,7 +7,7 @@ namespace EvaluatorTests
     #region Shared Constructs
     public class NonBehavior { }
 
-    public abstract class TCCAttribute : BaseContractAttribute
+    public abstract class TCCAttribute : BaseMutualismAttribute
     {
         protected TCCAttribute(string name, Type type) : base(name, type) { }
     }
@@ -392,27 +392,27 @@ namespace EvaluatorTests
         }
     }
 
-    public class BuildContractFulfiller
+    public class BuildMutualismFulfiller
     {
         public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseContextAttribute => new();
 
-        public class HasNoContractsContextAttribute : BaseContextAttribute { }
-        [HasNoContractsContext]
-        public class HasNoContractsContext { }
+        public class HasNoMutualistsContextAttribute : BaseContextAttribute { }
+        [HasNoMutualistsContext]
+        public class HasNoMutualistsContext { }
 
-        public class HasContractsContextAttribute : BaseContextAttribute { }
-        [HasContractsContext]
-        [TCC<ContractedContext>(ContractA)]
-        [TCC<ContractedContext>(ContractB)]
-        public class HasContractsContext
+        public class HasMutualistsContextAttribute : BaseContextAttribute { }
+        [HasMutualistsContext]
+        [TCC<MutualistContext>(MutualistA)]
+        [TCC<MutualistContext>(MutualistB)]
+        public class HasMutualistsContext
         {
-            public const string ContractA = "ContractA";
-            public const string ContractB = "ContractB";
+            public const string MutualistA = "MutualistA";
+            public const string MutualistB = "MutualistB";
         }
 
-        [HasContractsContext]
-        public class ContractedContext { }
+        [HasMutualistsContext]
+        public class MutualistContext { }
 
         public class NonContext { }
 
@@ -423,50 +423,50 @@ namespace EvaluatorTests
         [Test]
         public void NonContext_ThrowsException()
         {
-            var evaluator = GetEvaluator<HasNoContractsContextAttribute>();
+            var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
             evaluator.Initialize();
 
             Assert.Throws<ArgumentException>(() =>
-                evaluator.BuildContractFulfiller(typeof(NonContext)));
+                evaluator.BuildMutualismFulfiller(typeof(NonContext)));
         }
 
         [Test]
         public void Uninitalized_ThrowsException()
         {
-            var evaluator = GetEvaluator<HasNoContractsContextAttribute>();
+            var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
-                evaluator.BuildContractFulfiller(typeof(HasNoContractsContext)));
+                evaluator.BuildMutualismFulfiller(typeof(HasNoMutualistsContext)));
         }
 
         [Test]
         public void WithContracts_ProvidesMatchingFactory()
         {
-            var evaluator = GetEvaluator<HasContractsContextAttribute>();
+            var evaluator = GetEvaluator<HasMutualistsContextAttribute>();
             evaluator.Initialize();
 
-            IContractFulfiller fulfiller = evaluator.BuildContractFulfiller(
-                typeof(HasContractsContext));
+            IMutualismFulfiller fulfiller = evaluator.BuildMutualismFulfiller(
+                typeof(HasMutualistsContext));
 
             Assert.IsNotNull(fulfiller);
             Assert.AreEqual(new Type[]
             {
-                typeof(ContractedContext),
-                typeof(ContractedContext)
-            }, fulfiller.ContractedContextTypes);
+                typeof(MutualistContext),
+                typeof(MutualistContext)
+            }, fulfiller.MutualistContextTypes);
         }
 
         [Test]
         public void WithNoContracts_ProvidesMatchingFactory()
         {
-            var evaluator = GetEvaluator<HasNoContractsContextAttribute>();
+            var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
             evaluator.Initialize();
 
-            IContractFulfiller fulfiller = evaluator.BuildContractFulfiller(
-                typeof(HasNoContractsContext));
+            IMutualismFulfiller fulfiller = evaluator.BuildMutualismFulfiller(
+                typeof(HasNoMutualistsContext));
 
             Assert.IsNotNull(fulfiller);
-            Assert.AreEqual(Array.Empty<Type>(), fulfiller.ContractedContextTypes);
+            Assert.AreEqual(Array.Empty<Type>(), fulfiller.MutualistContextTypes);
         }
     }
 
@@ -994,19 +994,19 @@ namespace EvaluatorTests
         [TC]
         public class TestContextB { }
 
-        public class InvalidDuplicateContractNamesContextAttribute : BaseContextAttribute { }
-        [InvalidDuplicateContractNamesContext]
-        [TCC<ContractedContext>("DuplicateName")]
-        [TCC<ContractedContext>("DuplicateName")]
-        public class InvalidDuplicateContractNamesContext { }
+        public class InvalidDuplicateMutualistNamesContextAttribute : BaseContextAttribute { }
+        [InvalidDuplicateMutualistNamesContext]
+        [TCC<MutualistContext>("DuplicateName")]
+        [TCC<MutualistContext>("DuplicateName")]
+        public class InvalidDuplicateMutualistNamesContext { }
 
-        public class NonContextContractContextAttribute : BaseContextAttribute { }
-        [NonContextContractContext]
-        [TCC<NonContext>("NonContextContractName")]
-        public class NonContextContractContext { }
+        public class NonContextMutualistContextAttribute : BaseContextAttribute { }
+        [NonContextMutualistContext]
+        [TCC<NonContext>("NonContextMutualistName")]
+        public class NonContextMutualistContext { }
 
-        [InvalidDuplicateContractNamesContext]
-        public class ContractedContext { }
+        [InvalidDuplicateMutualistNamesContext]
+        public class MutualistContext { }
 
         public class NonContext { }
 
@@ -1043,9 +1043,9 @@ namespace EvaluatorTests
         }
 
         [Test]
-        public void InvalidDuplicateContractNames_ThrowsException()
+        public void InvalidDuplicateMutualistNames_ThrowsException()
         {
-            var evaluator = new Evaluator<InvalidDuplicateContractNamesContextAttribute, 
+            var evaluator = new Evaluator<InvalidDuplicateMutualistNamesContextAttribute, 
                 TCCAttribute, TBAttribute, TDAttribute, TOAttribute>();
 
               Assert.Throws<InvalidOperationException>(() =>
@@ -1162,9 +1162,9 @@ namespace EvaluatorTests
         }
 
         [Test]
-        public void NonContextContract_ThrowsException()
+        public void NonContextMutualist_ThrowsException()
         {
-            var evaluator = new Evaluator<NonContextContractContextAttribute,
+            var evaluator = new Evaluator<NonContextMutualistContextAttribute,
                 TCCAttribute, TBAttribute, TDAttribute, TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
