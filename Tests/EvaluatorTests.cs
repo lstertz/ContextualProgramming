@@ -440,7 +440,7 @@ namespace EvaluatorTests
         }
 
         [Test]
-        public void WithContracts_ProvidesMatchingFactory()
+        public void WithMutualism_ProvidesMatchingFulfiller()
         {
             var evaluator = GetEvaluator<HasMutualistsContextAttribute>();
             evaluator.Initialize();
@@ -457,7 +457,7 @@ namespace EvaluatorTests
         }
 
         [Test]
-        public void WithNoContracts_ProvidesMatchingFactory()
+        public void WithNoMutualism_ProvidesMatchingFulfiller()
         {
             var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
             evaluator.Initialize();

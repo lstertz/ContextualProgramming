@@ -73,12 +73,13 @@ public abstract class Evaluator
     public abstract IBehaviorFactory BuildBehaviorFactory(Type behaviorType);
 
     /// <summary>
-    /// Provides a new factory for instantiating the contracted contexts of 
+    /// Provides a new factory for instantiating the mutualist contexts of 
     /// the specified context.
     /// </summary>
-    /// <param name="contextType">The type of context whose contract factory 
+    /// <param name="contextType">The type of context whose mutualism factory 
     /// is to be provided.</param>
-    /// <returns>A factory for the contracted contexts of the specified context.</returns>
+    /// <returns>A fulfiller for the fulfilling the mutualistic relationships 
+    /// of the specified context.</returns>
     public abstract IMutualismFulfiller BuildMutualismFulfiller(Type contextType);
 
     /// <summary>
@@ -554,7 +555,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
             if (mutualists.ContainsKey(name))
                 throw new InvalidOperationException($"The mutualist named {name} of type " +
                     $"{t.FullName} for the context of type {contextType.FullName} has the " +
-                    $"same name as another of its context's contracts.");
+                    $"same name as another of its context's mutualists.");
 
             mutualists.Add(name, t);
         }
