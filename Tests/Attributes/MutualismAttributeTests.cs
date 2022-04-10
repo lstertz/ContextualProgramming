@@ -7,24 +7,28 @@ public class Construction
 {
     private class NonGenericMutualismAttribute : MutualismAttribute
     {
-        public NonGenericMutualismAttribute(string name, Type type) : base(name, type) { }
+        public NonGenericMutualismAttribute(string name, Type type) : 
+            base(name, Relationship.Exclusive, type) { }
     }
 
     [Test]
     public void Construction_AssignsProperties()
     {
         string expectedName = "name";
+        Relationship expectedRelationship = Relationship.Exclusive;
 
-        MutualismAttribute attr = new MutualismAttribute<TestContextA>(expectedName);
+        MutualismAttribute attr = new MutualismAttribute<TestContextA>(
+            expectedName, expectedRelationship);
 
         Assert.AreEqual(expectedName, attr.Name);
+        Assert.AreEqual(expectedRelationship, attr.Relationship);
     }
 
     [Test]
     public void EmptyName_ThrowsException()
     {
         Assert.Throws<ArgumentException>(() => 
-        new MutualismAttribute<TestContextA>(string.Empty));
+        new MutualismAttribute<TestContextA>(string.Empty, Relationship.Exclusive));
     }
 
     [Test]
@@ -32,7 +36,7 @@ public class Construction
     {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
         Assert.Throws<ArgumentException>(() =>
-            new MutualismAttribute<TestContextA>(null));
+            new MutualismAttribute<TestContextA>(null, Relationship.Exclusive));
 #pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
     }
 

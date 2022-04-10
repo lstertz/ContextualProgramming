@@ -85,7 +85,7 @@ public enum Fulfillment
     ///// <summary>
     ///// The dependency that shares its existence with its behavior. The dependency is 
     ///// expected to be created by the dependent behavior during its construction. 
-    ///// The dependnecy will be decontextualized if the dependent behavior is ever destroyed.
+    ///// The dependency will be decontextualized if the dependent behavior is ever destroyed.
     ///// </summary>
     //Coexistent,  // Not currently supported.
     ///// <summary>

@@ -9,7 +9,8 @@ namespace EvaluatorTests
 
     public abstract class TCCAttribute : BaseMutualismAttribute
     {
-        protected TCCAttribute(string name, Type type) : base(name, type) { }
+        protected TCCAttribute(string name, Type type) : 
+            base(name, Relationship.Exclusive, type) { }
     }
     public class TCCAttribute<T> : TCCAttribute
     {

@@ -13,6 +13,11 @@ public abstract class BaseMutualismAttribute : Attribute
     public string Name { get; init; }
 
     /// <summary>
+    /// The relationship that the mutualist is required to have with teh host.
+    /// </summary>
+    public Relationship Relationship { get; init; }
+
+    /// <summary>
     /// The type of the mutualist context.
     /// </summary>
     public Type Type { get; init; }
@@ -22,18 +27,20 @@ public abstract class BaseMutualismAttribute : Attribute
     /// Constructs a new mutualism attribute.
     /// </summary>
     /// <param name="name"><see cref="Name"/></param>
+    /// <param name="relationship"><see cref="Relationship"/></param>
     /// <param name="type"><see cref="Type"/></param>
     /// <exception cref="ArgumentException">Thrown if <paramref name="name"/> 
     /// is null or empty.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="type"/> 
     /// is null.</exception>
-    protected BaseMutualismAttribute(string name, Type type)
+    protected BaseMutualismAttribute(string name, Relationship relationship, Type type)
     {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", 
                 nameof(name));
 
         Name = name;
+        Relationship = relationship;
         Type = type.EnsureNotNull();
     }
 }
@@ -43,7 +50,8 @@ public abstract class BaseMutualismAttribute : Attribute
 public abstract class MutualismAttribute : BaseMutualismAttribute
 {
     /// <inheritdoc/>
-    public MutualismAttribute(string name, Type type) : base(name, type) { }
+    public MutualismAttribute(string name, Relationship relationship, Type type) : 
+        base(name, relationship, type) { }
 }
 
 /// <inheritdoc/>
@@ -54,5 +62,25 @@ public class MutualismAttribute<T> : MutualismAttribute
     /// Constructs a new mutualism attribute.
     /// </summary>
     /// <param name="name"><see cref="BaseMutualismAttribute.Name"/></param>
-    public MutualismAttribute(string name) : base(name, typeof(T)) { }
+    /// <param name="relationship"><see cref="BaseMutualismAttribute.Relationship"/></param>
+    public MutualismAttribute(string name, Relationship relationship) : 
+        base(name, relationship, typeof(T)) { }
+}
+
+
+/// <summary>
+/// The different ways that a mutualist can be bound to a host.
+/// </summary>
+public enum Relationship
+{
+    /// <summary>
+    /// An exclusive relationship, meaning that the mutualist may fulfill the requirements of 
+    /// only one of the same type of host.
+    /// </summary>
+    Exclusive,
+    ///// <summary>
+    ///// A nonexclusive relationship, meaning that the mutualist may fulfill the requirements of 
+    ///// more than one of the same type of host.
+    ///// </summary>
+    //Nonexclusive  // Not currently supported.
 }
