@@ -119,18 +119,19 @@ public class App : IBehaviorApp
     /// <summary>
     /// A mapping of mutualist context instances to their host context instances.
     /// </summary>
-    private Dictionary<object, HashSet<object>> _contextHosts = new();
+    private readonly Dictionary<object, HashSet<object>> _contextHosts = new();
 
     /// <summary>
     /// A mapping of host context instances to their mutualist context instances.
     /// </summary>
-    private Dictionary<object, object[]> _contextMutualists = new();
+    private readonly Dictionary<object, object[]> _contextMutualists = new();
 
     /// <summary>
     /// A mapping of context types to the mutualism fulfillers that will fulfill any 
-    /// mutualistic relationships of their context type.
+    /// mutualistic relationships of their context type. A fulfiller will be null if 
+    /// the context typ has no mutualistic relationships.
     /// </summary>
-    private readonly Dictionary<Type, IMutualismFulfiller> _contextMutualismFulfillers = new();
+    private readonly Dictionary<Type, IMutualismFulfiller?> _contextMutualismFulfillers = new();
 
     /// <summary>
     /// The contexts that have been decontextualized since the deregistration of 
@@ -524,10 +525,11 @@ public class App : IBehaviorApp
         if (!_contextMutualismFulfillers.ContainsKey(type))
             _contextMutualismFulfillers.Add(type, Evaluator.BuildMutualismFulfiller(type));
 
-        if (_contextMutualismFulfillers[type] == null)
+        IMutualismFulfiller? fulfiller = _contextMutualismFulfillers[type];
+        if (fulfiller == null)
             return;
 
-        object[] mutualists = _contextMutualismFulfillers[type].Fulfill(context);
+        object[] mutualists = fulfiller.Fulfill(context);
         _contextMutualists.Add(context, mutualists);
 
         for (int c = 0, count = mutualists.Length; c < count; c++)

@@ -446,7 +446,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasMutualistsContextAttribute>();
             evaluator.Initialize();
 
-            IMutualismFulfiller fulfiller = evaluator.BuildMutualismFulfiller(
+            IMutualismFulfiller? fulfiller = evaluator.BuildMutualismFulfiller(
                 typeof(HasMutualistsContext));
 
             Assert.IsNotNull(fulfiller);
@@ -454,7 +454,7 @@ namespace EvaluatorTests
             {
                 typeof(MutualistContext),
                 typeof(MutualistContext)
-            }, fulfiller.MutualistContextTypes);
+            }, fulfiller?.MutualistContextTypes);
         }
 
         [Test]
@@ -463,7 +463,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
             evaluator.Initialize();
 
-            IMutualismFulfiller fulfiller = evaluator.BuildMutualismFulfiller(
+            IMutualismFulfiller? fulfiller = evaluator.BuildMutualismFulfiller(
                 typeof(HasNoMutualistsContext));
 
             Assert.IsNull(fulfiller);
