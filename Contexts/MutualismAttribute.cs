@@ -74,13 +74,13 @@ public class MutualismAttribute<T> : MutualismAttribute
 public enum Relationship
 {
     /// <summary>
-    /// An exclusive relationship, meaning that the mutualist may fulfill the requirements of 
-    /// only one of the same type of host.
+    /// An exclusive relationship, meaning that any automatically provided mutualist may 
+    /// fulfill the requirements of only one of the same type of host.
     /// </summary>
     Exclusive,
     ///// <summary>
-    ///// A nonexclusive relationship, meaning that the mutualist may fulfill the requirements of 
-    ///// more than one of the same type of host.
+    ///// A nonexclusive relationship, meaning that any automatically provided mutualist may 
+    ///// fulfill the requirements of more than one of the same type of host.
     ///// </summary>
     //Nonexclusive  // Not currently supported.
 }

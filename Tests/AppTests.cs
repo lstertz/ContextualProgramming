@@ -1112,43 +1112,40 @@ namespace AppTests
         [Test]
         public void HasMutualism_DecontextualizesMutualistContext()
         {
-            Assert.Ignore();
-
             IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
             App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
 
             TestContextA contextA = new();
-            TestContextB expectedMutualistContext = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
             fulfiller.Fulfill(contextA).Returns(new object[]
             {
-                expectedMutualistContext
+                new TestContextB()
             });
 
             app.Contextualize(contextA);
+            app.Decontextualize(contextA);
 
-            Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
+            Assert.IsNull(app.GetContext<TestContextB>());
         }
 
         [Test]
         public void IsMutualistContext_DecontextualizesHostContext()
         {
-            Assert.Ignore();
-
             IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
             App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
 
             TestContextA contextA = new();
-            TestContextB expectedMutualistContext = new();
+            TestContextB contextB = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
             fulfiller.Fulfill(contextA).Returns(new object[]
             {
-                expectedMutualistContext
+                contextB
             });
 
             app.Contextualize(contextA);
+            app.Decontextualize(contextB);
 
-            Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
+            Assert.IsNull(app.GetContext<TestContextA>());
         }
 
         [Test]
