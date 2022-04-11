@@ -102,7 +102,7 @@ public class App : IBehaviorApp
 
     /// <summary>
     /// A mapping of context types to the behavior factories that require them 
-    /// to be fulfill behavior instances.
+    /// to fulfill behavior instances.
     /// </summary>
     private readonly Dictionary<Type, List<IBehaviorFactory>> _contextBehaviorFactories = new();
 
@@ -115,6 +115,22 @@ public class App : IBehaviorApp
     /// A record of context changes that have occurred since the last evaluation.
     /// </summary>
     private readonly List<ContextChange> _contextChanges = new();
+
+    /// <summary>
+    /// A mapping of mutualist context instances to their host context instances.
+    /// </summary>
+    private Dictionary<object, HashSet<object>> _contextHosts = new();
+
+    /// <summary>
+    /// A mapping of host context instances to their mutualist context instances.
+    /// </summary>
+    private Dictionary<object, object[]> _contextMutualists = new();
+
+    /// <summary>
+    /// A mapping of context types to the mutualism fulfillers that will fulfill any 
+    /// mutualistic relationships of their context type.
+    /// </summary>
+    private readonly Dictionary<Type, IMutualismFulfiller> _contextMutualismFulfillers = new();
 
     /// <summary>
     /// The contexts that have been decontextualized since the deregistration of 
@@ -133,12 +149,12 @@ public class App : IBehaviorApp
 
     /// <summary>
     /// Constructs a new app with the default evaluator, 
-    /// <see cref="Evaluator{TContextAttribute, TBehaviorAttribute, 
+    /// <see cref="Evaluator{TContextAttribute, TMutualismAttribute, TBehaviorAttribute, 
     /// TBaseDependencyAttribute, TOperationAttribute}"/>.
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, BehaviorAttribute,
+        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, BehaviorAttribute,
             DependencyAttribute, OperationAttribute>();
     }
 
@@ -243,11 +259,11 @@ public class App : IBehaviorApp
             return;
 
         _decontextualizedContexts.Remove(context);
-
+        
         BindContext(context, type);
+        FulfillMutualisms(context, type);
         AddContextToBehaviorFactories(context, type);
     }
-
 
     /// <summary>
     /// Decontextualizes the provided context, removing it from the app's contextual state.
@@ -258,18 +274,26 @@ public class App : IBehaviorApp
     {
         ValidateInitialization();
 
+        Decontextualize(context as object);
+    }
+
+    /// <inheritdoc cref="Decontextualize{T}(T)"/>
+    private void Decontextualize(object context)
+    {
         if (context == null)
             throw new ArgumentNullException(nameof(context));
 
-        Type type = typeof(T);
-        if (!_contexts.ContainsKey(typeof(T)))
+        Type type = context.GetType();
+        if (!_contexts.ContainsKey(type))
             throw new InvalidOperationException($"The provided instance, {context}, " +
                 $"of type {type.FullName} cannot be decontextualized as it is not a context.");
 
-        UnbindContext(context);
-        RemoveContext(context);
+        UnbindContext(context, type);
+        BreakMutualismsForHost(context);
+        BreakMutualismsForMutualist(context);
+        RemoveContext(context, type);
         _decontextualizedContexts.Add(context);
-        RemoveContextFromFactories(context);
+        RemoveContextFromFactories(context, type);
     }
 
     /// <summary>
@@ -488,9 +512,78 @@ public class App : IBehaviorApp
                 _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
         }
     }
+
+    /// <summary>
+    /// Fulfills and contextualizes the mutualistic relationships of the provided context.
+    /// </summary>
+    /// <param name="context">The context whose mutualistic relationships 
+    /// should be fulfilled.</param>
+    /// <param name="type">The type of the provided context.</param>
+    private void FulfillMutualisms(object context, Type type)
+    {
+        if (!_contextMutualismFulfillers.ContainsKey(type))
+            _contextMutualismFulfillers.Add(type, Evaluator.BuildMutualismFulfiller(type));
+
+        if (_contextMutualismFulfillers[type] == null)
+            return;
+
+        object[] mutualists = _contextMutualismFulfillers[type].Fulfill(context);
+        _contextMutualists.Add(context, mutualists);
+
+        for (int c = 0, count = mutualists.Length; c < count; c++)
+        {
+            _contextHosts.Add(mutualists[c], new() { context });
+            Contextualize(mutualists[c]);
+        }
+    }
     #endregion
 
     #region Decontextualization Functions
+    /// <summary>
+    /// Breaks the mutualistic relationships between the provided host and any 
+    /// of its mutualists. Mutualists that no longer have a host are 
+    /// also decontextualized.
+    /// </summary>
+    /// <param name="host">The context whose mutualistic relationships 
+    /// are to be broken.</param>
+    private void BreakMutualismsForHost(object host)
+    {
+        if (!_contextMutualists.ContainsKey(host))
+            return;
+
+        object[] mutualists = _contextMutualists[host];
+        _contextMutualists.Remove(host);
+
+        for (int c = 0, count = mutualists.Length; c < count; c++)
+        {
+            if (!_contextHosts.ContainsKey(mutualists[c]))
+                continue;
+
+            _contextHosts[mutualists[c]].Remove(host);
+            if (_contextHosts[mutualists[c]].Count == 0)
+                Decontextualize(mutualists[c]);
+        }
+    }
+
+
+    /// <summary>
+    /// Breaks the mutualistic relationships between the provided mutualist and any 
+    /// of its hosts. All hosts are decontextualized.
+    /// </summary>
+    /// <param name="mutualist">The context whose mutualistic relationships 
+    /// are to be broken.</param>
+    private void BreakMutualismsForMutualist(object mutualist)
+    {
+        if (!_contextHosts.ContainsKey(mutualist))
+            return;
+
+        object[] hosts = _contextHosts[mutualist].ToArray();
+        _contextHosts.Remove(mutualist);
+
+        for (int c = 0, count = hosts.Length; c < count; c++)
+            Decontextualize(hosts[c]);
+    }
+
     /// <summary>
     /// Deregisters all behaviors dependent upon the provided context.
     /// </summary>
@@ -530,35 +623,35 @@ public class App : IBehaviorApp
     /// <summary>
     /// Removes the provided context from the scope of the App.
     /// </summary>
-    /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context to be removed.</param>
-    private void RemoveContext<T>(T context) where T : notnull
+    /// <param name="type">The type of the context.</param>
+    private void RemoveContext(object context, Type type)
     {
-        _contexts[typeof(T)].Remove(context);
-        if (_contexts[typeof(T)].Count == 0)
-            _contexts.Remove(typeof(T));
+        _contexts[type].Remove(context);
+        if (_contexts[type].Count == 0)
+            _contexts.Remove(type);
     }
 
     /// <summary>
     /// Removes the provided context from all of its dependent behavior factories.
     /// </summary>
-    /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context to be removed.</param>
-    private void RemoveContextFromFactories<T>(T context) where T : notnull
+    /// <param name="type">The type of the context.</param>
+    private void RemoveContextFromFactories(object context, Type type)
     {
-        if (_contextBehaviorFactories.ContainsKey(typeof(T)))
-            for (int c = 0, count = _contextBehaviorFactories[typeof(T)].Count; c < count; c++)
-                _contextBehaviorFactories[typeof(T)][c].RemoveAvailableDependency(context);
+        if (_contextBehaviorFactories.ContainsKey(type))
+            for (int c = 0, count = _contextBehaviorFactories[type].Count; c < count; c++)
+                _contextBehaviorFactories[type][c].RemoveAvailableDependency(context);
     }
 
     /// <summary>
     /// Unbinds the provided context from state changes.
     /// </summary>
-    /// <typeparam name="T">The type of the context.</typeparam>
     /// <param name="context">The context being unbound.</param>
-    private void UnbindContext<T>(T context) where T : notnull
+    /// <param name="type">The type of the context.</param>
+    private void UnbindContext(object context, Type type)
     {
-        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(typeof(T));
+        PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
             (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
     }

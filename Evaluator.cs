@@ -73,6 +73,16 @@ public abstract class Evaluator
     public abstract IBehaviorFactory BuildBehaviorFactory(Type behaviorType);
 
     /// <summary>
+    /// Provides a new factory for instantiating the mutualist contexts of 
+    /// the specified context.
+    /// </summary>
+    /// <param name="contextType">The type of context whose mutualism factory 
+    /// is to be provided.</param>
+    /// <returns>A fulfiller for the fulfilling the mutualistic relationships 
+    /// of the specified context or null if the context has no mutualistic relationships.</returns>
+    public abstract IMutualismFulfiller? BuildMutualismFulfiller(Type contextType);
+
+    /// <summary>
     /// Provides the dependencies required by the specified behavior for an 
     /// instance of that behavior to be instantiated.
     /// </summary>
@@ -142,14 +152,17 @@ public abstract class Evaluator
 
 /// <inheritdoc/>
 /// <typeparam name="TContextAttribute">The type of attribute that defines a context.</typeparam>
+/// <typeparam name="TMutualismAttribute">The base type of attribute that defines a 
+/// a mutualistic relationship of a context with a context.</typeparam>
 /// <typeparam name="TBehaviorAttribute">The type of attribute that defines a behavior.</typeparam>
 /// <typeparam name="TDependencyAttribute">The base type of attribute 
 /// that defines a dependency of a behavior.</typeparam>
 /// <typeparam name="TOperationAttribute">The type of attribute 
 /// that defines an operation of a behavior.</typeparam>
-public class Evaluator<TContextAttribute, TBehaviorAttribute,
+public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribute,
     TDependencyAttribute, TOperationAttribute> : Evaluator
     where TContextAttribute : BaseContextAttribute
+    where TMutualismAttribute : BaseMutualismAttribute
     where TBehaviorAttribute : BaseBehaviorAttribute
     where TDependencyAttribute : BaseDependencyAttribute
     where TOperationAttribute : BaseOperationAttribute
@@ -188,6 +201,14 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     /// new instances are contextualized.
     /// </summary>
     private readonly Dictionary<Type, PropertyInfo[]> _contextBindableProperties = new();
+
+    /// <summary>
+    /// The names and mutualist context types for all context types.
+    /// </summary>
+    /// <remarks>
+    /// Contexts without mutualistic relationships are not included in this collection.
+    /// </remarks>
+    private Dictionary<Type, Dictionary<string, Type>?> _contextMutualists = new();
 
     /// <summary>
     /// All found context types.
@@ -229,9 +250,12 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         {
             Type[] types = assembly.GetTypes();
             for (int c = 0, count = types.Length; c < count; c++)
-            {
                 CacheContextType(types[c]);
-                CacheBindableStateInfos(types[c]);
+
+            foreach (Type type in _contextTypes)
+            {
+                CacheContextMutualisms(type);
+                CacheBindableStateInfos(type);
             }
         }
     }
@@ -243,7 +267,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
         ValidateInitialization();
 
         if (!_behaviorConstructors.ContainsKey(behaviorType))
-            throw new ArgumentException($"A behavior factory cannot be retrieved " +
+            throw new ArgumentException($"A behavior factory cannot be built " +
                 $"for type {behaviorType.FullName} since it is not a behavior " +
                 $"known to an evaluator with behaviors defined " +
                 $"by {typeof(TBehaviorAttribute).FullName}.");
@@ -254,6 +278,25 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                 _behaviorDependencies[behaviorType][dependency.Value]);
 
         return new BehaviorFactory(_behaviorConstructors[behaviorType], requiredDependencies);
+    }
+
+    /// <inheritdoc/>
+    public override IMutualismFulfiller? BuildMutualismFulfiller(Type contextType)
+    {
+        ValidateInitialization();
+
+        if (!_contextTypes.Contains(contextType))
+            throw new ArgumentException($"A mutualism fulfiller cannot be built " +
+                $"for type {contextType.FullName} since it is not a context " +
+                $"known to an evaluator with contexts defined " +
+                $"by {typeof(TContextAttribute).FullName}.");
+
+        Dictionary<string, Type>? mutualists = _contextMutualists
+            .GetValueOrDefault(contextType, null);
+        if (mutualists == null)
+            return null;
+
+        return new MutualismFulfiller(mutualists);
     }
 
     /// <inheritdoc/>
@@ -396,7 +439,8 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     /// <param name="behaviorType">The type of behavior whose dependency-related details 
     /// are to be cached.</param>
     /// <exception cref="InvalidOperationException">Thrown if a dependency is 
-    /// not a type of context known to this evaluator.</exception>
+    /// not a type of context known to this evaluator or if multiple dependencies 
+    /// have the same name.</exception>
     private void CacheBehaviorDependencies(Type behaviorType)
     {
         IEnumerable<TDependencyAttribute> attrs =
@@ -412,13 +456,13 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
             Type t = attr.Type;
             string name = attr.Name;
             if (!_contextTypes.Contains(t))
-                throw new InvalidOperationException($"The dependency named {name} of type" +
+                throw new InvalidOperationException($"The dependency named {name} of type " +
                     $"{t.FullName} for the behavior of type {behaviorType.FullName} is not a " +
                     $"context known to an evaluator with contexts defined " +
                     $"by {typeof(TContextAttribute).FullName}.");
 
             if (existingDeps.ContainsKey(name) || selfCreatedDeps.ContainsKey(name))
-                throw new InvalidOperationException($"The dependency named {name} of type" +
+                throw new InvalidOperationException($"The dependency named {name} of type " +
                     $"{t.FullName} for the behavior of type {behaviorType.FullName} has the " +
                     $"same name as another of its behavior's dependencies.");
 
@@ -462,7 +506,7 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
     }
 
     /// <summary>
-    /// If not already cached, finds and caches all bindable state property infos 
+    /// If not already cached, validates and caches all bindable state property infos 
     /// found within the provided context type.
     /// </summary>
     /// <param name="contextType">The type of context whose bindable state property 
@@ -480,6 +524,48 @@ public class Evaluator<TContextAttribute, TBehaviorAttribute,
                 bindableProperties.Add(properties[c]);
 
         _contextBindableProperties.Add(contextType, bindableProperties.ToArray());
+    }
+    /// <summary>
+    /// If not already cached, validates and caches the mutualism-related details of 
+    /// the provided context type.
+    /// </summary>
+    /// <param name="contextType">The type of context whose mutualism-related details 
+    /// are to be cached.</param>
+    /// <exception cref="InvalidOperationException">Thrown if a mutualist is 
+    /// not a type of context known to this evaluator or if multiple mutualists 
+    /// have the same name.</exception>
+    private void CacheContextMutualisms(Type contextType)
+    {
+        if (_contextMutualists.ContainsKey(contextType))
+            return;
+
+        IEnumerable<TMutualismAttribute> attrs =
+            contextType.GetCustomAttributes<TMutualismAttribute>(true);
+
+        if (attrs.Count() == 0)
+            return;
+
+        Dictionary<string, Type> mutualists = new();
+
+        foreach (TMutualismAttribute attr in attrs)
+        {
+            Type t = attr.Type;
+            string name = attr.Name;
+            if (!_contextTypes.Contains(t))
+                throw new InvalidOperationException($"The mutualist named {name} of type " +
+                    $"{t.FullName} for the context of type {contextType.FullName} is not a " +
+                    $"context known to an evaluator with contexts defined " +
+                    $"by {typeof(TContextAttribute).FullName}.");
+
+            if (mutualists.ContainsKey(name))
+                throw new InvalidOperationException($"The mutualist named {name} of type " +
+                    $"{t.FullName} for the context of type {contextType.FullName} has the " +
+                    $"same name as another of its context's mutualists.");
+
+            mutualists.Add(name, t);
+        }
+
+        _contextMutualists.Add(contextType, mutualists);
     }
 
     /// <summary>

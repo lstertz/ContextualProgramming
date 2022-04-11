@@ -7,6 +7,16 @@ namespace EvaluatorTests
     #region Shared Constructs
     public class NonBehavior { }
 
+    public abstract class TCCAttribute : BaseMutualismAttribute
+    {
+        protected TCCAttribute(string name, Type type) : 
+            base(name, Relationship.Exclusive, type) { }
+    }
+    public class TCCAttribute<T> : TCCAttribute
+    {
+        public TCCAttribute(string name) : base(name, typeof(T)) { }
+    }
+
     public abstract class TDAttribute : BaseDependencyAttribute
     {
         protected TDAttribute(Binding binding, Fulfillment fulfillment,
@@ -19,9 +29,9 @@ namespace EvaluatorTests
     }
     #endregion
 
-    public class GetBehaviorFactory
+    public class BuildBehaviorFactory
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class ForBehaviorWithExistingAndSelfCreatedDependenciesBehaviorAttribute :
@@ -143,7 +153,7 @@ namespace EvaluatorTests
 
     public class GetBehaviorRequiredDependencies
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class ExcludesSelfCreatedDependenciesBehaviorAttribute : BaseBehaviorAttribute { }
@@ -273,7 +283,7 @@ namespace EvaluatorTests
 
     public class GetBehaviorTypes
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class HasBehaviorTypesBehaviorAttribute : BaseBehaviorAttribute { }
@@ -321,7 +331,7 @@ namespace EvaluatorTests
 
     public class GetBindableStateInfos
     {
-        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseContextAttribute => new();
 
         public class HasStatesContextAttribute : BaseContextAttribute { }
@@ -383,9 +393,86 @@ namespace EvaluatorTests
         }
     }
 
+    public class BuildMutualismFulfiller
+    {
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseContextAttribute => new();
+
+        public class HasNoMutualistsContextAttribute : BaseContextAttribute { }
+        [HasNoMutualistsContext]
+        public class HasNoMutualistsContext { }
+
+        public class HasMutualistsContextAttribute : BaseContextAttribute { }
+        [HasMutualistsContext]
+        [TCC<MutualistContext>(MutualistA)]
+        [TCC<MutualistContext>(MutualistB)]
+        public class HasMutualistsContext
+        {
+            public const string MutualistA = "MutualistA";
+            public const string MutualistB = "MutualistB";
+        }
+
+        [HasMutualistsContext]
+        public class MutualistContext { }
+
+        public class NonContext { }
+
+        public class TBAttribute : BaseBehaviorAttribute { }
+        public class TOAttribute : BaseOperationAttribute { }
+
+
+        [Test]
+        public void NonContext_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
+            evaluator.Initialize();
+
+            Assert.Throws<ArgumentException>(() =>
+                evaluator.BuildMutualismFulfiller(typeof(NonContext)));
+        }
+
+        [Test]
+        public void Uninitalized_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.BuildMutualismFulfiller(typeof(HasNoMutualistsContext)));
+        }
+
+        [Test]
+        public void WithMutualism_ProvidesMatchingFulfiller()
+        {
+            var evaluator = GetEvaluator<HasMutualistsContextAttribute>();
+            evaluator.Initialize();
+
+            IMutualismFulfiller fulfiller = evaluator.BuildMutualismFulfiller(
+                typeof(HasMutualistsContext));
+
+            Assert.IsNotNull(fulfiller);
+            Assert.AreEqual(new Type[]
+            {
+                typeof(MutualistContext),
+                typeof(MutualistContext)
+            }, fulfiller.MutualistContextTypes);
+        }
+
+        [Test]
+        public void WithNoMutualism_ProvidesNull()
+        {
+            var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
+            evaluator.Initialize();
+
+            IMutualismFulfiller fulfiller = evaluator.BuildMutualismFulfiller(
+                typeof(HasNoMutualistsContext));
+
+            Assert.IsNull(fulfiller);
+        }
+    }
+
     public class GetContextTypes
     {
-        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseContextAttribute => new();
 
         public class HasContextTypesContextAttribute : BaseContextAttribute { }
@@ -433,7 +520,7 @@ namespace EvaluatorTests
 
     public class GetOnChangeOperations
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class HasNoOperationsBehaviorAttribute : BaseBehaviorAttribute { }
@@ -612,7 +699,7 @@ namespace EvaluatorTests
 
     public class GetTeardownOperations
     {
-        public static Evaluator<TCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<TCAttribute, TCCAttribute, T, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseBehaviorAttribute => new();
 
         public class HasNoOperationsBehaviorAttribute : BaseBehaviorAttribute { }
@@ -705,8 +792,10 @@ namespace EvaluatorTests
 
     public class Initialization
     {
-        public static Evaluator<TCAttribute, T1, TDAttribute, T2> GetEvaluator<T1, T2>()
+        public static Evaluator<TCAttribute, TCCAttribute, T1, TDAttribute, T2> GetEvaluator<T1, T2>()
             where T1 : BaseBehaviorAttribute where T2 : BaseOperationAttribute => new();
+
+        public class TBAttribute : BaseBehaviorAttribute { }
 
         public class InvalidDependencyConstructorBehaviorExAttribute :
             BaseBehaviorAttribute
@@ -905,7 +994,22 @@ namespace EvaluatorTests
         [TC]
         public class TestContextB { }
 
+        public class InvalidDuplicateMutualistNamesContextAttribute : BaseContextAttribute { }
+        [InvalidDuplicateMutualistNamesContext]
+        [TCC<MutualistContext>("DuplicateName")]
+        [TCC<MutualistContext>("DuplicateName")]
+        public class InvalidDuplicateMutualistNamesContext { }
+
+        public class NonContextMutualistContextAttribute : BaseContextAttribute { }
+        [NonContextMutualistContext]
+        [TCC<NonContext>("NonContextMutualistName")]
+        public class NonContextMutualistContext { }
+
+        [InvalidDuplicateMutualistNamesContext]
+        public class MutualistContext { }
+
         public class NonContext { }
+
 
 
         [Test]
@@ -921,8 +1025,8 @@ namespace EvaluatorTests
         [Test]
         public void InvalidDependencyConstructorSc_ThrowsException()
         {
-            Evaluator<TCAttribute, InvalidDependencyConstructorBehaviorScAttribute,
-                TDAttribute, TOAttribute> evaluator = new();
+            var evaluator = new Evaluator<TCAttribute, TCCAttribute, 
+                InvalidDependencyConstructorBehaviorScAttribute, TDAttribute, TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
@@ -935,6 +1039,16 @@ namespace EvaluatorTests
                 TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
+        [Test]
+        public void InvalidDuplicateMutualistNames_ThrowsException()
+        {
+            var evaluator = new Evaluator<InvalidDuplicateMutualistNamesContextAttribute, 
+                TCCAttribute, TBAttribute, TDAttribute, TOAttribute>();
+
+              Assert.Throws<InvalidOperationException>(() =>
                 evaluator.Initialize());
         }
 
@@ -1048,6 +1162,16 @@ namespace EvaluatorTests
         }
 
         [Test]
+        public void NonContextMutualist_ThrowsException()
+        {
+            var evaluator = new Evaluator<NonContextMutualistContextAttribute,
+                TCCAttribute, TBAttribute, TDAttribute, TOAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.Initialize());
+        }
+
+        [Test]
         public void NonContextDependencyEx_ThrowsException()
         {
             var evaluator = GetEvaluator<NonContextDependencyBehaviorExAttribute, TOAttribute>();
@@ -1068,7 +1192,7 @@ namespace EvaluatorTests
         [Test]
         public void ValidExistingDependencyConstructor_CompletesInitialization()
         {
-            var evaluator = GetEvaluator<ValidExistingDependencyConstructorBehaviorAttribute, 
+            var evaluator = GetEvaluator<ValidExistingDependencyConstructorBehaviorAttribute,
                 TOAttribute>();
 
             evaluator.Initialize();
@@ -1095,7 +1219,7 @@ namespace EvaluatorTests
 
     public class IsContextType
     {
-        public static Evaluator<T, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
+        public static Evaluator<T, TCCAttribute, TBAttribute, TDAttribute, TOAttribute> GetEvaluator<T>()
             where T : BaseContextAttribute => new();
 
         public class InvalidContextTypeContextAttribute : BaseContextAttribute { }

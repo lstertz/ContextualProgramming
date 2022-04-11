@@ -114,6 +114,19 @@ namespace AppTests
             return app;
         }
 
+        public static App ContextOnlyApp<TContextA, TContextB>()
+        {
+            Evaluator evaluator = Substitute.For<Evaluator>();
+            App app = new(evaluator);
+
+            evaluator.GetBehaviorTypes().Returns(Array.Empty<Type>());
+            PrimeEvaluatorForContext<TContextA>(evaluator);
+            PrimeEvaluatorForContext<TContextB>(evaluator);
+            app.Initialize();
+
+            return app;
+        }
+
         public static App FullSuiteDependentApp()
         {
             Type[] aDependencies = new Type[]
@@ -635,8 +648,8 @@ namespace AppTests
         [Test]
         public void DefaultEvaluator()
         {
-            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, BehaviorAttribute,
-                DependencyAttribute, OperationAttribute>);
+            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, MutualismAttribute, 
+                BehaviorAttribute, DependencyAttribute, OperationAttribute>);
 
             App app = new();
 
@@ -789,6 +802,25 @@ namespace AppTests
             app.Contextualize(new TestContextC());
 
             Validate.TestBehaviorsABOnChangeOperationsInvoked(app, contextA);
+        }
+
+        [Test]
+        public void HasMutualism_ContextualizesMutualistContext()
+        {
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            App app = SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            TestContextA contextA = new();
+            TestContextB expectedMutualistContext = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            fulfiller.Fulfill(contextA).Returns(new object[]
+            {
+                expectedMutualistContext
+            });
+
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
         }
 
         [Test]
@@ -1075,6 +1107,45 @@ namespace AppTests
             _app.Decontextualize(contextA);
 
             Validate.TestBehaviorAOnChangeOperationsNotInvoked(_app, contextA, expectedValue);
+        }
+
+        [Test]
+        public void HasMutualism_DecontextualizesMutualistContext()
+        {
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            TestContextA contextA = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            fulfiller.Fulfill(contextA).Returns(new object[]
+            {
+                new TestContextB()
+            });
+
+            app.Contextualize(contextA);
+            app.Decontextualize(contextA);
+
+            Assert.IsNull(app.GetContext<TestContextB>());
+        }
+
+        [Test]
+        public void IsMutualistContext_DecontextualizesHostContext()
+        {
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            App app = AppTests.SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            fulfiller.Fulfill(contextA).Returns(new object[]
+            {
+                contextB
+            });
+
+            app.Contextualize(contextA);
+            app.Decontextualize(contextB);
+
+            Assert.IsNull(app.GetContext<TestContextA>());
         }
 
         [Test]

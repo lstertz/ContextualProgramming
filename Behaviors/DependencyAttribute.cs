@@ -46,21 +46,15 @@ public abstract class BaseDependencyAttribute : Attribute
             throw new ArgumentException($"'{nameof(name)}' cannot be null or empty.", 
                 nameof(name));
 
-        if (type is null)
-            throw new ArgumentNullException(nameof(type));
-
         Binding = binding;
         Name = name;
         Fulfillment = fulfillment;
-        Type = type;
+        Type = type.EnsureNotNull();
     }
 }
 
 
-/// <summary>
-/// Declares a dependency of a behavior (<see cref="BehaviorAttribute"/>) for the 
-/// specified type of context.
-/// </summary>
+/// <inheritdoc/>
 public abstract class DependencyAttribute : BaseDependencyAttribute
 {
     /// <inheritdoc/>
@@ -91,7 +85,7 @@ public enum Fulfillment
     ///// <summary>
     ///// The dependency that shares its existence with its behavior. The dependency is 
     ///// expected to be created by the dependent behavior during its construction. 
-    ///// The dependnecy will be decontextualized if the dependent behavior is ever destroyed.
+    ///// The dependency will be decontextualized if the dependent behavior is ever destroyed.
     ///// </summary>
     //Coexistent,  // Not currently supported.
     ///// <summary>
