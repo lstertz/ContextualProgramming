@@ -117,9 +117,13 @@ public class App : IBehaviorApp
     private readonly List<ContextChange> _contextChanges = new();
 
     /// <summary>
-    ///  A mapping of mutualist context instances to their host context instances.
+    /// A mapping of mutualist context instances to their host context instances.
     /// </summary>
     private Dictionary<object, HashSet<object>> _contextHosts = new();
+
+    /// <summary>
+    /// A mapping of host context instances to their mutualist context instances.
+    /// </summary>
     private Dictionary<object, object[]> _contextMutualists = new();
 
     /// <summary>
@@ -520,7 +524,9 @@ public class App : IBehaviorApp
         if (!_contextMutualismFulfillers.ContainsKey(type))
             _contextMutualismFulfillers.Add(type, Evaluator.BuildMutualismFulfiller(type));
 
-        // TODO :: WillFulfill check.
+        if (_contextMutualismFulfillers[type] == null)
+            return;
+
         object[] mutualists = _contextMutualismFulfillers[type].Fulfill(context);
         _contextMutualists.Add(context, mutualists);
 

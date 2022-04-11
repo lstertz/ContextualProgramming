@@ -79,8 +79,8 @@ public abstract class Evaluator
     /// <param name="contextType">The type of context whose mutualism factory 
     /// is to be provided.</param>
     /// <returns>A fulfiller for the fulfilling the mutualistic relationships 
-    /// of the specified context.</returns>
-    public abstract IMutualismFulfiller BuildMutualismFulfiller(Type contextType);
+    /// of the specified context or null if the context has no mutualistic relationships.</returns>
+    public abstract IMutualismFulfiller? BuildMutualismFulfiller(Type contextType);
 
     /// <summary>
     /// Provides the dependencies required by the specified behavior for an 
@@ -281,7 +281,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
     }
 
     /// <inheritdoc/>
-    public override IMutualismFulfiller BuildMutualismFulfiller(Type contextType)
+    public override IMutualismFulfiller? BuildMutualismFulfiller(Type contextType)
     {
         ValidateInitialization();
 
@@ -291,7 +291,12 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
                 $"known to an evaluator with contexts defined " +
                 $"by {typeof(TContextAttribute).FullName}.");
 
-        return new MutualismFulfiller(_contextMutualists.GetValueOrDefault(contextType, null));
+        Dictionary<string, Type>? mutualists = _contextMutualists
+            .GetValueOrDefault(contextType, null);
+        if (mutualists == null)
+            return null;
+
+        return new MutualismFulfiller(mutualists);
     }
 
     /// <inheritdoc/>

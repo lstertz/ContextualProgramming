@@ -458,7 +458,7 @@ namespace EvaluatorTests
         }
 
         [Test]
-        public void WithNoMutualism_ProvidesMatchingFulfiller()
+        public void WithNoMutualism_ProvidesNull()
         {
             var evaluator = GetEvaluator<HasNoMutualistsContextAttribute>();
             evaluator.Initialize();
@@ -466,8 +466,7 @@ namespace EvaluatorTests
             IMutualismFulfiller fulfiller = evaluator.BuildMutualismFulfiller(
                 typeof(HasNoMutualistsContext));
 
-            Assert.IsNotNull(fulfiller);
-            Assert.AreEqual(Array.Empty<Type>(), fulfiller.MutualistContextTypes);
+            Assert.IsNull(fulfiller);
         }
     }
 
