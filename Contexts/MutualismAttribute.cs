@@ -1,7 +1,7 @@
 ﻿namespace ContextualProgramming;
 
 /// <summary>
-/// Declares a mutulistic relationship of a type of context (<see cref="BaseContextAttribute"/>) 
+/// Declares a mutualistic relationship of a type of context (<see cref="BaseContextAttribute"/>) 
 /// with a type of context.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = true)]
