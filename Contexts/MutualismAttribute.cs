@@ -45,7 +45,6 @@ public abstract class BaseMutualismAttribute : Attribute
     }
 }
 
-
 /// <inheritdoc/>
 public abstract class MutualismAttribute : BaseMutualismAttribute
 {

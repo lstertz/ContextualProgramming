@@ -649,7 +649,7 @@ namespace AppTests
         public void DefaultEvaluator()
         {
             Type expectedEvaluator = typeof(Evaluator<ContextAttribute, MutualismAttribute, 
-                BehaviorAttribute, DependencyAttribute, OperationAttribute>);
+                MutualAttribute, BehaviorAttribute, DependencyAttribute, OperationAttribute>);
 
             App app = new();
 

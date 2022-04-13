@@ -150,13 +150,13 @@ public class App : IBehaviorApp
 
     /// <summary>
     /// Constructs a new app with the default evaluator, 
-    /// <see cref="Evaluator{TContextAttribute, TMutualismAttribute, TBehaviorAttribute, 
-    /// TBaseDependencyAttribute, TOperationAttribute}"/>.
+    /// <see cref="Evaluator{TContextAttribute, TMutualismAttribute, TMutualAttribute, 
+    /// TBehaviorAttribute, TBaseDependencyAttribute, TOperationAttribute}"/>.
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, BehaviorAttribute,
-            DependencyAttribute, OperationAttribute>();
+        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, MutualAttribute, 
+            BehaviorAttribute, DependencyAttribute, OperationAttribute>();
     }
 
     /// <summary>
