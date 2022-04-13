@@ -172,7 +172,7 @@ public abstract class Evaluator
 /// that defines a dependency of a behavior.</typeparam>
 /// <typeparam name="TOperationAttribute">The type of attribute 
 /// that defines an operation of a behavior.</typeparam>
-public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute, 
+public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
     TBehaviorAttribute, TDependencyAttribute, TOperationAttribute> : Evaluator
     where TContextAttribute : BaseContextAttribute
     where TMutualismAttribute : BaseMutualismAttribute
@@ -461,7 +461,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
                 $"does not have a valid constructor.");
 
         ConstructorInfo constructor = constructors[0]; // Assume one constructor for now.
-        ValidateConstructor(behaviorType.FullName, depTypes, existingDeps, 
+        ValidateConstructor(behaviorType.FullName, depTypes, existingDeps,
             selfCreatedDeps, constructor);
 
         _behaviorConstructors.Add(behaviorType, constructor);
@@ -652,25 +652,27 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
                 mutualists = RetrieveMutualists(contextType);
 
             foreach (TMutualAttribute attr in attrs)
-                mutualProperties.Add(new(properties[c], 
-                    RetrieveMutualistProperty(contextType, mutualists, attr)));
+                mutualProperties.Add(new(properties[c],
+                    RetrieveMutualistProperty(contextType, properties[c].PropertyType,
+                        mutualists, attr)));
         }
 
         _contextMutualProperties.Add(contextType, mutualProperties.ToArray());
     }
 
     /// <summary>
-    /// Provies the mutual property specified by the provided attribute, from the 
+    /// Provides the mutual property specified by the provided attribute, from the 
     /// provided mutualists.
     /// </summary>
     /// <param name="contextType">The type of context whose mutualist's property 
     /// is being retrieved.</param>
+    /// <param name="propertyType">The type of the host's property.</param>
     /// <param name="mutualists">The mutualists that should provide the property.</param>
     /// <param name="attr">The attribute identifying the mutualist and property 
     /// to be provided.</param>
     /// <returns>The identified mutual property.</returns>
     /// <exception cref="Exception"></exception>
-    private static PropertyInfo RetrieveMutualistProperty(Type contextType, 
+    private static PropertyInfo RetrieveMutualistProperty(Type contextType, Type propertyType,
         Dictionary<string, Type> mutualists, TMutualAttribute attr)
     {
         if (!mutualists.ContainsKey(attr.MutualistName))
@@ -686,6 +688,12 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
                 $"has a mutual property that identifies a state, {attr.StateName}, " +
                 $"for the mutualist, {attr.MutualistName}, that does not " +
                 $"exist on the mutualist.");
+
+        if (mutualistProperty.PropertyType != propertyType)
+            throw new InvalidOperationException($"The host context type {contextType} " +
+                $"has a mutual property that identifies a state, {attr.StateName}, " +
+                $"for the mutualist, {attr.MutualistName}, that has a value type " +
+                $"different from the host's state's ({propertyType}).");
 
         return mutualistProperty;
     }
@@ -795,7 +803,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
     /// Thrown if the constructor is not valid for the behavior with the specified dependencies.
     /// </exception>
     private static void ValidateConstructor(string? behaviorName, Type[] depTypes,
-        Dictionary<string, int> existingDeps, Dictionary<string, int> selfCreatedDeps, 
+        Dictionary<string, int> existingDeps, Dictionary<string, int> selfCreatedDeps,
         ConstructorInfo constructor)
     {
         ParameterInfo[] parameters = constructor.GetParameters();

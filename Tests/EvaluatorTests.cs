@@ -1222,6 +1222,16 @@ namespace EvaluatorTests
             [TMS(Mutualist, "InvalidName")]
             public ContextState<int> IntA { get; init; } = 0;
         }
+        public class InvalidMutualStateTypeContextAttribute : BaseContextAttribute { }
+        [InvalidMutualStateTypeContext]
+        [TM<MutualistA>(Mutualist)]
+        public class InvalidMutualStateTypeContext
+        {
+            public const string Mutualist = "Mutualist";
+
+            [TMS(Mutualist, nameof(MutualistA.ValueA))]
+            public ContextState<bool> BoolA { get; init; } = false;
+        }
 
         public class NonContextMutualistContextAttribute : BaseContextAttribute { }
         [NonContextMutualistContext]
@@ -1239,12 +1249,11 @@ namespace EvaluatorTests
         [InvalidDuplicateMutualistNamesContext]
         [InvalidMutualStateMutualistNameContext]
         [InvalidMutualStateStateNameContext]
+        [InvalidMutualStateTypeContext]
         public class MutualistA
         {
             public ContextState<int> ValueA { get; init; } = 0;
         }
-
-        // TODO :: Tests for invalid mutual state setups.
 
         public class NonContext { }
 
@@ -1303,6 +1312,16 @@ namespace EvaluatorTests
         public void InvalidMutualStateStateName_ThrowsException()
         {
             var evaluator = new Evaluator<InvalidMutualStateStateNameContextAttribute,
+                TMAttribute, TMSAttribute, TBAttribute, TDAttribute, TOAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+              evaluator.Initialize());
+        }
+
+        [Test]
+        public void InvalidMutualStateType_ThrowsException()
+        {
+            var evaluator = new Evaluator<InvalidMutualStateTypeContextAttribute,
                 TMAttribute, TMSAttribute, TBAttribute, TDAttribute, TOAttribute>();
 
             Assert.Throws<InvalidOperationException>(() =>
