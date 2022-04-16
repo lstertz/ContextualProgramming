@@ -122,9 +122,10 @@ public class App : IBehaviorApp
     private readonly Dictionary<object, HashSet<object>> _contextHosts = new();
 
     /// <summary>
-    /// A mapping of host context instances to their mutualist context instances.
+    /// A mapping of host context instances to their mutualist context instances, paired with their 
+    /// mutualist names.
     /// </summary>
-    private readonly Dictionary<object, object[]> _contextMutualists = new();
+    private readonly Dictionary<object, Tuple<string, object>[]> _contextMutualists = new();
 
     /// <summary>
     /// A mapping of context types to the mutualism fulfillers that will fulfill any 
@@ -529,13 +530,13 @@ public class App : IBehaviorApp
         if (fulfiller == null)
             return;
 
-        object[] mutualists = fulfiller.Fulfill(context);
+        Tuple<string, object>[] mutualists = fulfiller.Fulfill(context);
         _contextMutualists.Add(context, mutualists);
 
         for (int c = 0, count = mutualists.Length; c < count; c++)
         {
-            _contextHosts.Add(mutualists[c], new() { context });
-            Contextualize(mutualists[c]);
+            _contextHosts.Add(mutualists[c].Item2, new() { context });
+            Contextualize(mutualists[c].Item2 );
         }
     }
     #endregion
@@ -553,17 +554,17 @@ public class App : IBehaviorApp
         if (!_contextMutualists.ContainsKey(host))
             return;
 
-        object[] mutualists = _contextMutualists[host];
+        Tuple<string, object>[] mutualists = _contextMutualists[host];
         _contextMutualists.Remove(host);
 
         for (int c = 0, count = mutualists.Length; c < count; c++)
         {
-            if (!_contextHosts.ContainsKey(mutualists[c]))
+            if (!_contextHosts.ContainsKey(mutualists[c].Item2))
                 continue;
 
-            _contextHosts[mutualists[c]].Remove(host);
-            if (_contextHosts[mutualists[c]].Count == 0)
-                Decontextualize(mutualists[c]);
+            _contextHosts[mutualists[c].Item2].Remove(host);
+            if (_contextHosts[mutualists[c].Item2].Count == 0)
+                Decontextualize(mutualists[c].Item2);
         }
     }
 

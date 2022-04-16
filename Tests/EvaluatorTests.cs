@@ -610,7 +610,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasDuplicateMutualStatesContextAttribute>();
             evaluator.Initialize();
 
-            Tuple<PropertyInfo, PropertyInfo>[] infos =
+            Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] infos =
                 evaluator.GetMutualStateInfos(typeof(HostC));
 
             var hostIntA = typeof(HostC).GetProperty(nameof(HostC.IntA)) ??
@@ -619,8 +619,8 @@ namespace EvaluatorTests
                 throw new NullReferenceException();
 
             Assert.AreEqual(1, infos.Length);
-            Assert.Contains(new Tuple<PropertyInfo, PropertyInfo>(
-                hostIntA, mutualistValueA), infos);
+            Assert.Contains(new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>(
+                hostIntA, new (HostC.Mutualist, mutualistValueA)), infos);
         }
 
         [Test]
@@ -629,7 +629,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasMultipleMutualStatesPerPropertyContextAttribute>();
             evaluator.Initialize();
 
-            Tuple<PropertyInfo, PropertyInfo>[] infos =
+            Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] infos =
                 evaluator.GetMutualStateInfos(typeof(HostB));
 
             var hostIntA = typeof(HostB).GetProperty(nameof(HostB.IntA)) ??
@@ -640,10 +640,10 @@ namespace EvaluatorTests
                 throw new NullReferenceException();
 
             Assert.AreEqual(2, infos.Length);
-            Assert.Contains(new Tuple<PropertyInfo, PropertyInfo>(
-                hostIntA, mutualistValueA), infos);
-            Assert.Contains(new Tuple<PropertyInfo, PropertyInfo>(
-                hostIntA, mutualistValueB), infos);
+            Assert.Contains(new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>(
+                hostIntA, new(HostB.Mutualist, mutualistValueA)), infos);
+            Assert.Contains(new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>(
+                hostIntA, new(HostB.Mutualist, mutualistValueB)), infos);
         }
 
         [Test]
@@ -652,7 +652,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasMutualStatesContextAttribute>();
             evaluator.Initialize();
 
-            Tuple<PropertyInfo, PropertyInfo>[] infos = 
+            Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] infos = 
                 evaluator.GetMutualStateInfos(typeof(HostA));
 
             var hostIntA = typeof(HostA).GetProperty(nameof(HostA.IntA)) ?? 
@@ -665,10 +665,10 @@ namespace EvaluatorTests
                 throw new NullReferenceException();
 
             Assert.AreEqual(2, infos.Length);
-            Assert.Contains(new Tuple<PropertyInfo, PropertyInfo>(
-                hostIntA, mutualistValueA), infos);
-            Assert.Contains(new Tuple<PropertyInfo, PropertyInfo>(
-                hostIntB, mutualistValueB), infos);
+            Assert.Contains(new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>(
+                hostIntA, new(HostA.Mutualist, mutualistValueA)), infos);
+            Assert.Contains(new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>(
+                hostIntB, new(HostA.Mutualist, mutualistValueB)), infos);
         }
 
         [Test]
@@ -677,7 +677,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasNoMutualStatesContextAttribute>();
             evaluator.Initialize();
 
-            Tuple<PropertyInfo, PropertyInfo>[] infos = 
+            Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] infos = 
                 evaluator.GetMutualStateInfos(typeof(HasNoMutualStatesContext));
 
             Assert.IsEmpty(infos);
@@ -689,7 +689,7 @@ namespace EvaluatorTests
             var evaluator = GetEvaluator<HasNoStatesContextAttribute>();
             evaluator.Initialize();
 
-            Tuple<PropertyInfo, PropertyInfo>[] infos = 
+            Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] infos = 
                 evaluator.GetMutualStateInfos(typeof(HasNoStatesContext));
 
             Assert.IsEmpty(infos);

@@ -6,6 +6,16 @@
 public interface IMutualismFulfiller
 {
     /// <summary>
+    /// Provides the names of the mutualist contexts that would be instantiated 
+    /// by this factory.
+    /// </summary>
+    /// <remarks>
+    /// This includes one name for each mutualist. Each name is unique within 
+    /// the contexts of the fulfiller.
+    /// </remarks>
+    string[] MutualistContextNames { get; }
+
+    /// <summary>
     /// Provides the types of the mutualist contexts that would be instantiated 
     /// by this factory.
     /// </summary>
@@ -21,14 +31,18 @@ public interface IMutualismFulfiller
     /// </summary>
     /// <param name="context">The context whose mutualistic relationsihps 
     /// are to be fulfilled.</param>
-    /// <returns>The instantiated mutualist contexts (not yet contextualized).</returns>
-    object[] Fulfill(object context);
+    /// <returns>The instantiated mutualist contexts (not yet contextualized) paired 
+    /// with their mutualist names.</returns>
+    Tuple<string, object>[] Fulfill(object context);
 }
 
 
 /// <inheritdoc cref="IMutualismFulfiller"/>
 public class MutualismFulfiller : IMutualismFulfiller
 {
+    /// <inheritdoc/>
+    public string[] MutualistContextNames { get; private set; }
+
     /// <inheritdoc/>
     public Type[] MutualistContextTypes { get; private set; }
 
@@ -43,17 +57,20 @@ public class MutualismFulfiller : IMutualismFulfiller
     {
         MutualistContextTypes = mutualists != null ?
             mutualists.Values.ToArray() : Array.Empty<Type>();
+        MutualistContextNames = mutualists != null ?
+            mutualists.Keys.ToArray() : Array.Empty<string>();
     }
 
     /// <inheritdoc/>
-    public object[] Fulfill(object context)
+    public Tuple<string,object>[] Fulfill(object context)
     {
         context.EnsureNotNull();
 
-        object[] mutualists = new object[MutualistContextTypes.Length];
+        Tuple<string, object>[] mutualists = new Tuple<string, object>[
+            MutualistContextTypes.Length];
         for (int c = 0, count = mutualists.Length; c < count; c++)
-            mutualists[c] = Activator.CreateInstance(
-                MutualistContextTypes[c]).EnsureNotNull();
+            mutualists[c] = new (MutualistContextNames[c], Activator.CreateInstance(
+                MutualistContextTypes[c]).EnsureNotNull());
 
         return mutualists;
     }

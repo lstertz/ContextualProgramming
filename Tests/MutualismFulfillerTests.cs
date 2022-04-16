@@ -14,6 +14,40 @@ namespace MutualismFulfillerTests
     public class Construction
     {
         [Test]
+        public void SetsMutualistContextNames_Null_NoMutualistContextTypes()
+        {
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+            MutualismFulfiller fulfiller = new(null);
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
+
+            Assert.IsEmpty(fulfiller.MutualistContextNames);
+        }
+
+        [Test]
+        public void SetsMutualistContextNames_WithMutualism_HasMutualistContextTypes()
+        {
+            string expectedContextAName = "A";
+            string expectedContextBName = "B";
+            MutualismFulfiller fulfiller = new(new()
+            {
+                { expectedContextAName, typeof(TestContextA) },
+                { expectedContextBName, typeof(TestContextB) },
+            });
+
+            Assert.AreEqual(2, fulfiller.MutualistContextNames.Length);
+            Assert.Contains(expectedContextAName, fulfiller.MutualistContextNames);
+            Assert.Contains(expectedContextBName, fulfiller.MutualistContextNames);
+        }
+
+        [Test]
+        public void SetsMutualistContexNames_WithNoMutualism_NoMutualistContextTypes()
+        {
+            MutualismFulfiller fulfiller = new(new());
+
+            Assert.IsEmpty(fulfiller.MutualistContextNames);
+        }
+
+        [Test]
         public void SetsMutualistContextTypes_Null_NoMutualistContextTypes()
         {
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -62,6 +96,9 @@ namespace MutualismFulfillerTests
 
     public class Fulfill
     {
+        private const string expectedContextAName = "A";
+        private const string expectedContextBName = "B";
+
 #pragma warning disable CS8618
         private MutualismFulfiller _fulfiller;
 #pragma warning restore CS8618
@@ -71,8 +108,8 @@ namespace MutualismFulfillerTests
         {
             _fulfiller = new(new()
             {
-                { "A", typeof(TestContextA) },
-                { "B", typeof(TestContextB) },
+                { expectedContextAName, typeof(TestContextA) },
+                { expectedContextBName, typeof(TestContextB) },
             });
         }
 
@@ -87,11 +124,13 @@ namespace MutualismFulfillerTests
         [Test]
         public void WithMutualistContexts_ReturnsMatchingInstantiatedContexts()
         {
-            object[] mutualistContexts = _fulfiller.Fulfill(new TestContextC());
+            Tuple<string, object>[] mutualists = _fulfiller.Fulfill(new TestContextC());
 
-            Assert.AreEqual(2, mutualistContexts.Length);
-            Assert.AreEqual(typeof(TestContextA), mutualistContexts[0].GetType());
-            Assert.AreEqual(typeof(TestContextB), mutualistContexts[1].GetType());
+            Assert.AreEqual(2, mutualists.Length);
+            Assert.AreEqual(expectedContextAName, mutualists[0].Item1);
+            Assert.AreEqual(expectedContextBName, mutualists[1].Item1);
+            Assert.AreEqual(typeof(TestContextA), mutualists[0].Item2.GetType());
+            Assert.AreEqual(typeof(TestContextB), mutualists[1].Item2.GetType());
         }
 
         [Test]
@@ -99,9 +138,9 @@ namespace MutualismFulfillerTests
         {
             MutualismFulfiller fulfiller = new(new());
 
-            object[] mutualistContexts = fulfiller.Fulfill(new TestContextC());
+            Tuple<string, object>[] mutualists = fulfiller.Fulfill(new TestContextC());
 
-            Assert.IsEmpty(mutualistContexts);
+            Assert.IsEmpty(mutualists);
         }
     }
 }

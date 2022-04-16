@@ -117,14 +117,15 @@ public abstract class Evaluator
 
     /// <summary>
     /// Provides a mapping of property state infos to the corresponding mutual 
-    /// property state infos of a mutualist, for the specified context type.
+    /// property state infos, paired with their mutualist's name, for the specified context type.
     /// </summary>
     /// <param name="contextType">The type of context whose mutual state property 
     /// infos are to be provided.</param>
     /// <returns>An array of mutual property state info pairings.
     /// The first info of the pair is the provided context's property (the host's) and the 
-    /// second is the mutualist's property.</returns>
-    public abstract Tuple<PropertyInfo, PropertyInfo>[] GetMutualStateInfos(Type contextType);
+    /// second is the mutualist's property paired with the name of the mutualist.</returns>
+    public abstract Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] GetMutualStateInfos(
+        Type contextType);
 
     /// <summary>
     /// Provides the operations of the specified behavior type that should 
@@ -218,9 +219,9 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
 
     /// <summary>
     /// A mapping of context types to their mutual properties and their paired 
-    /// mutualists' properties.
+    /// mutualists' properties with their paired mutualist names.
     /// </summary>
-    private readonly Dictionary<Type, Tuple<PropertyInfo, PropertyInfo>[]>
+    private readonly Dictionary<Type, Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[]>
         _contextMutualProperties = new();
 
     /// <summary>
@@ -373,7 +374,8 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
     }
 
     /// <inheritdoc/>
-    public override Tuple<PropertyInfo, PropertyInfo>[] GetMutualStateInfos(Type contextType)
+    public override Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] GetMutualStateInfos(
+        Type contextType)
     {
         ValidateInitialization();
 
@@ -636,12 +638,12 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
         if (properties.Length == 0)
         {
             _contextMutualProperties.Add(contextType,
-                Array.Empty<Tuple<PropertyInfo, PropertyInfo>>());
+                Array.Empty<Tuple<PropertyInfo, Tuple<string, PropertyInfo>>>());
             return;
         }
 
         Dictionary<string, Type>? mutualists = null;
-        HashSet<Tuple<PropertyInfo, PropertyInfo>> mutualProperties = new();
+        HashSet<Tuple<PropertyInfo, Tuple<string, PropertyInfo>>> mutualProperties = new();
         for (int c = 0, count = properties.Length; c < count; c++)
         {
             var attrs = properties[c].GetCustomAttributes<TMutualAttribute>(true);
@@ -652,9 +654,9 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
                 mutualists = RetrieveMutualists(contextType);
 
             foreach (TMutualAttribute attr in attrs)
-                mutualProperties.Add(new(properties[c],
+                mutualProperties.Add(new(properties[c], new(attr.MutualistName, 
                     RetrieveMutualistProperty(contextType, properties[c].PropertyType,
-                        mutualists, attr)));
+                        mutualists, attr))));
         }
 
         _contextMutualProperties.Add(contextType, mutualProperties.ToArray());

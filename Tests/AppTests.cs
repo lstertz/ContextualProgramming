@@ -813,9 +813,9 @@ namespace AppTests
             TestContextA contextA = new();
             TestContextB expectedMutualistContext = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
-            fulfiller.Fulfill(contextA).Returns(new object[]
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {
-                expectedMutualistContext
+                new("B", expectedMutualistContext)
             });
 
             app.Contextualize(contextA);
@@ -1117,9 +1117,9 @@ namespace AppTests
 
             TestContextA contextA = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
-            fulfiller.Fulfill(contextA).Returns(new object[]
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {
-                new TestContextB()
+                new("B", new TestContextB())
             });
 
             app.Contextualize(contextA);
@@ -1137,9 +1137,9 @@ namespace AppTests
             TestContextA contextA = new();
             TestContextB contextB = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
-            fulfiller.Fulfill(contextA).Returns(new object[]
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {
-                contextB
+                new("B", contextB)
             });
 
             app.Contextualize(contextA);
