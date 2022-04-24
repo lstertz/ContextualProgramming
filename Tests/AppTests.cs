@@ -805,6 +805,40 @@ namespace AppTests
         }
 
         [Test]
+        public void HasMutualism_ConnectsMutualStates()
+        {
+            string mutualistName = "B";
+
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            App app = SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            PropertyInfo aInt = typeof(TestContextA).GetProperty(nameof(TestContextA.Int)) ??
+                throw new NullReferenceException();
+            PropertyInfo bInt = typeof(TestContextB).GetProperty(nameof(TestContextB.Int)) ??
+                throw new NullReferenceException();
+
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            app.Evaluator.GetMutualStateInfos(typeof(TestContextA)).Returns(
+                new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[]
+                {
+                    new(aInt, new(mutualistName, bInt))
+                });
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
+            {
+                new(mutualistName, contextB)
+            });
+
+            app.Contextualize(contextA);
+
+            int expected = 1;
+            contextA.Int.Value = expected;
+
+            Assert.AreEqual(expected, contextB.Int.Value);
+        }
+
+        [Test]
         public void HasMutualism_ContextualizesMutualistContext()
         {
             IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
@@ -821,6 +855,40 @@ namespace AppTests
             app.Contextualize(contextA);
 
             Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
+        }
+
+        [Test]
+        public void HasMutualism_OverridesMutualistMutualState()
+        {
+            string mutualistName = "B";
+
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            App app = SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            PropertyInfo aInt = typeof(TestContextA).GetProperty(nameof(TestContextA.Int)) ??
+                throw new NullReferenceException();
+            PropertyInfo bInt = typeof(TestContextB).GetProperty(nameof(TestContextB.Int)) ??
+                throw new NullReferenceException();
+
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            app.Evaluator.GetMutualStateInfos(typeof(TestContextA)).Returns(
+                new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[]
+                {
+                    new(aInt, new (mutualistName, bInt))
+                });
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
+            {
+                new(mutualistName, contextB)
+            });
+
+            int expected = 1;
+            contextA.Int.Value = expected;
+
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(expected, contextB.Int.Value);
         }
 
         [Test]
