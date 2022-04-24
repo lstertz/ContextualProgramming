@@ -29,39 +29,12 @@ public interface IBehaviorApp
     public void Decontextualize<T>(T context) where T : notnull;
 }
 
-
 /// <summary>
 /// Handles the state and behavior of the running application by managing 
 /// registered contexts and the resulting behaviors within an encapsulated environment.
 /// </summary>
 public class App : IBehaviorApp
 {
-    /// <summary>
-    /// Represents a record of a change for a property of a context.
-    /// </summary>
-    private class ContextChange
-    {
-        /// <summary>
-        /// The context that was changed.
-        /// </summary>
-        public object Context { get; set; }
-
-        /// <summary>
-        /// The name of the property that was changed.
-        /// </summary>
-        public string PropertyName { get; set; }
-
-
-        /// <summary>
-        /// Constructs a new context change to hold details of a changed context.
-        /// </summary>
-        /// <param name="context"><see cref="Context"/></param>
-        /// <param name="propertyName"><see cref="PropertyName"/></param>
-        public ContextChange(object context, string propertyName) => (Context, PropertyName) =
-            (context.EnsureNotNull(), propertyName.EnsureNotNull());
-    }
-
-
     /// <summary>
     /// Mapping of behavior instances to their encapsulating apps.
     /// </summary>
@@ -125,7 +98,7 @@ public class App : IBehaviorApp
     /// A mapping of host context instances to their mutualist context instances, paired with their 
     /// mutualist names.
     /// </summary>
-    private readonly Dictionary<object, Tuple<string, object>[]> _contextMutualists = new();
+    private readonly Dictionary<object, Dictionary<string, object>> _contextMutualists = new();
 
     /// <summary>
     /// A mapping of context types to the mutualism fulfillers that will fulfill any 
@@ -156,7 +129,7 @@ public class App : IBehaviorApp
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, MutualAttribute, 
+        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, MutualAttribute,
             BehaviorAttribute, DependencyAttribute, OperationAttribute>();
     }
 
@@ -261,7 +234,7 @@ public class App : IBehaviorApp
             return;
 
         _decontextualizedContexts.Remove(context);
-        
+
         BindContext(context, type);
         FulfillMutualisms(context, type);
         AddContextToBehaviorFactories(context, type);
@@ -506,14 +479,72 @@ public class App : IBehaviorApp
     /// <param name="type">The type of the context.</param>
     private void BindContext(object context, Type type)
     {
+        Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] mutualStateInfos =
+            Evaluator.GetMutualStateInfos(type);
+        if (mutualStateInfos.Length > 0)
+            SetUpMutualStateSetters(context, mutualStateInfos);
+
         PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
         {
+            // TODO :: Refactor when BoundValues are working.
+
             int contextIndex = c;
             (bindableProperties[c].GetValue(context) as IBindableState)?.Bind(() =>
-                _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
+            {
+                PropertyInfo info = bindableProperties[contextIndex];
+                _contextChanges.Add(new(context, info.Name));
+                SetMutualStates(context, info);
+            });
         }
     }
+
+    // TODO :: Remove when BoundValues are working.
+    private void SetMutualStates(object context, PropertyInfo hostStateInfo)
+    {
+        if (!_contextMutualStateSetters.ContainsKey(context) ||
+            !_contextMutualStateSetters[context].ContainsKey(hostStateInfo))
+            return;
+
+        List<Action<object>> setters = _contextMutualStateSetters[context][hostStateInfo];
+        //for (int c = 0, count = setters.Count; c < count; c++)
+        //    hostStateInfo.GetValue(context)
+    }
+
+    // TODO :: Remove when BoundValues are working.
+    private void SetUpMutualStateSetters(object context,
+        Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] mutualStateInfos)
+    {
+        Dictionary<PropertyInfo, List<Action<object>>> stateSetters = new();
+
+        for (int c = 0, count = mutualStateInfos.Length; c < count; c++)
+        {
+            object mutualistContext = _contextMutualists[context][
+                mutualStateInfos[c].Item2.Item1];
+
+            stateSetters.TryAdd(mutualStateInfos[c].Item1, new());
+            stateSetters[mutualStateInfos[c].Item1].Add(
+                (v) => mutualStateInfos[c].Item2.Item2.SetValue(mutualistContext, v));
+
+            _contextMutualStateSetters.TryAdd(mutualistContext, new());
+            _contextMutualStateSetters[mutualistContext].TryAdd(
+                mutualStateInfos[c].Item2.Item2, new());
+            _contextMutualStateSetters[mutualistContext][mutualStateInfos[c].Item2.Item2].Add(
+                (v) => mutualStateInfos[c].Item1.SetValue(context, v));
+        }
+
+        if (!_contextMutualStateSetters.TryAdd(context, stateSetters))
+            foreach (PropertyInfo hostInfo in stateSetters.Keys)
+                if (_contextMutualStateSetters[context].ContainsKey(hostInfo))
+                    _contextMutualStateSetters[context][hostInfo]
+                        .AddRange(stateSetters[hostInfo]);
+                else
+                    _contextMutualStateSetters[context].Add(hostInfo, stateSetters[hostInfo]);
+    }
+
+    // TODO :: Move to top.
+    private readonly Dictionary<object, Dictionary<PropertyInfo, List<Action<object>>>>
+        _contextMutualStateSetters = new();
 
     /// <summary>
     /// Fulfills and contextualizes the mutualistic relationships of the provided context.
@@ -531,12 +562,13 @@ public class App : IBehaviorApp
             return;
 
         Tuple<string, object>[] mutualists = fulfiller.Fulfill(context);
-        _contextMutualists.Add(context, mutualists);
+        _contextMutualists.Add(context, mutualists
+            .ToDictionary(mutualist => mutualist.Item1, mutualist => mutualist.Item2));
 
         for (int c = 0, count = mutualists.Length; c < count; c++)
         {
             _contextHosts.Add(mutualists[c].Item2, new() { context });
-            Contextualize(mutualists[c].Item2 );
+            Contextualize(mutualists[c].Item2);
         }
     }
     #endregion
@@ -554,17 +586,17 @@ public class App : IBehaviorApp
         if (!_contextMutualists.ContainsKey(host))
             return;
 
-        Tuple<string, object>[] mutualists = _contextMutualists[host];
+        Dictionary<string, object> mutualists = _contextMutualists[host];
         _contextMutualists.Remove(host);
 
-        for (int c = 0, count = mutualists.Length; c < count; c++)
+        foreach (object mutualist in mutualists.Values)
         {
-            if (!_contextHosts.ContainsKey(mutualists[c].Item2))
+            if (!_contextHosts.ContainsKey(mutualist))
                 continue;
 
-            _contextHosts[mutualists[c].Item2].Remove(host);
-            if (_contextHosts[mutualists[c].Item2].Count == 0)
-                Decontextualize(mutualists[c].Item2);
+            _contextHosts[mutualist].Remove(host);
+            if (_contextHosts[mutualist].Count == 0)
+                Decontextualize(mutualist);
         }
     }
 
