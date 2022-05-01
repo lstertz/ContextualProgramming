@@ -384,7 +384,7 @@ public class App : IBehaviorApp
                     InvokeOperation(bInstance, contextOperations[co]);
 
                 MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
-                    behaviorType, contextName, change.PropertyName);
+                    behaviorType, contextName, change.StateName);
                 for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
                     InvokeOperation(bInstance, stateOperations[so]);
             }
