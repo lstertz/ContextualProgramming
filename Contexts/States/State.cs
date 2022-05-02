@@ -28,14 +28,14 @@ public abstract class State<T> : IEquatable<State<T>>
     /// <summary>
     /// The encapsulated value of the state.
     /// </summary>
-    protected T InternalValue { get; set; }
+    protected IBindableValue<T> InternalValue { get; set; }
 
 
     /// <summary>
     /// Constructs a new state with the specified value for it to encapsulate.
     /// </summary>
     /// <param name="value">The encapsulated value of the state.</param>
-    protected State(T value) => InternalValue = value;
+    protected State(T value) => InternalValue = new BindableValue<T>(value);
 
 
     /// <summary>
@@ -54,21 +54,22 @@ public abstract class State<T> : IEquatable<State<T>>
         if (Equals(other, null))
             return false;
 
-        if (InternalValue == null)
-            return other.InternalValue == null;
+        if (InternalValue.Value == null)
+            return other.InternalValue.Value == null;
 
-        return InternalValue.Equals(other.InternalValue);
+        return InternalValue.Value.Equals(other.InternalValue.Value);
     }
 
     /// <inheritdoc/>
     public override int GetHashCode()
     {
-        if (InternalValue == null)
+        if (InternalValue.Value == null)
             return 0;
 
-        return InternalValue.GetHashCode();
+        return InternalValue.Value.GetHashCode();
     }
 
     /// <inheritdoc/>
-    public override string? ToString() => InternalValue == null ? "" : InternalValue.ToString();
+    public override string? ToString() => InternalValue.Value == null ? "" : 
+        InternalValue.Value.ToString();
 }

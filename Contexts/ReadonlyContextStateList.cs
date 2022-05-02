@@ -23,7 +23,7 @@ namespace ContextualProgramming
         /// </summary>
         /// <param name="stateList">The readonly context state list to be converted.</param>
         public static implicit operator T?[]?(ReadonlyContextStateList<T> stateList) =>
-            stateList.InternalValue;
+            stateList.InternalValue.Value;
 
         /// <summary>
         /// Checks for equality between two context state lists.
@@ -51,17 +51,17 @@ namespace ContextualProgramming
         /// </summary>
         /// <param name="index">The index of the element to be provided.</param>
         /// <returns>The element.</returns>
-        public T? this[int index] => InternalValue[index];
+        public T? this[int index] => InternalValue.Value[index];
 
         /// <summary>
         /// Provides the number of encapsulated elements of the readonly context state list.
         /// </summary>
-        public int Count => InternalValue.Length;
+        public int Count => InternalValue.Value.Length;
 
         /// <summary>
         /// The encapsulated elements of the readonly context state list.
         /// </summary>
-        public T?[]? Elements => InternalValue.ToArray();
+        public T?[]? Elements => InternalValue.Value.ToArray();
 
 
         /// <summary>
@@ -94,8 +94,8 @@ namespace ContextualProgramming
             if (Equals(o, null))
                 return false;
 
-            T?[] elements = InternalValue;
-            T?[] otherElements = o.InternalValue;
+            T?[] elements = InternalValue.Value;
+            T?[] otherElements = o.InternalValue.Value;
             if (elements.Length != otherElements.Length)
                 return false;
 

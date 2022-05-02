@@ -1,12 +1,38 @@
 using ContextualProgramming.Internal;
+using NSubstitute;
 using NUnit.Framework;
 
 namespace ContextStateListTests;
 
 public class Binding
 {
+    public static readonly int[] SetupValues = { 10, 11 };
+
+    private IBindableValue<List<int>> _bindableValue = Substitute.For<IBindableValue<List<int>>>();
+    private ContextStateList<int> _contextStateList = SetupValues;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _bindableValue.Value = new(SetupValues);
+        _bindableValue.ClearReceivedCalls();
+
+        (_contextStateList as IBindableState)?.Bind((_) => _bindableValue);
+    }
+
+
     [Test]
-    public void BindStateToNull_ThrowsException()
+    public void BindStateWithIncorrectBindableValueType_ThrowsException()
+    {
+        int[] values = { 10, 11 };
+        ContextStateList<int> contextStateList = values;
+
+        Assert.Throws<InvalidOperationException>(() =>
+            (contextStateList as IBindableState)?.Bind((_) => new BindableValue<string>("")));
+    }
+
+    [Test]
+    public void BindStateWithNull_ThrowsException()
     {
         int[] values = { 10, 11 };
         ContextStateList<int> contextStateList = values;
@@ -18,388 +44,306 @@ public class Binding
     }
 
     [Test]
-    public void BoundState_AddRangeWillNotify()
+    public void BoundState_Add_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        IEnumerable<int> expectedValue = SetupValues.Append(12);
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList.Add(12);
 
-        contextStateList.AddRange(new int[] { 12, 13 });
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_AddWillNotify()
+    public void BoundState_AddRange_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        IEnumerable<int> expectedValue = SetupValues.Append(12);
+        expectedValue = expectedValue.Append(13);
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList.AddRange(new int[] { 12, 13 });
 
-        contextStateList.Add(12);
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_ClearOfEmptyListWillNotNotify()
+    public void BoundState_ClearOfEmptyList_DoesNotChangeValueOrFlagChange()
     {
-        bool wasNotified = false;
+        IBindableValue<List<int>> bindableValue = Substitute.For<IBindableValue<List<int>>>();
+        bindableValue.Value = new(Array.Empty<int>());
 
         ContextStateList<int> contextStateList = Array.Empty<int>();
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        (contextStateList as IBindableState)?.Bind((_) => bindableValue);
 
         contextStateList.Clear();
 
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(Array.Empty<int>(), bindableValue.Value);
+        bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_ClearWillNotify()
+    public void BoundState_Clear_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        _contextStateList.Clear();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-
-        contextStateList.Clear();
-
-        Assert.IsTrue(wasNotified);
+        Assert.IsEmpty(_bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_ElementChangeWillNotify()
+    public void BoundState_ElementChange_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        List<int> expectedValue = new(SetupValues);
+        expectedValue[0] = 12;
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList[0] = 12;
 
-        contextStateList[0] = 12;
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_ElementsChangeWillNotify()
+    public void BoundState_ElementsChange_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        int[] expectedValue = new int[] { 12, 13 };
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList.Elements = expectedValue;
 
-        contextStateList.Elements = new int[] { 12, 13 };
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_ElementChangeWillNotify_FromNull()
+    public void BoundState_ElementsUnchanged_DoesNotChangeValueOrFlagChange()
     {
-        bool wasNotified = false;
+        _contextStateList.Elements = SetupValues;
 
-        string?[] values = { null, "a" };
-        ContextStateList<string> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-
-        contextStateList[0] = "b";
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_ElementChangeWillNotify_ToNull()
+    public void BoundState_ElementUnchanged_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        _contextStateList[0] = SetupValues[0];
 
-        string?[] values = { "a", "b" };
-        ContextStateList<string> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-
-        contextStateList[0] = null;
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_ElementUnchangedDoesNotNotify()
+    public void BoundState_EmptySetToEmpty_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
-
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-
-        contextStateList[0] = 10;
-
-        Assert.IsFalse(wasNotified);
-    }
-
-    [Test]
-    public void BoundState_EmptySetToEmptyDoesNotNotify()
-    {
-        bool wasNotified = false;
+        IBindableValue<List<int>> bindableValue = Substitute.For<IBindableValue<List<int>>>();
+        bindableValue.Value = new(Array.Empty<int>());
 
         ContextStateList<int> contextStateList = Array.Empty<int>();
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        (contextStateList as IBindableState)?.Bind((_) => bindableValue);
 
         contextStateList.Elements = Array.Empty<int>();
 
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_EmptySetToNullDoesNotNotify()
+    public void BoundState_EmptySetToNull_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        IBindableValue<List<int>> bindableValue = Substitute.For<IBindableValue<List<int>>>();
+        bindableValue.Value = new(Array.Empty<int>());
 
         ContextStateList<int> contextStateList = Array.Empty<int>();
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        (contextStateList as IBindableState)?.Bind((_) => bindableValue);
 
         contextStateList.Elements = null;
 
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_InsertWillNotify()
+    public void BoundState_Insert_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        int[] expectedValue = new int[] { 10, 12, 11 };
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList.Insert(1, 12);
 
-        contextStateList.Insert(1, 12);
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_InsertRangeWillNotify()
+    public void BoundState_InsertRange_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        int[] expectedValue = new int[] { 10, 12, 13, 11 };
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList.InsertRange(1, new int[] { 12, 13 });
 
-        contextStateList.InsertRange(1, new int[] { 12, 13 });
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_NonRemoveWillNotify()
+    public void BoundState_NonRemove_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        _contextStateList.Remove(12);
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-
-        contextStateList.Remove(12);
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_RemoveWillNotify()
+    public void BoundState_Remove_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        IEnumerable<int> expectedValue = new int[] { 11 };
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList.Remove(10);
 
-        contextStateList.Remove(10);
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_RemoveAtWillNotify()
+    public void BoundState_RemoveAt_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        IEnumerable<int> expectedValue = new int[] { 11 };
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        _contextStateList.RemoveAt(0);
 
-        contextStateList.RemoveAt(0);
-
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(expectedValue, _bindableValue.Value);
+        _bindableValue.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void BoundState_RetrievalDoesNotNotify()
+    public void BoundState_Retrieval_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        int value = _contextStateList[0];
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-
-        int value = contextStateList[0];
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void ReboundState_ChangeWillNotify()
+    public void ReboundState_Change_ChangesValueAndFlagsChange()
     {
-        bool wasNotified = false;
+        IEnumerable<int> expectedValue = new int[] { 12, 11 };
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = false);
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
+        IBindableValue<List<int>> bindableValue1 = Substitute.For<IBindableValue<List<int>>>();
+        bindableValue1.Value = new(SetupValues);
+
+        IBindableValue<List<int>> bindableValue2 = Substitute.For<IBindableValue<List<int>>>();
+        bindableValue2.Value = new(SetupValues);
+
+        ContextStateList<int> contextStateList = Array.Empty<int>();
+        (contextStateList as IBindableState)?.Bind((_) => bindableValue1);
+        (contextStateList as IBindableState)?.Bind((_) => bindableValue2);
 
         contextStateList[0] = 12;
 
-        Assert.IsTrue(wasNotified);
+        Assert.AreEqual(SetupValues, bindableValue1.Value);
+        bindableValue1.DidNotReceive().FlagAsChanged();
+
+        Assert.AreEqual(expectedValue, bindableValue2.Value);
+        bindableValue2.Received(1).FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_AddDoesNotNotify()
+    public void UnboundState_Add_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.Add(12);
 
-        contextStateList.Add(12);
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_AddRangeDoesNotNotify()
+    public void UnboundState_AddRange_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.AddRange(new int[] { 12, 13 });
 
-        contextStateList.AddRange(new int[] { 12, 13 });
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_ClearDoesNotNotify()
+    public void UnboundState_Clear_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.Clear();
 
-        contextStateList.Clear();
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_ElementChangeDoesNotNotify()
+    public void UnboundState_ElementChange_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList[0] = 12;
 
-        contextStateList[0] = 12;
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_ElementsChangeDoesNotNotify()
+    public void UnboundState_ElementsChange_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.Elements = new int[] { 12, 13 };
 
-        contextStateList.Elements = new int[] { 12, 13 };
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_InsertDoesNotNotify()
+    public void UnboundState_Insert_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.Insert(1, 12);
 
-        contextStateList.Insert(1, 12);
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_InsertRangeDoesNotNotify()
+    public void UnboundState_InsertRange_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.InsertRange(1, new int[] { 12, 13 });
 
-        contextStateList.InsertRange(1, new int[] { 12, 13 });
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_RemoveAtDoesNotNotify()
+    public void UnboundState_RemoveAt_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.RemoveAt(0);
 
-        contextStateList.RemoveAt(0);
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 
     [Test]
-    public void UnboundState_RemoveDoesNotNotify()
+    public void UnboundState_Remove_DoesNotChangeValueOrFlagsChange()
     {
-        bool wasNotified = false;
+        (_contextStateList as IBindableState)?.Unbind();
 
-        int[] values = { 10, 11 };
-        ContextStateList<int> contextStateList = values;
-        (contextStateList as IBindableState)?.Bind(() => wasNotified = true);
-        (contextStateList as IBindableState)?.Unbind();
+        _contextStateList.Remove(10);
 
-        contextStateList.Remove(10);
-
-        Assert.IsFalse(wasNotified);
+        Assert.AreEqual(SetupValues, _bindableValue.Value);
+        _bindableValue.DidNotReceive().FlagAsChanged();
     }
 }
 
