@@ -1,5 +1,4 @@
 using ContextualProgramming.Internal;
-using NSubstitute;
 using NUnit.Framework;
 
 namespace ContextStateTests;
@@ -7,16 +6,7 @@ namespace ContextStateTests;
 public class Binding
 {
     [Test]
-    public void BindStateWithIncorrectBindableValueType_ThrowsException()
-    {
-        ContextState<int> contextState = 10;
-
-        Assert.Throws<InvalidOperationException>(() =>
-            (contextState as IBindableState)?.Bind((_) => new BindableValue<string>("")));
-    }
-
-    [Test]
-    public void BindStateWithNull_ThrowsException()
+    public void BindStateToNull_ThrowsException()
     {
         ContextState<int> contextState = 10;
 #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
@@ -26,82 +16,86 @@ public class Binding
     }
 
     [Test]
-    public void BoundStateWithNoValueChange_DoesNotChangeValueOrFlagChange()
+    public void BoundState_ValueChangeWillNotify()
     {
-        int value = 10;
-        IBindableValue<int> bindableValue = Substitute.For<IBindableValue<int>>();
-        bindableValue.ClearReceivedCalls();
-        bindableValue.Value = value;
+        bool wasNotified = false;
 
+        ContextState<int> contextState = 10;
+        (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+        contextState.Value = 11;
+
+        Assert.IsTrue(wasNotified);
+    }
+
+    [Test]
+    public void BoundState_ValueChangeWillNotify_FromNull()
+    {
+        bool wasNotified = false;
+
+        ContextState<string> contextState = new(null);
+        (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+        contextState.Value = "Test";
+
+        Assert.IsTrue(wasNotified);
+    }
+
+    [Test]
+    public void BoundState_ValueChangeWillNotify_ToNull()
+    {
+        bool wasNotified = false;
+
+        ContextState<string> contextState = new("Test");
+        (contextState as IBindableState)?.Bind(() => wasNotified = true);
+
+        contextState.Value = null;
+
+        Assert.IsTrue(wasNotified);
+    }
+
+    [Test]
+    public void BoundState_ValueUnchangedDoesNotNotify()
+    {
+        bool wasNotified = false;
+
+        int value = 10;
         ContextState<int> contextState = value;
-        (contextState as IBindableState)?.Bind((_) => bindableValue);
+        (contextState as IBindableState)?.Bind(() => wasNotified = true);
 
         contextState.Value = value;
 
-        Assert.AreEqual(value, bindableValue.Value);
-        bindableValue.DidNotReceive().FlagAsChanged();
+        Assert.IsFalse(wasNotified);
     }
 
     [Test]
-    public void BoundStateWithValueChange_ChangesValueAndFlagsChange()
+    public void ReboundState_ValueChangeWillNotify()
     {
+        bool wasNotified = false;
+
         int value = 10;
-        int expectedValue = 11;
-        IBindableValue<int> bindableValue = Substitute.For<IBindableValue<int>>();
-        bindableValue.ClearReceivedCalls();
-        bindableValue.Value = value;
-
         ContextState<int> contextState = value;
-        (contextState as IBindableState)?.Bind((_) => bindableValue);
+        (contextState as IBindableState)?.Bind(() => wasNotified = false);
+        (contextState as IBindableState)?.Bind(() => wasNotified = true);
 
-        contextState.Value = expectedValue;
+        contextState.Value = 11;
 
-        Assert.AreEqual(expectedValue, bindableValue.Value);
-        bindableValue.Received(1).FlagAsChanged();
+        Assert.IsTrue(wasNotified);
     }
 
     [Test]
-    public void ReboundStateWithValueChange_ChangesValueAndFlagsChange()
+    public void UnboundState_ValueChangeDoesNotNotify()
     {
+        bool wasNotified = false;
+
         int value = 10;
-        int expectedValue = 11;
-        IBindableValue<int> bindableValue1 = Substitute.For<IBindableValue<int>>();
-        bindableValue1.ClearReceivedCalls();
-        bindableValue1.Value = value;
-
-        IBindableValue<int> bindableValue2 = Substitute.For<IBindableValue<int>>();
-        bindableValue2.ClearReceivedCalls();
-        bindableValue2.Value = value;
-
         ContextState<int> contextState = value;
-        (contextState as IBindableState)?.Bind((_) => bindableValue1);
-        (contextState as IBindableState)?.Bind((_) => bindableValue2);
-
-        contextState.Value = expectedValue;
-
-        Assert.AreEqual(value, bindableValue1.Value);
-        bindableValue1.DidNotReceive().FlagAsChanged();
-
-        Assert.AreEqual(expectedValue, bindableValue2.Value);
-        bindableValue2.Received(1).FlagAsChanged();
-    }
-
-    [Test]
-    public void UnboundStateWithValueChange_DoesNotChangeValueOrFlagChange()
-    {
-        int value = 10;
-        IBindableValue<int> bindableValue = Substitute.For<IBindableValue<int>>();
-        bindableValue.ClearReceivedCalls();
-        bindableValue.Value = value;
-
-        ContextState<int> contextState = value;
-        (contextState as IBindableState)?.Bind((_) => bindableValue);
+        (contextState as IBindableState)?.Bind(() => wasNotified = true);
         (contextState as IBindableState)?.Unbind();
 
         contextState.Value = 11;
 
-        Assert.AreEqual(value, bindableValue.Value);
-        bindableValue.DidNotReceive().FlagAsChanged();
+        Assert.IsFalse(wasNotified);
     }
 }
 
@@ -268,26 +262,6 @@ public class Equality
 
         Assert.IsTrue(null != contextState);
         Assert.IsTrue(contextState != null);
-    }
-}
-
-public class GetHashCode
-{
-    [Test]
-    public void NonNullValue()
-    {
-        int value = 10;
-        ContextState<int> contextState = value;
-
-        Assert.AreEqual(value.GetHashCode(), contextState.GetHashCode());
-    }
-
-    [Test]
-    public void NullValue()
-    {
-        ContextState<string> contextState = new(null);
-
-        Assert.AreEqual(0, contextState.GetHashCode());
     }
 }
 

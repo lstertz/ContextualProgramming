@@ -21,14 +21,13 @@ namespace ContextualProgramming
         /// Implicitly converts a readonly context state to its underlying value.
         /// </summary>
         /// <param name="state">The readonly context state to be converted.</param>
-        public static implicit operator T?(ReadonlyContextState<T> state) => 
-            state.InternalValue.Value;
+        public static implicit operator T?(ReadonlyContextState<T> state) => state.InternalValue;
 
 
         /// <summary>
         /// The encapsulated value of the context state.
         /// </summary>
-        public T? Value => InternalValue.Value;
+        public T? Value => InternalValue;
 
 
         /// <summary>
@@ -39,7 +38,15 @@ namespace ContextualProgramming
 
 
         /// <inheritdoc/>
-        protected override State<T?>? Convert(object? other) => other is T? ?
-            new ReadonlyContextState<T>((T?)other) : null;
+        protected override State<T?>? Convert(object? other)
+        {
+            if (other is ReadonlyContextState<T> contextState)
+                return new ReadonlyContextState<T>(contextState.InternalValue);
+
+            if (other is T value)
+                return new ReadonlyContextState<T>(value);
+
+            return null;
+        }
     }
 }

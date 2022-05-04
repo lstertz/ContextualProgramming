@@ -23,7 +23,7 @@ namespace ContextualProgramming
         /// </summary>
         /// <param name="stateList">The readonly context state list to be converted.</param>
         public static implicit operator T?[]?(ReadonlyContextStateList<T> stateList) =>
-            stateList.InternalValue.Value;
+            stateList.InternalValue;
 
         /// <summary>
         /// Checks for equality between two context state lists.
@@ -51,17 +51,17 @@ namespace ContextualProgramming
         /// </summary>
         /// <param name="index">The index of the element to be provided.</param>
         /// <returns>The element.</returns>
-        public T? this[int index] => InternalValue.Value[index];
+        public T? this[int index] => InternalValue[index];
 
         /// <summary>
         /// Provides the number of encapsulated elements of the readonly context state list.
         /// </summary>
-        public int Count => InternalValue.Value.Length;
+        public int Count => InternalValue.Length;
 
         /// <summary>
         /// The encapsulated elements of the readonly context state list.
         /// </summary>
-        public T?[]? Elements => InternalValue.Value.ToArray();
+        public T?[]? Elements => InternalValue.ToArray();
 
 
         /// <summary>
@@ -77,6 +77,9 @@ namespace ContextualProgramming
         /// <inheritdoc/>
         protected override State<T?[]>? Convert(object? other)
         {
+            if (other is ReadonlyContextStateList<T> contextStateList)
+                return new ReadonlyContextStateList<T>(contextStateList.Elements);
+
             if (other is T?[] array)
                 return new ReadonlyContextStateList<T>(array);
 
@@ -94,8 +97,8 @@ namespace ContextualProgramming
             if (Equals(o, null))
                 return false;
 
-            T?[] elements = InternalValue.Value;
-            T?[] otherElements = o.InternalValue.Value;
+            T?[] elements = InternalValue;
+            T?[] otherElements = o.InternalValue;
             if (elements.Length != otherElements.Length)
                 return false;
 

@@ -168,26 +168,6 @@ namespace ReadonlyContextStateTests
         }
     }
 
-    public class GetHashCode
-    {
-        [Test]
-        public void NonNullValue()
-        {
-            int value = 10;
-            ReadonlyContextState<int> ReadonlyContextState = value;
-
-            Assert.AreEqual(value.GetHashCode(), ReadonlyContextState.GetHashCode());
-        }
-
-        [Test]
-        public void NullValue()
-        {
-            ReadonlyContextState<string> ReadonlyContextState = new(null);
-
-            Assert.AreEqual(0, ReadonlyContextState.GetHashCode());
-        }
-    }
-
     public class ToString
     {
         [Test]

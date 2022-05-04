@@ -21,26 +21,28 @@ namespace ContextualProgramming
         /// Implicitly converts a context state to its underlying value.
         /// </summary>
         /// <param name="state">The context state to be converted.</param>
-        public static implicit operator T?(ContextState<T> state) => state.InternalValue.Value;
+        public static implicit operator T?(ContextState<T> state) => state.InternalValue;
 
 
         /// <summary>
         /// The encapsulated value of the context state.
         /// </summary>
-        public T? Value
+        public T? Value 
         {
-            get => InternalValue.Value;
+            get => InternalValue; 
             set
             {
-                if (InternalValue.Value == null && value == null)
+                if (InternalValue == null && value == null)
                     return;
-                else if (InternalValue.Value != null && InternalValue.Value.Equals(value))
+                else if (InternalValue != null && InternalValue.Equals(value))
                     return;
 
-                InternalValue.Value = value;
-                InternalValue.FlagAsChanged();
+                InternalValue = value;
+                _onChange?.Invoke();
             }
         }
+
+        private Action? _onChange;
 
 
         /// <summary>
@@ -51,27 +53,24 @@ namespace ContextualProgramming
 
 
         /// <inheritdoc/>
-        protected override State<T?>? Convert(object? other) => other is T? ?
-            new ContextState<T>((T?)other) : null;
-
-
-        /// <inheritdoc/>
-        void IBindableState.Bind(Func<IBindableValue, IBindableValue> bindingCallback)
+        protected override State<T?>? Convert(object? other)
         {
-            if (bindingCallback == null)
-                throw new ArgumentNullException(nameof(bindingCallback), $"The binding callback " +
-                    $"cannot be null. If attempting to unbind, " +
-                    $"use {nameof(IBindableState.Unbind)}.");
+            if (other is ContextState<T> contextState)
+                return new ContextState<T>(contextState.InternalValue);
+            
+            if (other is T value)
+                return new ContextState<T>(value);
 
-            IBindableValue<T?>? boundValue = bindingCallback(InternalValue) as IBindableValue<T?>;
-            if (boundValue == null)
-                throw new InvalidOperationException("A bound value must have a value type that " +
-                    "matches the state that it is being bound to.");
-
-            InternalValue = boundValue;
+            return null;
         }
 
+
         /// <inheritdoc/>
-        void IBindableState.Unbind() => InternalValue = new BindableValue<T?>(InternalValue.Value);
+        void IBindableState.Bind(Action onChange) => _onChange = onChange ?? 
+            throw new ArgumentNullException(nameof(onChange), $"The binding action cannot " +
+                $"be null. If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
+
+        /// <inheritdoc/>
+        void IBindableState.Unbind() => _onChange = null;
     }
 }

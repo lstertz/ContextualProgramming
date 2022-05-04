@@ -7,18 +7,17 @@
     public interface IBindableState
     {
         /// <summary>
-        /// Binds the state by registering it to the appropriate bindable value and providing 
-        /// that bindable value back to the state as the state's intended internal value.
+        /// Binds the state to the provided action.
         /// </summary>
-        /// <param name="bindingCallback">The function to be invoked with the state's 
-        /// current bindable value, returning either the registered version of that 
-        /// value or a different bindable value that should serve as the 
-        /// state's internal value.</param>
-        void Bind(Func<IBindableValue, IBindableValue> bindingCallback);
+        /// <remarks>
+        /// Any previous binding will be replaced.
+        /// To unbind without a replacement, use <see cref="Unbind"/>.</remarks>
+        /// <param name="onChange">The action to be invoked whenever the value 
+        /// of the state changes.</param>
+        void Bind(Action onChange);
 
         /// <summary>
-        /// Unbinds the state, which restores its internal bindable value to a 
-        /// standalone unbound value.
+        /// Unbinds the state from any previously bound action.
         /// </summary>
         void Unbind();
     }

@@ -305,6 +305,8 @@ namespace AppTests
             return CanInstantiate;
         }
 
+        public bool HasAvailableDependency(Type type) => _availableDependencies[type].Count > 0;
+
         public BehaviorInstance[] Process()
         {
             if (!CanInstantiate)
@@ -1088,6 +1090,31 @@ namespace AppTests
             _app.Contextualize(contextA);
 
             Validate.TestBehaviorsABExist(_app, contextA);
+        }
+
+        [Test]
+        public void DependentBehaviors_RecontextualizedBeforeUpdate_FactoryHasNoExtraContext()
+        {
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
+
+            var factory = new BehaviorFactoryDouble<TestBehaviorA>(
+                new(), new(), requiredDependencies);
+            App app = AppTests.SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory, requiredDependencies);
+
+            TestContextA contextA = new();
+            app.Contextualize(contextA);
+            app.Contextualize(new TestContextB());
+            app.Update();
+
+            app.Decontextualize(contextA);
+            app.Contextualize(contextA);
+
+            Assert.IsFalse(factory.HasAvailableDependency(typeof(TestContextA)));
         }
 
         [Test]

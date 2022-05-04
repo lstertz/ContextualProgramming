@@ -22,7 +22,7 @@ namespace ContextualProgramming
         /// </summary>
         /// <param name="stateList">The context state list to be converted.</param>
         public static implicit operator T?[]?(ContextStateList<T> stateList) =>
-            stateList.InternalValue.Value.ToArray();
+            stateList.InternalValue.ToArray();
 
         /// <summary>
         /// Checks for equality between two context state lists.
@@ -50,10 +50,10 @@ namespace ContextualProgramming
         /// <returns>The element.</returns>
         public T? this[int index]
         {
-            get => InternalValue.Value[index];
+            get => InternalValue[index];
             set
             {
-                T? element = InternalValue.Value[index];
+                T? element = InternalValue[index];
                 if (element == null)
                 {
                     if (value == null)
@@ -62,39 +62,40 @@ namespace ContextualProgramming
                 else if (element.Equals(value))
                     return;
 
-                InternalValue.Value[index] = value;
-                InternalValue.FlagAsChanged();
+                InternalValue[index] = value;
+                _onChange?.Invoke();
             }
         }
 
         /// <summary>
         /// Provides the number of encapsulated elements of the context state list.
         /// </summary>
-        public int Count => InternalValue.Value.Count;
+        public int Count => InternalValue.Count;
 
         /// <summary>
         /// The encapsulated elements of the context state list.
         /// </summary>
         public T?[]? Elements
         {
-            get => InternalValue.Value.ToArray();
+            get => InternalValue.ToArray(); 
             set
             {
-                List<T?> elements = InternalValue.Value;
+                List<T?> elements = InternalValue;
 
                 if (elements.Count == 0 && (value == null || value.Length == 0))
                     return;
-                if (value != null && elements.Count == value.Length &&
-                    elements.SequenceEqual(value))
+                if (elements.Equals(value))
                     return;
 
                 elements.Clear();
                 if (value != null && value.Length != 0)
                     elements.AddRange(value);
 
-                InternalValue.FlagAsChanged();
+                _onChange?.Invoke();
             }
         }
+
+        private Action? _onChange;
 
 
         /// <summary>
@@ -107,6 +108,9 @@ namespace ContextualProgramming
         /// <inheritdoc/>
         protected override State<List<T?>>? Convert(object? other)
         {
+            if (other is ContextStateList<T> contextStateList)
+                return new ContextStateList<T>(contextStateList.Elements);
+
             if (other is T?[] array)
                 return new ContextStateList<T>(array);
 
@@ -116,26 +120,14 @@ namespace ContextualProgramming
             return null;
         }
 
-        /// <inheritdoc/>
-        void IBindableState.Bind(Func<IBindableValue, IBindableValue> bindingCallback)
-        {
-            if (bindingCallback == null)
-                throw new ArgumentNullException(nameof(bindingCallback), $"The binding callback " +
-                    $"cannot be null. If attempting to unbind, " +
-                    $"use {nameof(IBindableState.Unbind)}.");
-
-            IBindableValue<List<T?>>? boundValue = bindingCallback(InternalValue)
-                as IBindableValue<List<T?>>;
-            if (boundValue == null)
-                throw new InvalidOperationException("A bound value must have a value type that " +
-                    "matches the state that it is being bound to.");
-
-            InternalValue = boundValue;
-        }
 
         /// <inheritdoc/>
-        void IBindableState.Unbind() => InternalValue = new BindableValue<List<T?>>(
-            new(InternalValue.Value));
+        void IBindableState.Bind(Action onChange) => _onChange = onChange ??
+            throw new ArgumentNullException(nameof(onChange), $"The binding action cannot " +
+                $"be null. If attempting to unbind, use {nameof(IBindableState.Unbind)}.");
+
+        /// <inheritdoc/>
+        void IBindableState.Unbind() => _onChange = null;
 
 
         /// <inheritdoc/>
@@ -145,8 +137,8 @@ namespace ContextualProgramming
             if (Equals(o, null))
                 return false;
 
-            List<T?> elements = InternalValue.Value;
-            List<T?> otherElements = o.InternalValue.Value;
+            List<T?> elements = InternalValue;
+            List<T?> otherElements = o.InternalValue;
             if (elements.Count != otherElements.Count)
                 return false;
 
@@ -175,8 +167,8 @@ namespace ContextualProgramming
         /// <param name="element">The element to be added.</param>
         public void Add(T element)
         {
-            InternalValue.Value.Add(element);
-            InternalValue.FlagAsChanged();
+            InternalValue.Add(element);
+            _onChange?.Invoke();
         }
 
         /// <summary>
@@ -188,8 +180,8 @@ namespace ContextualProgramming
         /// <param name="elements">The elements to be added.</param>
         public void AddRange(T?[] elements)
         {
-            InternalValue.Value.AddRange(elements);
-            InternalValue.FlagAsChanged();
+            InternalValue.AddRange(elements);
+            _onChange?.Invoke();
         }
 
         /// <summary>
@@ -200,11 +192,11 @@ namespace ContextualProgramming
         /// </remarks>
         public void Clear()
         {
-            if (InternalValue.Value.Count == 0)
+            if (InternalValue.Count == 0)
                 return;
 
-            InternalValue.Value.Clear();
-            InternalValue.FlagAsChanged();
+            InternalValue.Clear();
+            _onChange?.Invoke();
         }
 
         /// <summary>
@@ -217,8 +209,8 @@ namespace ContextualProgramming
         /// <param name="element">The element to be inserted.</param>
         public void Insert(int index, T element)
         {
-            InternalValue.Value.Insert(index, element);
-            InternalValue.FlagAsChanged();
+            InternalValue.Insert(index, element);
+            _onChange?.Invoke();
         }
 
         /// <summary>
@@ -231,8 +223,8 @@ namespace ContextualProgramming
         /// <param name="elements">The elements to be inserted.</param>
         public void InsertRange(int index, T?[] elements)
         {
-            InternalValue.Value.InsertRange(index, elements);
-            InternalValue.FlagAsChanged();
+            InternalValue.InsertRange(index, elements);
+            _onChange?.Invoke();
         }
 
         /// <summary>
@@ -244,8 +236,8 @@ namespace ContextualProgramming
         /// <param name="element">The element to be removed.</param>
         public void Remove(T element)
         {
-            if (InternalValue.Value.Remove(element))
-                InternalValue.FlagAsChanged();
+            if (InternalValue.Remove(element))
+                _onChange?.Invoke();
         }
 
         /// <summary>
@@ -257,8 +249,8 @@ namespace ContextualProgramming
         /// <param name="index">The index at which the removal is to occur.</param>
         public void RemoveAt(int index)
         {
-            InternalValue.Value.RemoveAt(index);
-            InternalValue.FlagAsChanged();
+            InternalValue.RemoveAt(index);
+            _onChange?.Invoke();
         }
 
 
