@@ -826,9 +826,9 @@ namespace AppTests
             TestContextB contextB = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
             app.Evaluator.GetMutualStateInfos(typeof(TestContextA)).Returns(
-                new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[]
+                new MutualStateInfo[]
                 {
-                    new(aInt, new(mutualistName, bInt))
+                    new(aInt, mutualistName, bInt)
                 });
             fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {
@@ -879,9 +879,9 @@ namespace AppTests
             TestContextB contextB = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
             app.Evaluator.GetMutualStateInfos(typeof(TestContextA)).Returns(
-                new Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[]
+                new MutualStateInfo[]
                 {
-                    new(aInt, new (mutualistName, bInt))
+                    new(aInt, mutualistName, bInt)
                 });
             fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {

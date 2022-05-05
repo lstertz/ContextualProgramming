@@ -542,19 +542,11 @@ public class App : IBehaviorApp
     /// <param name="type">The type of the context.</param>
     private void BindContext(object context, Type type)
     {
-        Tuple<PropertyInfo, Tuple<string, PropertyInfo>>[] mutualStateInfos =
-            Evaluator.GetMutualStateInfos(type);
+        MutualStateInfo[] mutualStateInfos = Evaluator.GetMutualStateInfos(type);
         for (int c = 0, count = mutualStateInfos.Length; c < count; c++)
-        {
-            // TODO : 29 :: Simplify with value tuple.
-
-            PropertyInfo hostPropertyInfo = mutualStateInfos[c].Item1;
-            string mutualistName = mutualStateInfos[c].Item2.Item1;
-            PropertyInfo mutualistPropertyInfo = mutualStateInfos[c].Item2.Item2;
-
-            mutualistPropertyInfo.SetValue(_contextMutualists[context][mutualistName],
-                hostPropertyInfo.GetValue(context));
-        }
+            mutualStateInfos[c].MutualistPropertyInfo.SetValue(
+                _contextMutualists[context][mutualStateInfos[c].MutualistPropertyName],
+                mutualStateInfos[c].HostPropertyInfo.GetValue(context));
 
         PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
