@@ -1,3 +1,4 @@
+using ContextualProgramming.Internal;
 using NUnit.Framework;
 
 namespace ReadonlyContextStateListTests;
@@ -94,6 +95,23 @@ public class Equality
 
         Assert.IsTrue(ReadonlyContextStateList.Equals(values));
         Assert.IsFalse(ReadonlyContextStateList.Equals(comparedValues));
+    }
+
+    [Test]
+    public void Equals_CastAsIEquatable()
+    {
+        int[] values = { 10, 11 };
+        int[] comparedValues = { 11, 12 };
+
+        ReadonlyContextStateList<int> a = new(values);
+        ReadonlyContextStateList<int> b = new(values);
+        ReadonlyContextStateList<int> c = new(comparedValues);
+
+        Assert.IsTrue(b.Equals(a as IEquatable<State<int[]>>));
+        Assert.IsTrue(a.Equals(b as IEquatable<State<int[]>>));
+
+        Assert.IsFalse(c.Equals(a as IEquatable<State<int[]>>));
+        Assert.IsFalse(a.Equals(c as IEquatable<State<int[]>>));
     }
 
     [Test]

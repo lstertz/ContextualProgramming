@@ -16,6 +16,15 @@ public class Binding
     }
 
     [Test]
+    public void BoundState_IsBound_ReturnsTrue()
+    {
+        ContextState<int> contextState = 10;
+        (contextState as IBindableState)?.Bind(() => { });
+
+        Assert.IsTrue((contextState as IBindableState).IsBound);
+    }
+
+    [Test]
     public void BoundState_ValueChangeWillNotify()
     {
         bool wasNotified = false;
@@ -69,6 +78,14 @@ public class Binding
     }
 
     [Test]
+    public void NewState_IsBound_ReturnsFalse()
+    {
+        ContextState<int> contextState = 10;
+
+        Assert.IsFalse((contextState as IBindableState).IsBound);
+    }
+
+    [Test]
     public void ReboundState_ValueChangeWillNotify()
     {
         bool wasNotified = false;
@@ -81,6 +98,16 @@ public class Binding
         contextState.Value = 11;
 
         Assert.IsTrue(wasNotified);
+    }
+
+    [Test]
+    public void UnboundState_IsBound_ReturnsFalse()
+    {
+        ContextState<int> contextState = 10;
+        (contextState as IBindableState)?.Bind(() => { });
+        (contextState as IBindableState)?.Unbind();
+
+        Assert.IsFalse((contextState as IBindableState).IsBound);
     }
 
     [Test]
@@ -184,6 +211,21 @@ public class Equality
 
         Assert.IsTrue(null == contextState);
         Assert.IsTrue(contextState == null);
+    }
+
+    [Test]
+    public void Equals_CastAsBindableState()
+    {
+        int value = 10;
+        ContextState<int> a = new(value);
+        ContextState<int> b = new(value);
+        ContextState<int> c = new(11);
+
+        Assert.IsTrue(b.Equals(a as IBindableState));
+        Assert.IsTrue(a.Equals(b as IBindableState));
+
+        Assert.IsFalse(c.Equals(a as IBindableState));
+        Assert.IsFalse(a.Equals(c as IBindableState));
     }
 
     [Test]

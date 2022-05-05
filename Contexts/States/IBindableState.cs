@@ -7,6 +7,12 @@
     public interface IBindableState
     {
         /// <summary>
+        /// Specifies whether the state has been bound.
+        /// </summary>
+        bool IsBound { get; }
+
+
+        /// <summary>
         /// Binds the state to the provided action.
         /// </summary>
         /// <remarks>

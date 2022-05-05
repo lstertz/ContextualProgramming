@@ -58,6 +58,31 @@ public class App : IBehaviorApp
         /// <param name="stateName"><see cref="StateName"/></param>
         public ContextChange(object context, string stateName) => (Context, StateName) =
             (context.EnsureNotNull(), stateName.EnsureNotNull());
+
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (obj is ContextChange other)
+                return Equals(other);
+            return false;
+        }
+
+        /// <summary>
+        /// Verifies whether the provided context change is equal to this context change.
+        /// </summary>
+        /// <param name="other">The other context change.</param>
+        /// <returns>Whether the other context change is equal to this context change.</returns>
+        public bool Equals(ContextChange other)
+        {
+            if (other == null)
+                return false;
+
+            return Context == other.Context && StateName == other.StateName;
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode() => base.GetHashCode();
     }
 
 
@@ -544,26 +569,17 @@ public class App : IBehaviorApp
     /// <param name="propertyInfo">The property info of the state to be bound.</param>
     private void BindState(object context, PropertyInfo propertyInfo)
     {
-        IBindableState? state = propertyInfo.GetValue(context) as IBindableState;
-        if (state == null)
+        if (propertyInfo.GetValue(context) is not IBindableState state)
             return;
 
-        ContextChange change = new(context, propertyInfo.Name);
-
-        // TODO :: As IsBound check to IBindableState.
-        if (true)//!state.IsBound)
+        if (!state.IsBound)
         {
-
-
-            // TODO : 29 :: Add equality test for ContextStates with a state cast as IBindableState.
-                //          Verify it properly checks for what was breaking.
-            // TODO : 29 :: Complete decontextualization to remove the changes properly.
-
             List<ContextChange> changes = new();
             state.Bind(() => _contextChanges.AddRange(changes));
             _contextStatePotentialChanges.Add(state, changes);
         }
-        _contextStatePotentialChanges[state].Add(change);
+
+        _contextStatePotentialChanges[state].Add(new(context, propertyInfo.Name));
     }
 
     /// <summary>
@@ -718,7 +734,26 @@ public class App : IBehaviorApp
     {
         PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
-            (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
+            UnbindState(context, bindableProperties[c]);
+    }
+
+    /// <summary>
+    /// Unbinds the context state determined by the provided context instance and 
+    /// property info.
+    /// </summary>
+    /// <param name="context">The context whose state is to be unbound.</param>
+    /// <param name="propertyInfo">The property info of the state to be unbound.</param>
+    private void UnbindState(object context, PropertyInfo propertyInfo)
+    {
+        if (propertyInfo.GetValue(context) is not IBindableState state)
+            return;
+
+        _contextStatePotentialChanges[state].Remove(new(context, propertyInfo.Name));
+        if (_contextStatePotentialChanges[state].Count == 0)
+        {
+            _contextStatePotentialChanges.Remove(state);
+            state.Unbind();
+        }
     }
     #endregion
 }

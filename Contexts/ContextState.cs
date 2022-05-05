@@ -24,6 +24,9 @@ namespace ContextualProgramming
         public static implicit operator T?(ContextState<T> state) => state.InternalValue;
 
 
+        /// <inheritdoc/>
+        bool IBindableState.IsBound => _onChange != null;
+
         /// <summary>
         /// The encapsulated value of the context state.
         /// </summary>

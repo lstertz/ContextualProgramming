@@ -354,6 +354,7 @@ namespace AppTests
         public void OnContextAChange(TestContextA contextA)
         {
             contextA.OnContextChangeIntValueFromBehaviorA = contextA.Int;
+            contextA.OnContextAChangeFromTestBehaviorACallCount++;
         }
 
         public void OnContextAIntChange(TestContextA contextA, TestContextB contextB)
@@ -399,6 +400,8 @@ namespace AppTests
     public class TestContextA
     {
         public App? App { get; set; }
+
+        public int OnContextAChangeFromTestBehaviorACallCount { get; set; } = 0;
 
         public int OnStateChangeIntValueFromBehaviorA { get; set; } = 0;
         public int OnContextChangeIntValueFromBehaviorA { get; set; } = 0;
@@ -1078,6 +1081,26 @@ namespace AppTests
             app.Contextualize(contextA);
 
             Validate.TestBehaviorsABDoNotExist(app, contextA);
+        }
+
+        [Test]
+        public void DependentBehaviors_Recontextualized_DoesNotInvokeOperationsMultipleTimes()
+        {
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+            AppTests.SetUp.BehaviorOperations<TestBehaviorB>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+
+            _app.Decontextualize(contextA);
+            _app.Contextualize(contextA);
+
+            contextA.Int.Value = 1;
+            _app.Update();
+
+            Assert.AreEqual(1, contextA.OnContextAChangeFromTestBehaviorACallCount);
         }
 
         [Test]

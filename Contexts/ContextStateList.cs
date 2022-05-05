@@ -95,6 +95,10 @@ namespace ContextualProgramming
             }
         }
 
+        /// <inheritdoc/>
+        bool IBindableState.IsBound => _onChange != null;
+
+
         private Action? _onChange;
 
 
