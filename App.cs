@@ -159,11 +159,10 @@ public class App : IBehaviorApp
     private readonly Dictionary<Type, IMutualismFulfiller?> _contextMutualismFulfillers = new();
 
     /// <summary>
-    /// A mapping of context instances to a mapping of the context's state properties to 
-    /// the context changes that should be evaluated when the state changes.
+    /// A mapping of context bindable states to the list of context changes that a change 
+    /// to the state will trigger.
     /// </summary>
-    private Dictionary<IBindableState, List<ContextChange>>
-        _contextStatePotentialChanges = new();
+    private readonly Dictionary<IBindableState, List<ContextChange>> _stateContextChanges = new();
 
     /// <summary>
     /// The contexts that have been decontextualized since the deregistration of 
@@ -568,10 +567,10 @@ public class App : IBehaviorApp
         {
             List<ContextChange> changes = new();
             state.Bind(() => _contextChanges.AddRange(changes));
-            _contextStatePotentialChanges.Add(state, changes);
+            _stateContextChanges.Add(state, changes);
         }
 
-        _contextStatePotentialChanges[state].Add(new(context, propertyInfo.Name));
+        _stateContextChanges[state].Add(new(context, propertyInfo.Name));
     }
 
     /// <summary>
@@ -740,10 +739,10 @@ public class App : IBehaviorApp
         if (propertyInfo.GetValue(context) is not IBindableState state)
             return;
 
-        _contextStatePotentialChanges[state].Remove(new(context, propertyInfo.Name));
-        if (_contextStatePotentialChanges[state].Count == 0)
+        _stateContextChanges[state].Remove(new(context, propertyInfo.Name));
+        if (_stateContextChanges[state].Count == 0)
         {
-            _contextStatePotentialChanges.Remove(state);
+            _stateContextChanges.Remove(state);
             state.Unbind();
         }
     }
