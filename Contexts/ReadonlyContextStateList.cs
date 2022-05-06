@@ -77,6 +77,9 @@ namespace ContextualProgramming
         /// <inheritdoc/>
         protected override State<T?[]>? Convert(object? other)
         {
+            if (other is ReadonlyContextStateList<T> contextStateList)
+                return new ReadonlyContextStateList<T>(contextStateList.Elements);
+
             if (other is T?[] array)
                 return new ReadonlyContextStateList<T>(array);
 

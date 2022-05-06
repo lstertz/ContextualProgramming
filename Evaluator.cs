@@ -3,7 +3,6 @@ using System.Reflection;
 
 namespace ContextualProgramming;
 
-
 /// <summary>
 /// Evaluates and caches code constructs to define behaviors, contexts, and their relationships.
 /// </summary>
@@ -116,6 +115,14 @@ public abstract class Evaluator
     public abstract Type[] GetContextTypes();
 
     /// <summary>
+    /// The mutual state infos, paired with their mutualist's name, for the specified context type.
+    /// </summary>
+    /// <param name="contextType">The type of context whose mutual state  
+    /// infos are to be provided.</param>
+    /// <returns>An array of mutual state info.</returns>
+    public abstract MutualStateInfo[] GetMutualStateInfos(Type contextType);
+
+    /// <summary>
     /// Provides the operations of the specified behavior type that should 
     /// be invoked when a context of an instance of that behavior type has changed.
     /// </summary>
@@ -154,15 +161,18 @@ public abstract class Evaluator
 /// <typeparam name="TContextAttribute">The type of attribute that defines a context.</typeparam>
 /// <typeparam name="TMutualismAttribute">The base type of attribute that defines a 
 /// a mutualistic relationship of a context with a context.</typeparam>
+/// <typeparam name="TMutualAttribute">The base type of attribute that defines a 
+/// context state as being mutual with a mutualist context's state.</typeparam>
 /// <typeparam name="TBehaviorAttribute">The type of attribute that defines a behavior.</typeparam>
 /// <typeparam name="TDependencyAttribute">The base type of attribute 
 /// that defines a dependency of a behavior.</typeparam>
 /// <typeparam name="TOperationAttribute">The type of attribute 
 /// that defines an operation of a behavior.</typeparam>
-public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribute,
-    TDependencyAttribute, TOperationAttribute> : Evaluator
+public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
+    TBehaviorAttribute, TDependencyAttribute, TOperationAttribute> : Evaluator
     where TContextAttribute : BaseContextAttribute
     where TMutualismAttribute : BaseMutualismAttribute
+    where TMutualAttribute : BaseMutualAttribute
     where TBehaviorAttribute : BaseBehaviorAttribute
     where TDependencyAttribute : BaseDependencyAttribute
     where TOperationAttribute : BaseOperationAttribute
@@ -203,12 +213,18 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
     private readonly Dictionary<Type, PropertyInfo[]> _contextBindableProperties = new();
 
     /// <summary>
+    /// A mapping of context types to their mutual properties and their paired 
+    /// mutualists' properties with their paired mutualist names.
+    /// </summary>
+    private readonly Dictionary<Type, MutualStateInfo[]> _contextMutualProperties = new();
+
+    /// <summary>
     /// The names and mutualist context types for all context types.
     /// </summary>
     /// <remarks>
     /// Contexts without mutualistic relationships are not included in this collection.
     /// </remarks>
-    private Dictionary<Type, Dictionary<string, Type>?> _contextMutualists = new();
+    private Dictionary<Type, Dictionary<string, Type>> _contextMutualists = new();
 
     /// <summary>
     /// All found context types.
@@ -256,6 +272,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
             {
                 CacheContextMutualisms(type);
                 CacheBindableStateInfos(type);
+                CacheMutualStateInfos(type);
             }
         }
     }
@@ -291,12 +308,10 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
                 $"known to an evaluator with contexts defined " +
                 $"by {typeof(TContextAttribute).FullName}.");
 
-        Dictionary<string, Type>? mutualists = _contextMutualists
-            .GetValueOrDefault(contextType, null);
-        if (mutualists == null)
+        if (!_contextMutualists.ContainsKey(contextType))
             return null;
 
-        return new MutualismFulfiller(mutualists);
+        return new MutualismFulfiller(_contextMutualists[contextType]);
     }
 
     /// <inheritdoc/>
@@ -350,6 +365,20 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
         ValidateInitialization();
 
         return _contextTypes.ToArray();
+    }
+
+    /// <inheritdoc/>
+    public override MutualStateInfo[] GetMutualStateInfos(Type contextType)
+    {
+        ValidateInitialization();
+
+        if (!_contextTypes.Contains(contextType))
+            throw new ArgumentException($"Mutual states cannot be retrieved " +
+                $"for type {contextType.FullName} since it is not a context " +
+                $"known to an evaluator with contexts defined " +
+                $"by {typeof(TContextAttribute).FullName}.");
+
+        return _contextMutualProperties[contextType];
     }
 
     /// <inheritdoc/>
@@ -427,7 +456,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
                 $"does not have a valid constructor.");
 
         ConstructorInfo constructor = constructors[0]; // Assume one constructor for now.
-        ValidateConstructor(behaviorType.FullName, depTypes, existingDeps, 
+        ValidateConstructor(behaviorType.FullName, depTypes, existingDeps,
             selfCreatedDeps, constructor);
 
         _behaviorConstructors.Add(behaviorType, constructor);
@@ -525,6 +554,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
 
         _contextBindableProperties.Add(contextType, bindableProperties.ToArray());
     }
+
     /// <summary>
     /// If not already cached, validates and caches the mutualism-related details of 
     /// the provided context type.
@@ -583,6 +613,100 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
             _contextTypes.Add(type);
         }
         return false;
+    }
+
+    /// <summary>
+    /// If not already cached, validates and caches all mutual state property infos 
+    /// found within the provided context type.
+    /// </summary>
+    /// <param name="contextType">The type of context whose mutual state property 
+    /// infos should be cached.</param>
+    private void CacheMutualStateInfos(Type contextType)
+    {
+        if (_contextMutualProperties.ContainsKey(contextType))
+            return;
+
+        PropertyInfo[] properties = contextType.GetProperties(BindingFlags.Instance |
+            BindingFlags.Public | BindingFlags.NonPublic);
+        if (properties.Length == 0)
+        {
+            _contextMutualProperties.Add(contextType, Array.Empty<MutualStateInfo>());
+            return;
+        }
+
+        Dictionary<string, Type>? mutualists = null;
+        HashSet<MutualStateInfo> mutualProperties = new();
+        for (int c = 0, count = properties.Length; c < count; c++)
+        {
+            var attrs = properties[c].GetCustomAttributes<TMutualAttribute>(true);
+            if (attrs.Count() == 0)
+                continue;
+
+            if (mutualists == null)
+                mutualists = RetrieveMutualists(contextType);
+
+            foreach (TMutualAttribute attr in attrs)
+                mutualProperties.Add(new(properties[c], attr.MutualistName, 
+                    RetrieveMutualistProperty(contextType, properties[c].PropertyType,
+                        mutualists, attr)));
+        }
+
+        _contextMutualProperties.Add(contextType, mutualProperties.ToArray());
+    }
+
+    /// <summary>
+    /// Provides the mutual property specified by the provided attribute, from the 
+    /// provided mutualists.
+    /// </summary>
+    /// <param name="contextType">The type of context whose mutualist's property 
+    /// is being retrieved.</param>
+    /// <param name="propertyType">The type of the host's property.</param>
+    /// <param name="mutualists">The mutualists that should provide the property.</param>
+    /// <param name="attr">The attribute identifying the mutualist and property 
+    /// to be provided.</param>
+    /// <returns>The identified mutual property.</returns>
+    /// <exception cref="Exception"></exception>
+    private static PropertyInfo RetrieveMutualistProperty(Type contextType, Type propertyType,
+        Dictionary<string, Type> mutualists, TMutualAttribute attr)
+    {
+        if (!mutualists.ContainsKey(attr.MutualistName))
+            throw new InvalidOperationException($"The host context type {contextType} " +
+                $"has a mutual property that identifies a mutualist, {attr.MutualistName}, " +
+                $"not known to the host.");
+
+        PropertyInfo? mutualistProperty = mutualists[attr.MutualistName]
+            .GetProperty(attr.StateName, BindingFlags.Instance |
+                BindingFlags.Public | BindingFlags.NonPublic);
+        if (mutualistProperty == null)
+            throw new InvalidOperationException($"The host context type {contextType} " +
+                $"has a mutual property that identifies a state, {attr.StateName}, " +
+                $"for the mutualist, {attr.MutualistName}, that does not " +
+                $"exist on the mutualist.");
+
+        if (mutualistProperty.PropertyType != propertyType)
+            throw new InvalidOperationException($"The host context type {contextType} " +
+                $"has a mutual property that identifies a state, {attr.StateName}, " +
+                $"for the mutualist, {attr.MutualistName}, that has a value type " +
+                $"different from the host's state's ({propertyType}).");
+
+        return mutualistProperty;
+    }
+
+    /// <summary>
+    /// Provides the mutualists for the specified context type.
+    /// </summary>
+    /// <param name="contextType">The type whose mutualists are to be provided.</param>
+    /// <returns>The mutualists for the specified context type.</returns>
+    /// <exception cref="Exception"></exception>
+    private Dictionary<string, Type> RetrieveMutualists(Type contextType)
+    {
+        if (!_contextMutualists.ContainsKey(contextType))
+            throw new InvalidOperationException($"The context type {contextType} " +
+                $"has a mutual property but the context is not part of any " +
+                $"mutualistic relationship. Decorate the context with the " +
+                $"\"Mutualism\" attribute to define such a relationship.");
+
+        return _contextMutualists[contextType];
     }
 
     /// <summary>
@@ -673,7 +797,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TBehaviorAttribut
     /// Thrown if the constructor is not valid for the behavior with the specified dependencies.
     /// </exception>
     private static void ValidateConstructor(string? behaviorName, Type[] depTypes,
-        Dictionary<string, int> existingDeps, Dictionary<string, int> selfCreatedDeps, 
+        Dictionary<string, int> existingDeps, Dictionary<string, int> selfCreatedDeps,
         ConstructorInfo constructor)
     {
         ParameterInfo[] parameters = constructor.GetParameters();

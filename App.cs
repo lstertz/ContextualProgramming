@@ -29,7 +29,6 @@ public interface IBehaviorApp
     public void Decontextualize<T>(T context) where T : notnull;
 }
 
-
 /// <summary>
 /// Handles the state and behavior of the running application by managing 
 /// registered contexts and the resulting behaviors within an encapsulated environment.
@@ -37,28 +36,53 @@ public interface IBehaviorApp
 public class App : IBehaviorApp
 {
     /// <summary>
-    /// Represents a record of a change for a property of a context.
+    /// Represents a record of a change for a state of a context.
     /// </summary>
     private class ContextChange
     {
         /// <summary>
         /// The context that was changed.
         /// </summary>
-        public object Context { get; set; }
+        public object Context { get; private set; }
 
         /// <summary>
-        /// The name of the property that was changed.
+        /// The name of the state that was changed.
         /// </summary>
-        public string PropertyName { get; set; }
+        public string StateName { get; private set; }
 
 
         /// <summary>
         /// Constructs a new context change to hold details of a changed context.
         /// </summary>
         /// <param name="context"><see cref="Context"/></param>
-        /// <param name="propertyName"><see cref="PropertyName"/></param>
-        public ContextChange(object context, string propertyName) => (Context, PropertyName) =
-            (context.EnsureNotNull(), propertyName.EnsureNotNull());
+        /// <param name="stateName"><see cref="StateName"/></param>
+        public ContextChange(object context, string stateName) => (Context, StateName) =
+            (context.EnsureNotNull(), stateName.EnsureNotNull());
+
+
+        /// <inheritdoc/>
+        public override bool Equals(object? obj)
+        {
+            if (obj is ContextChange other)
+                return Equals(other);
+            return false;
+        }
+
+        /// <summary>
+        /// Verifies whether the provided context change is equal to this context change.
+        /// </summary>
+        /// <param name="other">The other context change.</param>
+        /// <returns>Whether the other context change is equal to this context change.</returns>
+        public bool Equals(ContextChange other)
+        {
+            if (other == null)
+                return false;
+
+            return Context == other.Context && StateName == other.StateName;
+        }
+
+        /// <inheritdoc/>
+        public override int GetHashCode() => base.GetHashCode();
     }
 
 
@@ -119,18 +143,26 @@ public class App : IBehaviorApp
     /// <summary>
     /// A mapping of mutualist context instances to their host context instances.
     /// </summary>
-    private Dictionary<object, HashSet<object>> _contextHosts = new();
+    private readonly Dictionary<object, HashSet<object>> _contextHosts = new();
 
     /// <summary>
-    /// A mapping of host context instances to their mutualist context instances.
+    /// A mapping of host context instances to their mutualist context instances, 
+    /// keyed by their mutualist names.
     /// </summary>
-    private Dictionary<object, object[]> _contextMutualists = new();
+    private readonly Dictionary<object, Dictionary<string, object>> _contextMutualists = new();
 
     /// <summary>
     /// A mapping of context types to the mutualism fulfillers that will fulfill any 
-    /// mutualistic relationships of their context type.
+    /// mutualistic relationships of their context type. A fulfiller will be null if 
+    /// the context type has no mutualistic relationships.
     /// </summary>
-    private readonly Dictionary<Type, IMutualismFulfiller> _contextMutualismFulfillers = new();
+    private readonly Dictionary<Type, IMutualismFulfiller?> _contextMutualismFulfillers = new();
+
+    /// <summary>
+    /// A mapping of context bindable states to the list of context changes that a change 
+    /// to the state will trigger.
+    /// </summary>
+    private readonly Dictionary<IBindableState, List<ContextChange>> _stateContextChanges = new();
 
     /// <summary>
     /// The contexts that have been decontextualized since the deregistration of 
@@ -149,13 +181,13 @@ public class App : IBehaviorApp
 
     /// <summary>
     /// Constructs a new app with the default evaluator, 
-    /// <see cref="Evaluator{TContextAttribute, TMutualismAttribute, TBehaviorAttribute, 
-    /// TBaseDependencyAttribute, TOperationAttribute}"/>.
+    /// <see cref="Evaluator{TContextAttribute, TMutualismAttribute, TMutualAttribute, 
+    /// TBehaviorAttribute, TBaseDependencyAttribute, TOperationAttribute}"/>.
     /// </summary>
     public App()
     {
-        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, BehaviorAttribute,
-            DependencyAttribute, OperationAttribute>();
+        Evaluator = new Evaluator<ContextAttribute, MutualismAttribute, MutualAttribute,
+            BehaviorAttribute, DependencyAttribute, OperationAttribute>();
     }
 
     /// <summary>
@@ -258,11 +290,13 @@ public class App : IBehaviorApp
         if (!_contexts[type].Add(context))
             return;
 
-        _decontextualizedContexts.Remove(context);
-        
-        BindContext(context, type);
+
         FulfillMutualisms(context, type);
-        AddContextToBehaviorFactories(context, type);
+        BindContext(context, type);
+        ContextualizeMutualists(context);
+
+        if (!_decontextualizedContexts.Remove(context))
+            AddContextToBehaviorFactories(context, type);
     }
 
     /// <summary>
@@ -293,7 +327,6 @@ public class App : IBehaviorApp
         BreakMutualismsForMutualist(context);
         RemoveContext(context, type);
         _decontextualizedContexts.Add(context);
-        RemoveContextFromFactories(context, type);
     }
 
     /// <summary>
@@ -409,7 +442,7 @@ public class App : IBehaviorApp
                     InvokeOperation(bInstance, contextOperations[co]);
 
                 MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
-                    behaviorType, contextName, change.PropertyName);
+                    behaviorType, contextName, change.StateName);
                 for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
                     InvokeOperation(bInstance, stateOperations[so]);
             }
@@ -432,7 +465,11 @@ public class App : IBehaviorApp
         _decontextualizedContexts.Clear();
 
         foreach (object context in decontextualizedContexts)
+        {
+            RemoveContextFromFactories(context, context.GetType());
             DeregisterContextBehaviorInstances(context);
+        }
+
         return true;
     }
 
@@ -504,17 +541,53 @@ public class App : IBehaviorApp
     /// <param name="type">The type of the context.</param>
     private void BindContext(object context, Type type)
     {
+        MutualStateInfo[] mutualStateInfos = Evaluator.GetMutualStateInfos(type);
+        for (int c = 0, count = mutualStateInfos.Length; c < count; c++)
+            mutualStateInfos[c].MutualistPropertyInfo.SetValue(
+                _contextMutualists[context][mutualStateInfos[c].MutualistPropertyName],
+                mutualStateInfos[c].HostPropertyInfo.GetValue(context));
+
         PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
-        {
-            int contextIndex = c;
-            (bindableProperties[c].GetValue(context) as IBindableState)?.Bind(() =>
-                _contextChanges.Add(new(context, bindableProperties[contextIndex].Name)));
-        }
+            BindState(context, bindableProperties[c]);
     }
 
     /// <summary>
-    /// Fulfills and contextualizes the mutualistic relationships of the provided context.
+    /// Binds the context state, determined by the provided context instance and 
+    /// property info, to an action that tracks context changes.
+    /// </summary>
+    /// <param name="context">The context whose state is to be bound.</param>
+    /// <param name="propertyInfo">The property info of the state to be bound.</param>
+    private void BindState(object context, PropertyInfo propertyInfo)
+    {
+        if (propertyInfo.GetValue(context) is not IBindableState state)
+            return;
+
+        if (!state.IsBound)
+        {
+            List<ContextChange> changes = new();
+            state.Bind(() => _contextChanges.AddRange(changes));
+            _stateContextChanges.Add(state, changes);
+        }
+
+        _stateContextChanges[state].Add(new(context, propertyInfo.Name));
+    }
+
+    /// <summary>
+    /// Contextualizes the mutualists of the provided context.
+    /// </summary>
+    /// <param name="context">The host context whose mutualists should be contextualized.</param>
+    private void ContextualizeMutualists(object context)
+    {
+        if (!_contextMutualists.ContainsKey(context))
+            return;
+
+        foreach (object mutualist in _contextMutualists[context].Values)
+            Contextualize(mutualist);
+    }
+
+    /// <summary>
+    /// Fulfills the mutualistic relationships of the provided context.
     /// </summary>
     /// <param name="context">The context whose mutualistic relationships 
     /// should be fulfilled.</param>
@@ -524,17 +597,16 @@ public class App : IBehaviorApp
         if (!_contextMutualismFulfillers.ContainsKey(type))
             _contextMutualismFulfillers.Add(type, Evaluator.BuildMutualismFulfiller(type));
 
-        if (_contextMutualismFulfillers[type] == null)
+        IMutualismFulfiller? fulfiller = _contextMutualismFulfillers[type];
+        if (fulfiller == null)
             return;
 
-        object[] mutualists = _contextMutualismFulfillers[type].Fulfill(context);
-        _contextMutualists.Add(context, mutualists);
+        Tuple<string, object>[] mutualists = fulfiller.Fulfill(context);
+        _contextMutualists.Add(context, mutualists
+            .ToDictionary(mutualist => mutualist.Item1, mutualist => mutualist.Item2));
 
         for (int c = 0, count = mutualists.Length; c < count; c++)
-        {
-            _contextHosts.Add(mutualists[c], new() { context });
-            Contextualize(mutualists[c]);
-        }
+            _contextHosts.Add(mutualists[c].Item2, new() { context });
     }
     #endregion
 
@@ -551,17 +623,17 @@ public class App : IBehaviorApp
         if (!_contextMutualists.ContainsKey(host))
             return;
 
-        object[] mutualists = _contextMutualists[host];
+        Dictionary<string, object> mutualists = _contextMutualists[host];
         _contextMutualists.Remove(host);
 
-        for (int c = 0, count = mutualists.Length; c < count; c++)
+        foreach (object mutualist in mutualists.Values)
         {
-            if (!_contextHosts.ContainsKey(mutualists[c]))
+            if (!_contextHosts.ContainsKey(mutualist))
                 continue;
 
-            _contextHosts[mutualists[c]].Remove(host);
-            if (_contextHosts[mutualists[c]].Count == 0)
-                Decontextualize(mutualists[c]);
+            _contextHosts[mutualist].Remove(host);
+            if (_contextHosts[mutualist].Count == 0)
+                Decontextualize(mutualist);
         }
     }
 
@@ -653,7 +725,26 @@ public class App : IBehaviorApp
     {
         PropertyInfo[] bindableProperties = Evaluator.GetBindableStateInfos(type);
         for (int c = 0, count = bindableProperties.Length; c < count; c++)
-            (bindableProperties[c].GetValue(context) as IBindableState)?.Unbind();
+            UnbindState(context, bindableProperties[c]);
+    }
+
+    /// <summary>
+    /// Unbinds the context state determined by the provided context instance and 
+    /// property info.
+    /// </summary>
+    /// <param name="context">The context whose state is to be unbound.</param>
+    /// <param name="propertyInfo">The property info of the state to be unbound.</param>
+    private void UnbindState(object context, PropertyInfo propertyInfo)
+    {
+        if (propertyInfo.GetValue(context) is not IBindableState state)
+            return;
+
+        _stateContextChanges[state].Remove(new(context, propertyInfo.Name));
+        if (_stateContextChanges[state].Count == 0)
+        {
+            _stateContextChanges.Remove(state);
+            state.Unbind();
+        }
     }
     #endregion
 }

@@ -38,7 +38,15 @@ namespace ContextualProgramming
 
 
         /// <inheritdoc/>
-        protected override State<T?>? Convert(object? other) => other is T? ?
-            new ReadonlyContextState<T>((T?)other) : null;
+        protected override State<T?>? Convert(object? other)
+        {
+            if (other is ReadonlyContextState<T> contextState)
+                return new ReadonlyContextState<T>(contextState.InternalValue);
+
+            if (other is T value)
+                return new ReadonlyContextState<T>(value);
+
+            return null;
+        }
     }
 }

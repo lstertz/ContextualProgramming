@@ -305,6 +305,8 @@ namespace AppTests
             return CanInstantiate;
         }
 
+        public bool HasAvailableDependency(Type type) => _availableDependencies[type].Count > 0;
+
         public BehaviorInstance[] Process()
         {
             if (!CanInstantiate)
@@ -352,6 +354,7 @@ namespace AppTests
         public void OnContextAChange(TestContextA contextA)
         {
             contextA.OnContextChangeIntValueFromBehaviorA = contextA.Int;
+            contextA.OnContextAChangeFromTestBehaviorACallCount++;
         }
 
         public void OnContextAIntChange(TestContextA contextA, TestContextB contextB)
@@ -397,6 +400,8 @@ namespace AppTests
     public class TestContextA
     {
         public App? App { get; set; }
+
+        public int OnContextAChangeFromTestBehaviorACallCount { get; set; } = 0;
 
         public int OnStateChangeIntValueFromBehaviorA { get; set; } = 0;
         public int OnContextChangeIntValueFromBehaviorA { get; set; } = 0;
@@ -638,7 +643,7 @@ namespace AppTests
             App app = SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
                 TestContextB>(factory);
 
-            Assert.Throws<InvalidOperationException>(() => 
+            Assert.Throws<InvalidOperationException>(() =>
                 App.Of(new TestBehaviorA()));
         }
     }
@@ -648,8 +653,8 @@ namespace AppTests
         [Test]
         public void DefaultEvaluator()
         {
-            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, MutualismAttribute, 
-                BehaviorAttribute, DependencyAttribute, OperationAttribute>);
+            Type expectedEvaluator = typeof(Evaluator<ContextAttribute, MutualismAttribute,
+                MutualAttribute, BehaviorAttribute, DependencyAttribute, OperationAttribute>);
 
             App app = new();
 
@@ -805,6 +810,40 @@ namespace AppTests
         }
 
         [Test]
+        public void HasMutualism_ConnectsMutualStates()
+        {
+            string mutualistName = "B";
+
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            App app = SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            PropertyInfo aInt = typeof(TestContextA).GetProperty(nameof(TestContextA.Int)) ??
+                throw new NullReferenceException();
+            PropertyInfo bInt = typeof(TestContextB).GetProperty(nameof(TestContextB.Int)) ??
+                throw new NullReferenceException();
+
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            app.Evaluator.GetMutualStateInfos(typeof(TestContextA)).Returns(
+                new MutualStateInfo[]
+                {
+                    new(aInt, mutualistName, bInt)
+                });
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
+            {
+                new(mutualistName, contextB)
+            });
+
+            app.Contextualize(contextA);
+
+            int expected = 1;
+            contextA.Int.Value = expected;
+
+            Assert.AreEqual(expected, contextB.Int.Value);
+        }
+
+        [Test]
         public void HasMutualism_ContextualizesMutualistContext()
         {
             IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
@@ -813,14 +852,48 @@ namespace AppTests
             TestContextA contextA = new();
             TestContextB expectedMutualistContext = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
-            fulfiller.Fulfill(contextA).Returns(new object[]
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {
-                expectedMutualistContext
+                new("B", expectedMutualistContext)
             });
 
             app.Contextualize(contextA);
 
             Assert.AreEqual(expectedMutualistContext, app.GetContext<TestContextB>());
+        }
+
+        [Test]
+        public void HasMutualism_OverridesMutualistMutualState()
+        {
+            string mutualistName = "B";
+
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            App app = SetUp.ContextOnlyApp<TestContextA, TestContextB>();
+
+            PropertyInfo aInt = typeof(TestContextA).GetProperty(nameof(TestContextA.Int)) ??
+                throw new NullReferenceException();
+            PropertyInfo bInt = typeof(TestContextB).GetProperty(nameof(TestContextB.Int)) ??
+                throw new NullReferenceException();
+
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            app.Evaluator.GetMutualStateInfos(typeof(TestContextA)).Returns(
+                new MutualStateInfo[]
+                {
+                    new(aInt, mutualistName, bInt)
+                });
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
+            {
+                new(mutualistName, contextB)
+            });
+
+            int expected = 1;
+            contextA.Int.Value = expected;
+
+            app.Contextualize(contextA);
+
+            Assert.AreEqual(expected, contextB.Int.Value);
         }
 
         [Test]
@@ -1011,6 +1084,26 @@ namespace AppTests
         }
 
         [Test]
+        public void DependentBehaviors_Recontextualized_DoesNotInvokeOperationsMultipleTimes()
+        {
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+            AppTests.SetUp.BehaviorOperations<TestBehaviorB>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+
+            _app.Decontextualize(contextA);
+            _app.Contextualize(contextA);
+
+            contextA.Int.Value = 1;
+            _app.Update();
+
+            Assert.AreEqual(1, contextA.OnContextAChangeFromTestBehaviorACallCount);
+        }
+
+        [Test]
         public void DependentBehaviors_RecontextualizedBeforeUpdate_BehaviorsAreMaintained()
         {
             TestContextA? contextA = _app.GetContext<TestContextA>() ??
@@ -1020,6 +1113,31 @@ namespace AppTests
             _app.Contextualize(contextA);
 
             Validate.TestBehaviorsABExist(_app, contextA);
+        }
+
+        [Test]
+        public void DependentBehaviors_RecontextualizedBeforeUpdate_FactoryHasNoExtraContext()
+        {
+            Type[] requiredDependencies = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
+
+            var factory = new BehaviorFactoryDouble<TestBehaviorA>(
+                new(), new(), requiredDependencies);
+            App app = AppTests.SetUp.BehaviorAndContextApp<TestBehaviorA, TestContextA,
+                TestContextB>(factory, requiredDependencies);
+
+            TestContextA contextA = new();
+            app.Contextualize(contextA);
+            app.Contextualize(new TestContextB());
+            app.Update();
+
+            app.Decontextualize(contextA);
+            app.Contextualize(contextA);
+
+            Assert.IsFalse(factory.HasAvailableDependency(typeof(TestContextA)));
         }
 
         [Test]
@@ -1117,9 +1235,9 @@ namespace AppTests
 
             TestContextA contextA = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
-            fulfiller.Fulfill(contextA).Returns(new object[]
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {
-                new TestContextB()
+                new("B", new TestContextB())
             });
 
             app.Contextualize(contextA);
@@ -1137,9 +1255,9 @@ namespace AppTests
             TestContextA contextA = new();
             TestContextB contextB = new();
             app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
-            fulfiller.Fulfill(contextA).Returns(new object[]
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
             {
-                contextB
+                new("B", contextB)
             });
 
             app.Contextualize(contextA);
@@ -1574,6 +1692,68 @@ namespace AppTests
 
             Assert.IsTrue(contextB.HasTornDown);
             Assert.IsTrue(contextC.HasTornDown);
+        }
+
+        [Test]
+        public void WithMutualChanges_InvokesOnContextChangeOperations()
+        {
+            string mutualistName = "B";
+
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+            Type[] requiredContextTypes = new Type[]
+            {
+                typeof(TestContextA),
+                typeof(TestContextB)
+            };
+
+            IMutualismFulfiller fulfiller = Substitute.For<IMutualismFulfiller>();
+            BehaviorFactoryDouble<TestBehaviorA> factoryA = new(new(), new(), 
+                requiredContextTypes);
+            App app = AppTests.SetUp.BehaviorAndContextApp<TestBehaviorA,
+                TestContextA, TestContextB>(factoryA, requiredContextTypes);
+
+            PropertyInfo aInt = typeof(TestContextA).GetProperty(nameof(TestContextA.Int)) ??
+                throw new NullReferenceException();
+            PropertyInfo bInt = typeof(TestContextB).GetProperty(nameof(TestContextB.Int)) ??
+                throw new NullReferenceException();
+
+            app.Evaluator.BuildMutualismFulfiller(typeof(TestContextA)).Returns(fulfiller);
+            app.Evaluator.GetMutualStateInfos(typeof(TestContextA)).Returns(
+                new MutualStateInfo[]
+                {
+                    new(aInt, mutualistName, bInt)
+                });
+            fulfiller.Fulfill(contextA).Returns(new Tuple<string, object>[]
+            {
+                new(mutualistName, contextB)
+            });
+
+            app.Contextualize(contextA); // Results in contextualization of contextB.
+            app.Update(); // Results in creation of TestBehaviorA.
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod(
+                nameof(TestBehaviorA.OnContextAIntChange)) ??
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int))
+                .Returns(new MethodInfo[] { mi });
+
+            mi = typeof(TestBehaviorA).GetMethod(nameof(TestBehaviorA.OnContextBIntChange)) ??
+                throw new NullReferenceException();
+
+            app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
+                TestBehaviorA.ContextBName, nameof(TestContextB.Int))
+                .Returns(new MethodInfo[] { mi });
+
+            int expectedValue = 11;
+            contextA.Int.Value = expectedValue;
+
+            app.Update(); // Behavior A updates for the mutual change to both contexts.
+
+            Assert.AreEqual(expectedValue, contextA.OnStateChangeIntValueFromBehaviorA);
+            Assert.AreEqual(expectedValue, contextB.OnContextChangeIntValue);
         }
 
         [Test]

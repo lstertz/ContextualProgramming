@@ -197,6 +197,15 @@ public class Binding
     }
 
     [Test]
+    public void BoundState_IsBound_ReturnsTrue()
+    {
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
+        (contextStateList as IBindableState)?.Bind(() => { });
+
+        Assert.IsTrue((contextStateList as IBindableState).IsBound);
+    }
+
+    [Test]
     public void BoundState_NonRemoveWillNotify()
     {
         bool wasNotified = false;
@@ -250,6 +259,14 @@ public class Binding
         int value = contextStateList[0];
 
         Assert.IsFalse(wasNotified);
+    }
+
+    [Test]
+    public void NewState_IsBound_ReturnsFalse()
+    {
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
+
+        Assert.IsFalse((contextStateList as IBindableState).IsBound);
     }
 
     [Test]
@@ -373,6 +390,16 @@ public class Binding
     }
 
     [Test]
+    public void UnboundState_IsBound_ReturnsFalse()
+    {
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
+        (contextStateList as IBindableState)?.Bind(() => { });
+        (contextStateList as IBindableState)?.Unbind();
+
+        Assert.IsFalse((contextStateList as IBindableState).IsBound);
+    }
+
+    [Test]
     public void UnboundState_RemoveAtDoesNotNotify()
     {
         bool wasNotified = false;
@@ -458,7 +485,7 @@ public class Count
     [Test]
     public void Clear_ReturnsZero()
     {
-        ContextStateList<int> contextStateList = new int[] {10, 11};
+        ContextStateList<int> contextStateList = new int[] { 10, 11 };
 
         contextStateList.Clear();
         Assert.AreEqual(0, contextStateList.Count);
@@ -475,7 +502,7 @@ public class Count
     [Test]
     public void ConstructedPopulated_ReturnsCount()
     {
-        int[] array = new int[] {10, 11};
+        int[] array = new int[] { 10, 11 };
         int count = array.Length;
 
         ContextStateList<int> contextStateList = array;
@@ -497,7 +524,7 @@ public class Count
     {
         ContextStateList<int> contextStateList = new int[] { 10, 11 };
 
-        contextStateList.InsertRange(1, new int[] {12, 13});
+        contextStateList.InsertRange(1, new int[] { 12, 13 });
         Assert.AreEqual(4, contextStateList.Count);
     }
 
@@ -561,6 +588,23 @@ public class Equality
 
         Assert.IsTrue(contextStateList.Equals(values));
         Assert.IsFalse(contextStateList.Equals(comparedValues));
+    }
+
+    [Test]
+    public void Equals_CastAsBindableState()
+    {
+        int[] values = { 10, 11 };
+        int[] comparedValues = { 11, 12 };
+
+        ContextStateList<int> a = new(values);
+        ContextStateList<int> b = new(values);
+        ContextStateList<int> c = new(comparedValues);
+
+        Assert.IsTrue(b.Equals(a as IBindableState));
+        Assert.IsTrue(a.Equals(b as IBindableState));
+
+        Assert.IsFalse(c.Equals(a as IBindableState));
+        Assert.IsFalse(a.Equals(c as IBindableState));
     }
 
     [Test]

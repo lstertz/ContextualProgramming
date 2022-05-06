@@ -61,13 +61,7 @@ public abstract class State<T> : IEquatable<State<T>>
     }
 
     /// <inheritdoc/>
-    public override int GetHashCode()
-    {
-        if (InternalValue == null)
-            return 0;
-
-        return InternalValue.GetHashCode();
-    }
+    public override int GetHashCode() =>  base.GetHashCode();
 
     /// <inheritdoc/>
     public override string? ToString() => InternalValue == null ? "" : InternalValue.ToString();

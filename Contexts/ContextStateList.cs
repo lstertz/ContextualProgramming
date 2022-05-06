@@ -95,6 +95,10 @@ namespace ContextualProgramming
             }
         }
 
+        /// <inheritdoc/>
+        bool IBindableState.IsBound => _onChange != null;
+
+
         private Action? _onChange;
 
 
@@ -108,6 +112,9 @@ namespace ContextualProgramming
         /// <inheritdoc/>
         protected override State<List<T?>>? Convert(object? other)
         {
+            if (other is ContextStateList<T> contextStateList)
+                return new ContextStateList<T>(contextStateList.Elements);
+
             if (other is T?[] array)
                 return new ContextStateList<T>(array);
 
