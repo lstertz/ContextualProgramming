@@ -891,7 +891,7 @@ namespace EvaluatorTests
         }
     }
 
-    public class GetTeardownOperations
+    public class GetOnTeardownOperations
     {
         public static Evaluator<TCAttribute, TMAttribute, TMSAttribute, T, 
             TDAttribute, TOAttribute> GetEvaluator<T>()
@@ -982,6 +982,100 @@ namespace EvaluatorTests
 
             Assert.Throws<InvalidOperationException>(() =>
                 evaluator.GetOnTeardownOperations(typeof(HasOperationsBehavior)));
+        }
+    }
+
+    public class GetOnUpdateOperations
+    {
+        public static Evaluator<TCAttribute, TMAttribute, TMSAttribute, T,
+            TDAttribute, TOAttribute> GetEvaluator<T>()
+            where T : BaseBehaviorAttribute => new();
+
+        public class HasNoOperationsBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasNoOperationsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        public class HasNoOperationsBehavior
+        {
+            public const string ContextA = "contextA";
+
+            public HasNoOperationsBehavior(out TestContextA contextA) => contextA = new();
+        }
+        public class HasOperationsBehaviorAttribute : BaseBehaviorAttribute { }
+        [HasOperationsBehavior]
+        [TD<TestContextA>(Binding.Unique, Fulfillment.SelfCreated, ContextA)]
+        public class HasOperationsBehavior
+        {
+            public const string ContextA = "contextA";
+
+            public HasOperationsBehavior(out TestContextA contextA) => contextA = new();
+
+            [TO]
+            [OnUpdate]
+            public void OnUpdateA(TestContextA contextA) { }
+
+            [TO]
+            [OnUpdate]
+            public void OnUpdateB() { }
+        }
+
+        public class TCAttribute : BaseContextAttribute { }
+        [TC]
+        public class TestContextA { }
+
+        public class TOAttribute : BaseOperationAttribute { }
+
+
+        [Test]
+        public void NonBehavior_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
+            evaluator.Initialize();
+
+            Assert.Throws<ArgumentException>(() =>
+                evaluator.GetOnTeardownOperations(typeof(NonBehavior)));
+        }
+
+        [Test]
+        public void ProvidesOnUpdateOperations_HasNoOperations()
+        {
+            var evaluator = GetEvaluator<HasNoOperationsBehaviorAttribute>();
+            evaluator.Initialize();
+
+            MethodInfo[] operations = evaluator.GetOnUpdateOperations(
+                typeof(HasNoOperationsBehavior));
+
+            Assert.IsEmpty(operations);
+        }
+
+        [Test]
+        public void ProvidesOnUpdateOperations_HasOperations()
+        {
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
+            evaluator.Initialize();
+
+            MethodInfo?[] expectedOperations = new MethodInfo?[]
+            {
+                    typeof(HasOperationsBehavior).GetMethod(
+                        nameof(HasOperationsBehavior.OnUpdateA)),
+                    typeof(HasOperationsBehavior).GetMethod(
+                        nameof(HasOperationsBehavior.OnUpdateB))
+            };
+
+            MethodInfo[] operations = evaluator.GetOnUpdateOperations(
+                typeof(HasOperationsBehavior));
+
+            Assert.AreEqual(expectedOperations.Length, operations.Length);
+            Assert.Contains(expectedOperations[0], operations);
+            Assert.Contains(expectedOperations[1], operations);
+        }
+
+        [Test]
+        public void Uninitialized_ThrowsException()
+        {
+            var evaluator = GetEvaluator<HasOperationsBehaviorAttribute>();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                evaluator.GetOnUpdateOperations(typeof(HasOperationsBehavior)));
         }
     }
 

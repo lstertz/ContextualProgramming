@@ -120,6 +120,14 @@ public class App : IBehaviorApp
     private readonly Dictionary<Type, IBehaviorFactory> _behaviorFactories = new();
 
     /// <summary>
+    /// A mapping of behavior instances to their update operations.
+    /// </summary>
+    /// <remarks>
+    /// Behavior instances with no update operations are excluded.
+    /// </remarks>
+    private readonly Dictionary<BehaviorInstance, MethodInfo[]> _behaviorUpdates = new();
+
+    /// <summary>
     /// All currently contextualized context instances, keyed by their class type.
     /// </summary>
     private readonly Dictionary<Type, HashSet<object>> _contexts = new();
@@ -374,11 +382,12 @@ public class App : IBehaviorApp
     /// <returns>True if there were changes evaluated, false otherwise.</returns>
     public bool Update()
     {
-        if (_contextChanges.Count == 0 && _pendingFactories.Count == 0 &&
-            _decontextualizedContexts.Count == 0)
+        if (_behaviorUpdates.Count == 0 && _contextChanges.Count == 0 && 
+            _pendingFactories.Count == 0 && _decontextualizedContexts.Count == 0)
             return false;
 
         bool hadChanges = ProcessDecontextualizations();
+        ProcessUpdates();
         hadChanges = ProcessPendingFactories() || hadChanges;
         hadChanges = ProcessContextChanges() || hadChanges;
 
@@ -479,6 +488,9 @@ public class App : IBehaviorApp
     /// <returns>Whether any instances were made from the pending factories.</returns>
     private bool ProcessPendingFactories()
     {
+        if (_pendingFactories.Count == 0)
+            return false;
+
         bool hadNewInstances = false;
 
         IBehaviorFactory[] pendingFactories = _pendingFactories.ToArray();
@@ -500,6 +512,19 @@ public class App : IBehaviorApp
     }
 
     /// <summary>
+    /// Processes any update operations of the current behaviors.
+    /// </summary>
+    private void ProcessUpdates()
+    {
+        if (_behaviorUpdates.Count == 0)
+            return;
+
+        foreach(BehaviorInstance instance in _behaviorUpdates.Keys)
+            for (int c = 0, count = _behaviorUpdates[instance].Length; c < count; c++)
+                InvokeOperation(instance, _behaviorUpdates[instance][c]);
+    }
+
+    /// <summary>
     /// Registers the provided behavior instance by contextualizing its self created contexts 
     /// and associating the instance's contexts with the instance.
     /// </summary>
@@ -516,6 +541,10 @@ public class App : IBehaviorApp
 
             _contextBehaviors[context].Add(instance);
         }
+
+        MethodInfo[] updates = Evaluator.GetOnUpdateOperations(instance.Behavior.GetType());
+        if (updates.Length > 0)
+            _behaviorUpdates.Add(instance, updates);
 
         _behaviorApps.Add(instance.Behavior, this);
     }
@@ -685,6 +714,7 @@ public class App : IBehaviorApp
                 for (int c = 0, count = teardownOperations.Length; c < count; c++)
                     InvokeOperation(behaviorInstance, teardownOperations[c]);
 
+                _behaviorUpdates.Remove(behaviorInstance);
                 _behaviorApps.Remove(behaviorInstance.Behavior);
             }
 
