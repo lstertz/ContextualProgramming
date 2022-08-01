@@ -3,36 +3,103 @@ using ContextualProgramming.IO.Internal;
 using NUnit.Framework;
 using System.Text;
 
-using TestConsole = ConsoleDisplayingTests.UpdateDisplay.TestableConsoleDisplaying.StringConsole;
+using TestConsole = ConsoleDisplayingTests.TestableConsoleDisplaying.StringConsole;
 
 namespace ConsoleDisplayingTests;
 
-public class UpdateDisplay
+public class TestableConsoleDisplaying : ConsoleDisplaying
 {
-    public class TestableConsoleDisplaying : ConsoleDisplaying
+    public class StringConsole : IConsole
     {
-        public class StringConsole : IConsole
-        {
-            private static readonly StringBuilder _stringBuilder = new();
+        private static readonly StringBuilder _stringBuilder = new();
 
-            public static void Clear() => _stringBuilder.Clear();
-            public static string GetDisplay() => _stringBuilder.ToString();
-            public static void Write(string? value) => _stringBuilder.Append(value);
-            public static void WriteLine(string? value) => _stringBuilder.AppendLine(value);
-        }
+        public static void Clear() => _stringBuilder.Clear();
+        public static string GetDisplay() => _stringBuilder.ToString();
+        public static void Write(string? value) => _stringBuilder.Append(value);
+        public static void WriteLine(string? value) => _stringBuilder.AppendLine(value);
+    }
 
-        public override void UpdateDisplay(ConsoleOutput output) => 
-            UpdateDisplay<TestConsole>(output);
+    public TestableConsoleDisplaying(ConsoleOutput output) : base(output) { }
+
+    public override void UpdateDisplay(ConsoleOutput output) =>
+        UpdateDisplay<TestConsole>(output);
+}
+
+public class Constructor
+{
+    [TearDown]
+    public void TearDown()
+    {
+        TestConsole.Clear();
     }
 
 
+    [Test]
+    public void EmptyLinesAndNoActiveText_DisplaysNothing()
+    {
+        string expectedText = string.Empty;
+
+        new TestableConsoleDisplaying(new());
+
+        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+    }
+
+    [Test]
+    public void EmptyLinesWithActiveText_DisplaysActiveText()
+    {
+        string expectedText = "Active Text";
+
+        new TestableConsoleDisplaying(new()
+        {
+            ActiveText = expectedText
+        });
+
+        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+    }
+
+    [Test]
+    public void LinesAndNoActiveText_DisplaysLines()
+    {
+        string line1 = "Line1";
+        string line2 = "Line2";
+        string expectedText = $"{line1}\r\n{line2}\r\n";
+
+        new TestableConsoleDisplaying(new()
+        {
+            Lines = new string[] { line1, line2 }
+        });
+
+        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+    }
+
+    [Test]
+    public void LinesWithActiveText_DisplaysLinesWithActiveText()
+    {
+        string line1 = "Line1";
+        string line2 = "Line2";
+        string activeText = "ActiveText";
+        string expectedText = $"{line1}\r\n{line2}\r\n{activeText}";
+
+        new TestableConsoleDisplaying(new()
+        {
+            ActiveText = activeText,
+            Lines = new string[] { line1, line2 }
+        });
+
+        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+    }
+}
+
+
+public class UpdateDisplay
+{
     private TestableConsoleDisplaying _displaying = null!;
 
 
     [SetUp]
     public void SetUp()
     {
-        _displaying = new();
+        _displaying = new(new());
     }
 
     [TearDown]

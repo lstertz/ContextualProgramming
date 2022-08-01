@@ -76,6 +76,13 @@ public class ConsoleDisplaying
 
 
     /// <summary>
+    /// Updates the display with text initially present in the output context.
+    /// </summary>
+    public ConsoleDisplaying(ConsoleOutput output)
+        => UpdateDisplay(output);
+
+
+    /// <summary>
     /// Updates the displayed text on the console with the text 
     /// specified by the <paramref name="output"/>.
     /// </summary>
