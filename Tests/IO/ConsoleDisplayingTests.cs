@@ -105,6 +105,28 @@ public class UpdateDisplay
 
 
     [Test]
+    public void SubsequentEmptyLinesWithActiveText_DisplaysActiveText()
+    {
+        string line1 = "Line1";
+        string line2 = "Line2";
+        string activeText1 = "ActiveText1";
+        string activeText2 = "ActiveText2";
+        string expectedText = $"{activeText2}";
+
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText1,
+            Lines = new string[] { line1, line2 }
+        });
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText2
+        });
+
+        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+    }
+
+    [Test]
     public void SubsequentEmptyLinesWithNoActiveText_DisplaysNothing()
     {
         string line1 = "Line1";
@@ -118,6 +140,52 @@ public class UpdateDisplay
             Lines = new string[] { line1, line2 }
         });
         _displaying.UpdateDisplay(new());
+
+        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+    }
+
+    [Test]
+    public void SubsequentLinesWithActiveText_DisplaysLinesWithActiveText()
+    {
+        string line1 = "Line1";
+        string line2 = "Line2";
+        string line3 = "Line3";
+        string activeText1 = "ActiveText1";
+        string activeText2 = "ActiveText2";
+        string expectedText = $"{line3}\r\n{activeText2}";
+
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText1,
+            Lines = new string[] { line1, line2 }
+        });
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText2,
+            Lines = new string[] { line3 }
+        });
+
+        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+    }
+
+    [Test]
+    public void SubsequentLinesWithNoActiveText_DisplaysLines()
+    {
+        string line1 = "Line1";
+        string line2 = "Line2";
+        string line3 = "Line3";
+        string activeText = "ActiveText";
+        string expectedText = $"{line3}\r\n";
+
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText,
+            Lines = new string[] { line1, line2 }
+        });
+        _displaying.UpdateDisplay(new()
+        {
+            Lines = new string[] { line3 }
+        });
 
         Assert.AreEqual(expectedText, TestConsole.GetDisplay());
     }
