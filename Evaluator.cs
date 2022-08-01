@@ -26,7 +26,7 @@ public abstract class Evaluator
         string executingAssemblyName = Assembly.GetExecutingAssembly().GetName().FullName;
         IEnumerable<Assembly> assembliesToEvaluate = AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => a.GetReferencedAssemblies().Select(name => name.FullName)
-            .Contains(executingAssemblyName));
+            .Contains(executingAssemblyName)).Append(Assembly.GetExecutingAssembly());
 
         InitializeContextTypes(assembliesToEvaluate);
         InitializeBehaviorTypes(assembliesToEvaluate);
@@ -526,7 +526,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
     {
         if (_behaviorTypes.Contains(type))
             return true;
-        else if (type.GetCustomAttribute<TBehaviorAttribute>(true) != null)
+        else if (type.GetCustomAttribute<TBehaviorAttribute>() != null)
         {
             _behaviorTypes.Add(type);
             return true;
@@ -608,7 +608,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
     {
         if (_contextTypes.Contains(type))
             return true;
-        else if (type.GetCustomAttribute<TContextAttribute>(true) != null)
+        else if (type.GetCustomAttribute<TContextAttribute>() != null)
         {
             _contextTypes.Add(type);
         }
@@ -721,7 +721,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy);
 
         for (int c = 0, count = methods.Length; c < count; c++)
-            if (methods[c].GetCustomAttribute<TOperationAttribute>(true) != null)
+            if (methods[c].GetCustomAttribute<TOperationAttribute>() != null)
             {
                 ValidateOperation(behaviorType, methods[c]);
 
