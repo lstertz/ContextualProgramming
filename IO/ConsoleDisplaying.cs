@@ -82,8 +82,5 @@ public class ConsoleDisplaying
     /// <param name="output">Defines the texts to be output to the console.</param>
     [Operation]
     [OnChange(Output)]
-    public virtual void UpdateDisplay(ConsoleOutput output)
-    {
-        UpdateDisplay<Console>(output);
-    }
+    public virtual void UpdateDisplay(ConsoleOutput output) => UpdateDisplay<Console>(output);
 }

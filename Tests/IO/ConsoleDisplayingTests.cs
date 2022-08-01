@@ -15,20 +15,14 @@ public class UpdateDisplay
         {
             private static readonly StringBuilder _stringBuilder = new();
 
-
             public static void Clear() => _stringBuilder.Clear();
-
             public static string GetDisplay() => _stringBuilder.ToString();
-
             public static void Write(string? value) => _stringBuilder.Append(value);
-
             public static void WriteLine(string? value) => _stringBuilder.AppendLine(value);
         }
 
-        public override void UpdateDisplay(ConsoleOutput output)
-        {
+        public override void UpdateDisplay(ConsoleOutput output) => 
             UpdateDisplay<TestConsole>(output);
-        }
     }
 
 
