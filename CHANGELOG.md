@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Changes within the 'Internal' namespace do note adhere to semanatic versioning, e.g. the constructs 
+within that namespace may have breaking changes without a major version update.
+
 
 ## [Unreleased]
 ### Added
@@ -11,10 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - App.Of so a behavior can retrieve its App to perform contextualization and decontextualization.
 - Teardown operations.
 - Support for mutualistic relationships between contexts with the 'mutualism' attribute.
+- Support for mutual state binding for mutualistic contexts.
+- Built-in console logging with the ConsoleOutput context.
 
 ### Changed
 - Contextualization and decontextualization behavior instantiations and destructions now occur 
 as part of the update cycle.
+- Context states provide their base hashcode instead of their value's hashcode.
 
 
 ## [1.1.1] - 2022-03-07

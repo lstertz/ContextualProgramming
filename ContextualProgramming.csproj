@@ -5,6 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<LangVersion>preview</LangVersion>
+		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<Version>1.1.1</Version>
 		<Authors>Lucas Stertz</Authors>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
