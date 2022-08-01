@@ -25,8 +25,10 @@ public abstract class Evaluator
 
         string executingAssemblyName = Assembly.GetExecutingAssembly().GetName().FullName;
         IEnumerable<Assembly> assembliesToEvaluate = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => a.GetReferencedAssemblies().Select(name => name.FullName)
-            .Contains(executingAssemblyName)).Append(Assembly.GetExecutingAssembly());
+            .Where(a => a.GetReferencedAssemblies()
+            .Select(name => name.FullName)
+            .Contains(executingAssemblyName))
+            .Append(Assembly.GetExecutingAssembly());
 
         InitializeContextTypes(assembliesToEvaluate);
         InitializeBehaviorTypes(assembliesToEvaluate);
