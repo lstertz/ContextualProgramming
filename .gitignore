@@ -2,9 +2,11 @@
 obj
 Tests/obj
 Showcases/ExampleShowcase/obj
+Showcases/HelloWorld/obj
 bin/Debug/net6.0
 Tests/bin/Debug
 Showcases/ExampleShowcase/bin/Debug
+Showcases/HelloWorld/bin/Debug
 Concepts/bin
 bin
 obj
