@@ -204,6 +204,13 @@ namespace ContextualProgramming
         }
 
         /// <summary>
+        /// Specifies whether the specified element is contained within this list.
+        /// </summary>
+        /// <param name="element">The element to be checked for.</param>
+        /// <returns>Whether this list contains the specified element.</returns>
+        public bool Contains(T element) => InternalValue.Contains(element);
+
+        /// <summary>
         /// Inserts the provided element at the specified index.
         /// </summary>
         /// <remarks>

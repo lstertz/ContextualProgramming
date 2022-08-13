@@ -103,19 +103,8 @@ public class ConsoleKeyListening
 
         while (TConsole.KeyAvailable)
         {
-            bool skip = false;
-
-            // TODO :: StateList Contains method.
-            // TODO :: Test in project for actual functionality.
             ConsoleKeyInfo keyInfo = TConsole.ReadKey(true);
-            for (int c = 0, count = keyInput.PressedKeys.Count; c < count; c++)
-                if (keyInput.PressedKeys[c] == keyInfo)
-                {
-                    skip = true;
-                    break;
-                }
-
-            if (skip)
+            if (keyInput.PressedKeys.Contains(keyInfo))
                 continue;
 
             keyInput.PressedKeys.Add(keyInfo);
