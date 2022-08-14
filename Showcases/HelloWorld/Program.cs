@@ -19,16 +19,3 @@ output.Lines.Add("Hello World!");
 
 // Update the app to process the new context.
 app.Update();
-
-
-/******** Condensed version of the above. ********
- * 
- * App app = new();
- * app.Initialize();
- * app.Contextualize(new ConsoleOutput()
- * {
- *     Lines = new string[] {"Hello World!"}
- * });
- * app.Update();
- * 
- *************************************************/
