@@ -1,4 +1,6 @@
-﻿namespace ContextualProgramming.IO.Internal;
+﻿using System.Text;
+
+namespace ContextualProgramming.IO.Internal;
 
 /// <summary>
 /// Displays any text specified in <see cref="ConsoleOutput"/> in the console.
@@ -17,24 +19,35 @@ public class ConsoleDisplaying
     protected interface IConsole
     {
         /// <summary>
+        /// Gets the width of the buffer area.
+        /// </summary>
+        public static abstract int BufferWidth { get; }
+
+        /// <summary>
+        /// Gets the row position of the cursor within the buffer area.
+        /// </summary>
+        public static abstract int CursorTop { get; }
+
+        /// <summary>
+        /// Sets a value indicating whether the cursor is visible.
+        /// </summary>
+        public static abstract bool CursorVisible { set; }
+
+        /// <summary>
         /// Clears the display of the console.
         /// </summary>
         public static abstract void Clear();
+
+        /// <summary>
+        /// Sets the position of the cursor.
+        /// </summary>
+        public static abstract void SetCursorPosition(int left, int top);
 
         /// <summary>
         /// Writes the provided value to the console.
         /// </summary>
         /// <param name="value">The value to be written.</param>
         public static abstract void Write(string? value);
-
-        /// <summary>
-        /// Writes the provided value as a line to the console.
-        /// </summary>
-        /// <remarks>
-        /// A written line will have a newline appended to it as part of the write.
-        /// </remarks>
-        /// <param name="value">The value to be written as a line.</param>
-        public static abstract void WriteLine(string? value);
     }
 
     /// <summary>
@@ -42,20 +55,42 @@ public class ConsoleDisplaying
     /// </summary>
     private class Console : IConsole
     {
+        /// <inheritdoc/>
+        public static int BufferWidth 
+        { 
+            get => System.Console.BufferWidth;
+        }
+
+        /// <summary>
+        /// <see cref="System.Console.CursorTop"/>
+        /// </summary>
+        public static int CursorTop
+        {
+            get => System.Console.CursorTop;
+            set => System.Console.CursorTop = value;
+        }
+
+        /// <inheritdoc/>
+        public static bool CursorVisible 
+        {
+            set => System.Console.CursorVisible = value;
+        }
+
         /// <summary>
         /// <see cref="System.Console.Clear"/>
         /// </summary>
         public static void Clear() => System.Console.Clear();
 
         /// <summary>
+        /// <see cref="System.Console.SetCursorPosition"/>
+        /// </summary>
+        public static void SetCursorPosition(int left, int top) =>
+            System.Console.SetCursorPosition(left, top);
+
+        /// <summary>
         /// <see cref="System.Console.Write(string?)"/>
         /// </summary>
         public static void Write(string? value) => System.Console.Write(value);
-
-        /// <summary>
-        /// <see cref="System.Console.WriteLine(string?)"/>
-        /// </summary>
-        public static void WriteLine(string? value) => System.Console.WriteLine(value);
     }
 
 
@@ -67,11 +102,27 @@ public class ConsoleDisplaying
     protected static void UpdateDisplay<TConsole>(ConsoleOutput output)
         where TConsole : IConsole
     {
-        TConsole.Clear();
+        int bufferWidth = TConsole.BufferWidth;
+
+        StringBuilder displayString = new();
+        int newLeft = output.ActiveText.Value.Length;
+        int newTop = output.Lines.Count;
 
         for (int c = 0; c < output.Lines.Count; c++)
-            TConsole.WriteLine(output.Lines[c]);
-        TConsole.Write(output.ActiveText);
+            displayString.AppendLine(output.Lines[c].PadRight(bufferWidth));
+
+        displayString.AppendLine(output.ActiveText.Value.PadRight(bufferWidth));
+
+        for (int c = output.Lines.Count, count = TConsole.CursorTop; c < count; c++)
+            displayString.AppendLine(" ".PadRight(bufferWidth));
+
+        TConsole.CursorVisible = false;
+
+        TConsole.SetCursorPosition(0, 0);
+        TConsole.Write(displayString.ToString());
+        TConsole.SetCursorPosition(newLeft, newTop);
+
+        TConsole.CursorVisible = true;
     }
 
 
