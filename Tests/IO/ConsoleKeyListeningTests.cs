@@ -329,6 +329,30 @@ public class ReadKeyInput
     }
 
     [Test]
+    public void ProvidesNoInput_AfterReleasedConsecutiveKey_HasNoRecordedKeys()
+    {
+        ConsoleKeyInput keyInput = new();
+        TestConsole.AvailablePressedKeys.Enqueue(TestKeyA);
+        TestConsole.PressedKeys.Add(TestKeyA);
+
+        _listening.ReadKeyInput(keyInput);
+
+        // Trigger KeyAvailable again.
+        TestConsole.AvailablePressedKeys.Enqueue(TestKeyA);
+
+        _listening.ReadKeyInput(keyInput);
+
+        TestConsole.PressedKeys.Clear();
+
+        _listening.ReadKeyInput(keyInput);
+        _listening.ReadKeyInput(keyInput);
+
+        Assert.AreEqual(0, keyInput.PressedKeys.Count);
+        Assert.AreEqual(0, keyInput.ReleasedKeys.Count);
+        Assert.AreEqual(0, keyInput.PressedTicks.Value);
+    }
+
+    [Test]
     public void ProvidesNoInput_AfterReleasedKey_HasNoRecordedKeys()
     {
         ConsoleKeyInput keyInput = new();
