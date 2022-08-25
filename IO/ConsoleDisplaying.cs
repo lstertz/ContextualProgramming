@@ -34,11 +34,6 @@ public class ConsoleDisplaying
         public static abstract bool CursorVisible { set; }
 
         /// <summary>
-        /// Clears the display of the console.
-        /// </summary>
-        public static abstract void Clear();
-
-        /// <summary>
         /// Sets the position of the cursor.
         /// </summary>
         public static abstract void SetCursorPosition(int left, int top);
@@ -77,11 +72,6 @@ public class ConsoleDisplaying
         }
 
         /// <summary>
-        /// <see cref="System.Console.Clear"/>
-        /// </summary>
-        public static void Clear() => System.Console.Clear();
-
-        /// <summary>
         /// <see cref="System.Console.SetCursorPosition"/>
         /// </summary>
         public static void SetCursorPosition(int left, int top) =>
@@ -105,15 +95,16 @@ public class ConsoleDisplaying
         int bufferWidth = TConsole.BufferWidth;
 
         StringBuilder displayString = new();
-        int newLeft = output.ActiveText.Value.Length;
-        int newTop = output.Lines.Count;
+        int newLeft = output.ActiveText.Value.Length % bufferWidth;
+        int newTop = 0;
 
         for (int c = 0; c < output.Lines.Count; c++)
-            displayString.AppendLine(output.Lines[c].PadRight(bufferWidth));
+            AppendLine(displayString, output.Lines[c], bufferWidth, ref newTop);
 
-        displayString.AppendLine(output.ActiveText.Value.PadRight(bufferWidth));
+        if (output.ActiveText.Value != string.Empty)
+        AppendLine(displayString, output.ActiveText.Value, bufferWidth, ref newTop, false);
 
-        for (int c = output.Lines.Count, count = TConsole.CursorTop; c < count; c++)
+        for (int c = newTop, count = TConsole.CursorTop; c < count; c++)
             displayString.AppendLine(" ".PadRight(bufferWidth));
 
         TConsole.CursorVisible = false;
@@ -123,6 +114,36 @@ public class ConsoleDisplaying
         TConsole.SetCursorPosition(newLeft, newTop);
 
         TConsole.CursorVisible = true;
+    }
+
+    /// <summary>
+    /// Appends the provided line to the display string, taking into account wrapping that should 
+    /// occur for the specified buffer width.
+    /// </summary>
+    /// <param name="displayString">The string builder for the display string, 
+    /// which is the string being appended to.</param>
+    /// <param name="line">The line being appended.</param>
+    /// <param name="bufferWidth">The buffer width, which defines the wrapping 
+    /// imposed upon the line being appended.</param>
+    /// <param name="newTop">The cursor line after the appending.</param>
+    /// <param name="incrementForFinalLine">Whether the cursor line should 
+    /// be incremented after the final line has been appended.</param>
+    private static void AppendLine(StringBuilder displayString, string line, int bufferWidth, 
+        ref int newTop, bool incrementForFinalLine = true)
+    {
+        while (line.Length >= bufferWidth)
+        {
+            displayString.AppendLine(line[..bufferWidth]);
+            line = line[bufferWidth..];
+            newTop++;
+        }
+
+        if (line.Length == 0)
+            return;
+
+        displayString.AppendLine(line.PadRight(bufferWidth));
+        if (incrementForFinalLine)
+            newTop++;
     }
 
 
