@@ -1,7 +1,6 @@
 ﻿global using ContextualProgramming;
 using ContextualProgramming.Showcase.Contexts;
 
-
 App app = new();
 
 /// Initialization.

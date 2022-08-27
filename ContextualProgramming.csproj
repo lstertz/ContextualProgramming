@@ -5,6 +5,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<LangVersion>preview</LangVersion>
+		<EnablePreviewFeatures>true</EnablePreviewFeatures>
 		<Version>1.1.1</Version>
 		<Authors>Lucas Stertz</Authors>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
@@ -16,17 +17,30 @@
 		<PackageProjectUrl>https://github.com/lstertz/ContextualProgramming</PackageProjectUrl>
 		<PackageTags>contextual;contextual programming;behaviors;behavior;operations;operation;contexts;context;compositions;composition;dynamic;framework</PackageTags>
 		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<IsWindows Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Windows)))' == 'true'">true</IsWindows>
+		<IsOSX Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsOSX>
+		<IsLinux Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::Linux)))' == 'true'">true</IsLinux>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(IsWindows)'=='true'">
+		<DefineConstants>Windows</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(IsOSX)'=='true'">
+		<DefineConstants>OSX</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(IsLinux)'=='true'">
+		<DefineConstants>Linux</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<Compile Remove="Concepts\**" />
-		<Compile Remove="Showcase\**" />
+		<Compile Remove="Showcases\**" />
 		<Compile Remove="Tests\**" />
 		<EmbeddedResource Remove="Concepts\**" />
-		<EmbeddedResource Remove="Showcase\**" />
+		<EmbeddedResource Remove="Showcases\**" />
 		<EmbeddedResource Remove="Tests\**" />
 		<None Remove="Concepts\**" />
-		<None Remove="Showcase\**" />
+		<None Remove="Showcases\**" />
 		<None Remove="Tests\**" />
 	</ItemGroup>
 

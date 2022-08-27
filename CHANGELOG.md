@@ -15,6 +15,10 @@ within that namespace may have breaking changes without a major version update.
 - Teardown operations.
 - Support for mutualistic relationships between contexts with the 'mutualism' attribute.
 - Support for mutual state binding for mutualistic contexts.
+- Built-in console logging with the ConsoleOutput context.
+- Internal support for update operations.
+- Built-in console-based key listening with the ConsoleKeyInput context.
+- Contains check for ContextStateList.
 
 ### Changed
 - Contextualization and decontextualization behavior instantiations and destructions now occur 

@@ -9,19 +9,19 @@ namespace ContextualProgramming
     /// <typeparam name="T">The type of elements encapsulated.
     /// This type should be a primitive-like type (int, string, etc.) and not 
     /// an object or struct with internal values.</typeparam>
-    public class ContextStateList<T> : State<List<T?>>, IBindableState
+    public class ContextStateList<T> : State<List<T>>, IBindableState
     {
         /// <summary>
         /// Implicitly converts an array of values to their equivalent context state list.
         /// </summary>
         /// <param name="values">The array of values to be converted.</param>
-        public static implicit operator ContextStateList<T>(T?[]? values) => new(values);
+        public static implicit operator ContextStateList<T>(T[]? values) => new(values);
 
         /// <summary>
         /// Implicitly converts a context state list to its underlying array of values.
         /// </summary>
         /// <param name="stateList">The context state list to be converted.</param>
-        public static implicit operator T?[]?(ContextStateList<T> stateList) =>
+        public static implicit operator T[]?(ContextStateList<T> stateList) =>
             stateList.InternalValue.ToArray();
 
         /// <summary>
@@ -48,7 +48,7 @@ namespace ContextualProgramming
         /// </summary>
         /// <param name="index">The index of the element to be provided.</param>
         /// <returns>The element.</returns>
-        public T? this[int index]
+        public T this[int index]
         {
             get => InternalValue[index];
             set
@@ -75,12 +75,12 @@ namespace ContextualProgramming
         /// <summary>
         /// The encapsulated elements of the context state list.
         /// </summary>
-        public T?[]? Elements
+        public T[]? Elements
         {
             get => InternalValue.ToArray(); 
             set
             {
-                List<T?> elements = InternalValue;
+                List<T> elements = InternalValue;
 
                 if (elements.Count == 0 && (value == null || value.Length == 0))
                     return;
@@ -106,19 +106,19 @@ namespace ContextualProgramming
         /// Constructs a new context state list with the specified elements for it to encapsulate.
         /// </summary>
         /// <param name="values">The encapsulated elements of the context state list.</param>
-        public ContextStateList(T?[]? values) : base(values == null ? new() : new(values)) { }
+        public ContextStateList(T[]? values) : base(values == null ? new() : new(values)) { }
 
 
         /// <inheritdoc/>
-        protected override State<List<T?>>? Convert(object? other)
+        protected override State<List<T>>? Convert(object? other)
         {
             if (other is ContextStateList<T> contextStateList)
                 return new ContextStateList<T>(contextStateList.Elements);
 
-            if (other is T?[] array)
+            if (other is T[] array)
                 return new ContextStateList<T>(array);
 
-            if (other is List<T?> list)
+            if (other is List<T> list)
                 return new ContextStateList<T>(list.ToArray());
 
             return null;
@@ -135,14 +135,14 @@ namespace ContextualProgramming
 
 
         /// <inheritdoc/>
-        public override bool Equals(State<List<T?>>? other)
+        public override bool Equals(State<List<T>>? other)
         {
             ContextStateList<T>? o = other as ContextStateList<T>;
             if (Equals(o, null))
                 return false;
 
-            List<T?> elements = InternalValue;
-            List<T?> otherElements = o.InternalValue;
+            List<T> elements = InternalValue;
+            List<T> otherElements = o.InternalValue;
             if (elements.Count != otherElements.Count)
                 return false;
 
@@ -182,7 +182,7 @@ namespace ContextualProgramming
         /// This operation is considered a change in contextual state.
         /// </remarks>
         /// <param name="elements">The elements to be added.</param>
-        public void AddRange(T?[] elements)
+        public void AddRange(T[] elements)
         {
             InternalValue.AddRange(elements);
             _onChange?.Invoke();
@@ -202,6 +202,13 @@ namespace ContextualProgramming
             InternalValue.Clear();
             _onChange?.Invoke();
         }
+
+        /// <summary>
+        /// Specifies whether the specified element is contained within this list.
+        /// </summary>
+        /// <param name="element">The element to be checked for.</param>
+        /// <returns>Whether this list contains the specified element.</returns>
+        public bool Contains(T element) => InternalValue.Contains(element);
 
         /// <summary>
         /// Inserts the provided element at the specified index.
@@ -225,7 +232,7 @@ namespace ContextualProgramming
         /// </remarks>
         /// <param name="index">The index at which the elements are to be inserted.</param>
         /// <param name="elements">The elements to be inserted.</param>
-        public void InsertRange(int index, T?[] elements)
+        public void InsertRange(int index, T[] elements)
         {
             InternalValue.InsertRange(index, elements);
             _onChange?.Invoke();
