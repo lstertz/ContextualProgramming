@@ -51,10 +51,7 @@ public class ConsoleDisplaying
     private class Console : IConsole
     {
         /// <inheritdoc/>
-        public static int BufferWidth 
-        { 
-            get => System.Console.BufferWidth;
-        }
+        public static int BufferWidth => System.Console.BufferWidth;
 
         /// <summary>
         /// <see cref="System.Console.CursorTop"/>
