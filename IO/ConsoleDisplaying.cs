@@ -101,8 +101,8 @@ public class ConsoleDisplaying
         for (int c = 0; c < output.Lines.Count; c++)
             AppendLine(displayString, output.Lines[c], bufferWidth, ref newTop);
 
-        if (output.ActiveText.Value != string.Empty)
-        AppendLine(displayString, output.ActiveText.Value, bufferWidth, ref newTop, false);
+        if (newTop < TConsole.CursorTop || output.ActiveText.Value != string.Empty)
+            AppendLine(displayString, output.ActiveText.Value, bufferWidth, ref newTop, false);
 
         for (int c = newTop, count = TConsole.CursorTop; c < count; c++)
             displayString.AppendLine(" ".PadRight(bufferWidth));
@@ -128,18 +128,21 @@ public class ConsoleDisplaying
     /// <param name="newTop">The cursor line after the appending.</param>
     /// <param name="incrementForFinalLine">Whether the cursor line should 
     /// be incremented after the final line has been appended.</param>
-    private static void AppendLine(StringBuilder displayString, string line, int bufferWidth, 
+    private static void AppendLine(StringBuilder displayString, string line, int bufferWidth,
         ref int newTop, bool incrementForFinalLine = true)
     {
-        while (line.Length >= bufferWidth)
+        if (line.Length > 0)
         {
-            displayString.AppendLine(line[..bufferWidth]);
-            line = line[bufferWidth..];
-            newTop++;
-        }
+            while (line.Length >= bufferWidth)
+            {
+                displayString.AppendLine(line[..bufferWidth]);
+                line = line[bufferWidth..];
+                newTop++;
+            }
 
-        if (line.Length == 0)
-            return;
+            if (line.Length == 0)
+                return;
+        }
 
         displayString.AppendLine(line.PadRight(bufferWidth));
         if (incrementForFinalLine)
