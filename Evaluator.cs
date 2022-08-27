@@ -152,6 +152,16 @@ public abstract class Evaluator
     public abstract MethodInfo[] GetOnTeardownOperations(Type behaviorType);
 
     /// <summary>
+    /// Provides the operations of the specified behavior type that should 
+    /// be invoked on each update cycle.
+    /// </summary>
+    /// <param name="behaviorType">The type of the behavior whose operations 
+    /// are to be provided.</param>
+    /// <returns>The behavior type's operations that should be invoked 
+    /// on each update cycle.</returns>
+    public abstract MethodInfo[] GetOnUpdateOperations(Type behaviorType);
+
+    /// <summary>
     /// Specifies whether the provided type is a type of context known by this evaluator.
     /// </summary>
     /// <param name="type">The type to be checked.</param>
@@ -243,6 +253,11 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
     /// All found operations that should be invoked upon teardown.
     /// </summary>
     private readonly Dictionary<Type, List<MethodInfo>> _onTeardownOperations = new();
+
+    /// <summary>
+    /// All found operations that should be invoked on each update cycle.
+    /// </summary>
+    private readonly Dictionary<Type, List<MethodInfo>> _onUpdateOperations = new();
 
 
     /// <inheritdoc/>
@@ -426,6 +441,23 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
             return Array.Empty<MethodInfo>();
 
         return _onTeardownOperations[behaviorType].ToArray();
+    }
+
+    /// <inheritdoc/>
+    public override MethodInfo[] GetOnUpdateOperations(Type behaviorType)
+    {
+        ValidateInitialization();
+
+        if (!_behaviorTypes.Contains(behaviorType))
+            throw new ArgumentException($"Update Operations cannot be retrieved " +
+                $"for type {behaviorType.FullName} since it is not a behavior " +
+                $"known to an evaluator with behaviors defined " +
+                $"by {typeof(TBehaviorAttribute).FullName}.");
+
+        if (!_onUpdateOperations.ContainsKey(behaviorType))
+            return Array.Empty<MethodInfo>();
+
+        return _onUpdateOperations[behaviorType].ToArray();
     }
 
     /// <inheritdoc/>
@@ -729,6 +761,7 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
 
                 CacheOnChangeOperations(behaviorType, methods[c]);
                 CacheOnTeardownOperations(behaviorType, methods[c]);
+                CacheOnUpdateOperations(behaviorType, methods[c]);
                 // TODO :: Support other types of operation caching here.
             }
     }
@@ -781,6 +814,26 @@ public class Evaluator<TContextAttribute, TMutualismAttribute, TMutualAttribute,
             _onTeardownOperations.Add(behaviorType, new());
 
         _onTeardownOperations[behaviorType].Add(operation);
+    }
+
+    /// <summary>
+    /// Validates and caches the provided operation as an on update operation 
+    /// for each such declaration found to be associated with the operation.
+    /// </summary>
+    /// <param name="behaviorType">The type of behavior whose operation is being evaluated.</param>
+    /// <param name="operation">The operation being evaluated, validated, and cached 
+    /// for on update declarations.</param>
+    private void CacheOnUpdateOperations(Type behaviorType, MethodInfo operation)
+    {
+        IEnumerable<OnUpdateAttribute> attrs = operation
+            .GetCustomAttributes<OnUpdateAttribute>(true);
+        if (attrs.Count() == 0)
+            return;
+
+        if (!_onUpdateOperations.ContainsKey(behaviorType))
+            _onUpdateOperations.Add(behaviorType, new());
+
+        _onUpdateOperations[behaviorType].Add(operation);
     }
 
 

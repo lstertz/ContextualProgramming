@@ -9,19 +9,19 @@ namespace ContextualProgramming
     /// <typeparam name="T">The type of value encapsulated.
     /// This type should be a primitive-like type (int, string, etc.) and not 
     /// an object or struct with internal values.</typeparam>
-    public class ContextState<T> : State<T?>, IBindableState
+    public class ContextState<T> : State<T>, IBindableState
     {
         /// <summary>
         /// Implicitly converts a value to its equivalent context state.
         /// </summary>
         /// <param name="value">The value to be converted.</param>
-        public static implicit operator ContextState<T>(T? value) => new(value);
+        public static implicit operator ContextState<T>(T value) => new(value);
 
         /// <summary>
         /// Implicitly converts a context state to its underlying value.
         /// </summary>
         /// <param name="state">The context state to be converted.</param>
-        public static implicit operator T?(ContextState<T> state) => state.InternalValue;
+        public static implicit operator T(ContextState<T> state) => state.InternalValue;
 
 
         /// <inheritdoc/>
@@ -30,7 +30,7 @@ namespace ContextualProgramming
         /// <summary>
         /// The encapsulated value of the context state.
         /// </summary>
-        public T? Value 
+        public T Value 
         {
             get => InternalValue; 
             set
@@ -52,11 +52,11 @@ namespace ContextualProgramming
         /// Constructs a new context state with the specified value for it to encapsulate.
         /// </summary>
         /// <param name="value">The encapsulated value of the context state.</param>
-        public ContextState(T? value) : base(value) { }
+        public ContextState(T value) : base(value) { }
 
 
         /// <inheritdoc/>
-        protected override State<T?>? Convert(object? other)
+        protected override State<T>? Convert(object? other)
         {
             if (other is ContextState<T> contextState)
                 return new ContextState<T>(contextState.InternalValue);

@@ -3,7 +3,7 @@ using ContextualProgramming.IO.Internal;
 using NUnit.Framework;
 using System.Text;
 
-using TestConsole = ConsoleDisplayingTests.TestableConsoleDisplaying.StringConsole;
+using FakeConsole = ConsoleDisplayingTests.TestableConsoleDisplaying.StringConsole;
 
 namespace ConsoleDisplayingTests;
 
@@ -13,16 +13,47 @@ public class TestableConsoleDisplaying : ConsoleDisplaying
     {
         private static readonly StringBuilder _stringBuilder = new();
 
-        public static void Clear() => _stringBuilder.Clear();
+        public static int BufferWidth { get; set; } = 5;
+
+        public static bool CanClear { get; set; } = true;
+
+        public static int CursorLeft { get; private set; } = 0;
+
+        public static int CursorTop { get; set; } = 0;
+
+        public static bool CursorVisible { get; set; } = true;
+
+        public static void Reset()
+        {
+            CursorTop = 0;
+            CursorLeft = 0;
+            CursorVisible = true;
+
+            CanClear = true;
+            _stringBuilder.Clear();
+        }
+
         public static string GetDisplay() => _stringBuilder.ToString();
+
+        public static void SetCursorPosition(int left, int top)
+        {
+            if (left == 0 && top == 0 && CanClear)
+            {
+                _stringBuilder.Clear();
+                CanClear = false;
+            }
+
+            CursorLeft = left;
+            CursorTop = top;
+        }
+
         public static void Write(string? value) => _stringBuilder.Append(value);
-        public static void WriteLine(string? value) => _stringBuilder.AppendLine(value);
     }
 
     public TestableConsoleDisplaying(ConsoleOutput output) : base(output) { }
 
     public override void UpdateDisplay(ConsoleOutput output) =>
-        UpdateDisplay<TestConsole>(output);
+        UpdateDisplay<FakeConsole>(output);
 }
 
 public class Constructor
@@ -30,7 +61,26 @@ public class Constructor
     [TearDown]
     public void TearDown()
     {
-        TestConsole.Clear();
+        FakeConsole.Reset();
+    }
+
+
+    [Test]
+    public void AtLengthLinesWithAtLengthActiveText_WrapsByBufferWidth()
+    {
+        string line1 = "aaaaa";
+        string activeText = "bbbbb";
+        string expectedText = $"aaaaa\r\nbbbbb\r\n";
+
+        new TestableConsoleDisplaying(new()
+        {
+            ActiveText = activeText,
+            Lines = new string[] { line1 }
+        });
+
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(2, FakeConsole.CursorTop);
     }
 
 
@@ -41,20 +91,24 @@ public class Constructor
 
         new TestableConsoleDisplaying(new());
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(0, FakeConsole.CursorTop);
     }
 
     [Test]
     public void EmptyLinesWithActiveText_DisplaysActiveText()
     {
-        string expectedText = "Active Text";
+        string expectedText = "Text";
 
         new TestableConsoleDisplaying(new()
         {
             ActiveText = expectedText
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual($"{expectedText} \r\n", FakeConsole.GetDisplay());
+        Assert.AreEqual(4,FakeConsole.CursorLeft);
+        Assert.AreEqual(0, FakeConsole.CursorTop);
     }
 
     [Test]
@@ -69,7 +123,9 @@ public class Constructor
             Lines = new string[] { line1, line2 }
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(2, FakeConsole.CursorTop);
     }
 
     [Test]
@@ -77,8 +133,8 @@ public class Constructor
     {
         string line1 = "Line1";
         string line2 = "Line2";
-        string activeText = "ActiveText";
-        string expectedText = $"{line1}\r\n{line2}\r\n{activeText}";
+        string activeText = "Text";
+        string expectedText = $"{line1}\r\n{line2}\r\n{activeText} \r\n";
 
         new TestableConsoleDisplaying(new()
         {
@@ -86,7 +142,28 @@ public class Constructor
             Lines = new string[] { line1, line2 }
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(4, FakeConsole.CursorLeft);
+        Assert.AreEqual(2, FakeConsole.CursorTop);
+    }
+
+
+    [Test]
+    public void LongLinesWithLongActiveText_WrapsByBufferWidth()
+    {
+        string line1 = "LongLine";
+        string activeText = "LongText";
+        string expectedText = $"LongL\r\nine  \r\nLongT\r\next  \r\n";
+
+        new TestableConsoleDisplaying(new()
+        {
+            ActiveText = activeText,
+            Lines = new string[] { line1 }
+        });
+
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(3, FakeConsole.CursorLeft);
+        Assert.AreEqual(3, FakeConsole.CursorTop);
     }
 }
 
@@ -105,7 +182,26 @@ public class UpdateDisplay
     [TearDown]
     public void TearDown()
     {
-        TestConsole.Clear();
+        FakeConsole.Reset();
+    }
+
+
+    [Test]
+    public void AtLengthLinesWithAtLengthActiveText_WrapsByBufferWidth()
+    {
+        string line1 = "aaaaa";
+        string activeText = "bbbbb";
+        string expectedText = $"aaaaa\r\nbbbbb\r\n";
+
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText,
+            Lines = new string[] { line1 }
+        });
+
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(2, FakeConsole.CursorTop);
     }
 
 
@@ -116,20 +212,24 @@ public class UpdateDisplay
 
         _displaying.UpdateDisplay(new());
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(0, FakeConsole.CursorTop);
     }
 
     [Test]
     public void EmptyLinesWithActiveText_DisplaysActiveText()
     {
-        string expectedText = "Active Text";
+        string expectedText = "Text";
 
         _displaying.UpdateDisplay(new()
         {
             ActiveText = expectedText
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual($"{expectedText} \r\n", FakeConsole.GetDisplay());
+        Assert.AreEqual(4, FakeConsole.CursorLeft);
+        Assert.AreEqual(0, FakeConsole.CursorTop);
     }
 
     [Test]
@@ -144,7 +244,9 @@ public class UpdateDisplay
             Lines = new string[] { line1, line2 }
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(2, FakeConsole.CursorTop);
     }
 
     [Test]
@@ -152,8 +254,8 @@ public class UpdateDisplay
     {
         string line1 = "Line1";
         string line2 = "Line2";
-        string activeText = "ActiveText";
-        string expectedText = $"{line1}\r\n{line2}\r\n{activeText}";
+        string activeText = "Text";
+        string expectedText = $"{line1}\r\n{line2}\r\n{activeText} \r\n";
 
         _displaying.UpdateDisplay(new()
         {
@@ -161,93 +263,163 @@ public class UpdateDisplay
             Lines = new string[] { line1, line2 }
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(4, FakeConsole.CursorLeft);
+        Assert.AreEqual(2, FakeConsole.CursorTop);
     }
 
 
     [Test]
-    public void SubsequentEmptyLinesWithActiveText_DisplaysActiveText()
+    public void LongLinesWithLongActiveText_WrapsByBufferWidth()
+    {
+        string line1 = "LongLine";
+        string activeText = "LongText";
+        string expectedText = $"LongL\r\nine  \r\nLongT\r\next  \r\n";
+
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText,
+            Lines = new string[] { line1 }
+        });
+
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(3, FakeConsole.CursorLeft);
+        Assert.AreEqual(3, FakeConsole.CursorTop);
+    }
+
+
+    [Test]
+    public void SubsequentEmptyLinesWithActiveText_DisplaysActiveTextWithClearingLines()
     {
         string line1 = "Line1";
         string line2 = "Line2";
-        string activeText1 = "ActiveText1";
-        string activeText2 = "ActiveText2";
-        string expectedText = $"{activeText2}";
+        string activeText1 = "Text";
+        string activeText2 = "Text";
+        string bufferClearLine = "     \r\n";
+        string expectedText = $"{activeText2} \r\n{bufferClearLine}{bufferClearLine}";
 
         _displaying.UpdateDisplay(new()
         {
             ActiveText = activeText1,
             Lines = new string[] { line1, line2 }
         });
+        FakeConsole.CanClear = true;
         _displaying.UpdateDisplay(new()
         {
             ActiveText = activeText2
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(4, FakeConsole.CursorLeft);
+        Assert.AreEqual(0, FakeConsole.CursorTop);
     }
 
     [Test]
-    public void SubsequentEmptyLinesWithNoActiveText_DisplaysNothing()
+    public void SubsequentEmptyLinesWithNoActiveText_DisplaysClearingLines()
     {
         string line1 = "Line1";
         string line2 = "Line2";
-        string activeText = "ActiveText";
-        string expectedText = string.Empty;
+        string activeText = "Text";
+        string bufferClearLine = "     \r\n";
+        string expectedText = $"{bufferClearLine}{bufferClearLine}{bufferClearLine}";
 
         _displaying.UpdateDisplay(new()
         {
             ActiveText = activeText,
             Lines = new string[] { line1, line2 }
         });
+        FakeConsole.CanClear = true;
         _displaying.UpdateDisplay(new());
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(0, FakeConsole.CursorTop);
     }
 
     [Test]
-    public void SubsequentLinesWithActiveText_DisplaysLinesWithActiveText()
+    public void SubsequentLinesWithActiveText_DisplaysLinesWithActiveTextWithClearingLines()
     {
         string line1 = "Line1";
         string line2 = "Line2";
         string line3 = "Line3";
-        string activeText1 = "ActiveText1";
-        string activeText2 = "ActiveText2";
-        string expectedText = $"{line3}\r\n{activeText2}";
+        string activeText1 = "Text";
+        string activeText2 = "Text";
+        string bufferClearLine = "     \r\n";
+        string expectedText = $"{line3}\r\n{activeText2} \r\n{bufferClearLine}";
 
         _displaying.UpdateDisplay(new()
         {
             ActiveText = activeText1,
             Lines = new string[] { line1, line2 }
         });
+        FakeConsole.CanClear = true;
         _displaying.UpdateDisplay(new()
         {
             ActiveText = activeText2,
             Lines = new string[] { line3 }
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(4, FakeConsole.CursorLeft);
+        Assert.AreEqual(1, FakeConsole.CursorTop);
     }
 
     [Test]
-    public void SubsequentLinesWithNoActiveText_DisplaysLines()
+    public void SubsequentLinesWithNoActiveText_DisplaysLinesWithClearingLines()
     {
         string line1 = "Line1";
         string line2 = "Line2";
         string line3 = "Line3";
-        string activeText = "ActiveText";
-        string expectedText = $"{line3}\r\n";
+        string activeText = "Text";
+        string bufferClearLine = "     \r\n";
+        string expectedText = $"{line3}\r\n{bufferClearLine}{bufferClearLine}";
 
         _displaying.UpdateDisplay(new()
         {
             ActiveText = activeText,
             Lines = new string[] { line1, line2 }
         });
+        FakeConsole.CanClear = true;
         _displaying.UpdateDisplay(new()
         {
             Lines = new string[] { line3 }
         });
 
-        Assert.AreEqual(expectedText, TestConsole.GetDisplay());
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(0, FakeConsole.CursorLeft);
+        Assert.AreEqual(1, FakeConsole.CursorTop);
+    }
+
+    [Test]
+    public void SubsequentSubsequentLinesWithActiveText_DisplaysLinesWithActiveText()
+    {
+        string line1 = "Line1";
+        string line2 = "Line2";
+        string line3 = "Line3";
+        string activeText1 = "Text";
+        string activeText2 = "Text";
+        string expectedText = $"{line3}\r\n{activeText2} \r\n";
+
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText1,
+            Lines = new string[] { line1, line2 }
+        });
+        FakeConsole.CanClear = true;
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText2,
+            Lines = new string[] { line3 }
+        });
+        FakeConsole.CanClear = true;
+        _displaying.UpdateDisplay(new()
+        {
+            ActiveText = activeText2,
+            Lines = new string[] { line3 }
+        });
+
+        Assert.AreEqual(expectedText, FakeConsole.GetDisplay());
+        Assert.AreEqual(4, FakeConsole.CursorLeft);
+        Assert.AreEqual(1, FakeConsole.CursorTop);
     }
 }

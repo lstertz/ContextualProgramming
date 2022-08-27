@@ -373,6 +373,11 @@ namespace AppTests
             contextB.HasTornDown = true;
             contextA.App?.Decontextualize(contextA);
         }
+
+        public void OnUpdate(TestContextA contextA)
+        {
+            contextA.UpdateCount++;
+        }
     }
 
     public class TestBehaviorB
@@ -400,6 +405,8 @@ namespace AppTests
     public class TestContextA
     {
         public App? App { get; set; }
+
+        public int UpdateCount { get; set; } = 0;
 
         public int OnContextAChangeFromTestBehaviorACallCount { get; set; } = 0;
 
@@ -1574,15 +1581,15 @@ namespace AppTests
             TestContextB? contextB = _app.GetContext<TestContextB>() ??
                 throw new NullReferenceException();
 
-            MethodInfo? mi = typeof(TestBehaviorA).GetMethod("OnContextAIntChange") ??
-                throw new NullReferenceException();
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod(
+                nameof(TestBehaviorA.OnContextAIntChange)) ?? throw new NullReferenceException();
 
             _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
                 TestBehaviorA.ContextAName, nameof(TestContextA.Int))
                 .Returns(new MethodInfo[] { mi });
 
-            mi = typeof(TestBehaviorA).GetMethod("OnContextBIntChange") ??
-                throw new NullReferenceException();
+            mi = typeof(TestBehaviorA).GetMethod(
+                nameof(TestBehaviorA.OnContextBIntChange)) ?? throw new NullReferenceException();
 
             _app.Evaluator.GetOnChangeOperations(typeof(TestBehaviorA),
                 TestBehaviorA.ContextBName, nameof(TestContextB.Int))
@@ -1760,6 +1767,56 @@ namespace AppTests
         public void WithPendingFactories_ReturnsTrue()
         {
             Assert.IsTrue(_app.Update());
+        }
+
+        [Test]
+        public void WithUpdateOperations_AfterTeardown_DoesNotInvokeUpdateOperations()
+        {
+            App app = AppTests.SetUp.FullSuiteDependentApp();
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod(
+                nameof(TestBehaviorA.OnUpdate)) ?? throw new NullReferenceException();
+            app.Evaluator.GetOnUpdateOperations(typeof(TestBehaviorA))
+                .Returns(new MethodInfo[] { mi });
+
+            app.Contextualize(contextA);
+            app.Contextualize(contextB);
+
+            app.Update();  // Instantiate the behaviors after contextualization.
+
+            app.Decontextualize(contextB);
+
+            app.Update();  // Should run no update operations.
+
+            Assert.AreEqual(0, contextA.UpdateCount);
+        }
+
+        [Test]
+        public void WithUpdateOperations_BeforeTeardown_InvokesUpdateOperations()
+        {
+            App app = AppTests.SetUp.FullSuiteDependentApp();
+            TestContextA contextA = new();
+            TestContextB contextB = new();
+
+            MethodInfo? mi = typeof(TestBehaviorA).GetMethod(
+                nameof(TestBehaviorA.OnUpdate)) ?? throw new NullReferenceException();
+            app.Evaluator.GetOnUpdateOperations(typeof(TestBehaviorA))
+                .Returns(new MethodInfo[] { mi });
+
+            app.Contextualize(contextA);
+            app.Contextualize(contextB);
+
+            app.Update();  // Instantiate the behaviors after contextualization.
+
+            app.Update();  // First run of update operations.
+
+            Assert.AreEqual(1, contextA.UpdateCount);
+
+            app.Update();  // Second run of update operations.
+
+            Assert.AreEqual(2, contextA.UpdateCount);
         }
     }
 }

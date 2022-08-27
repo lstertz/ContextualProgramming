@@ -719,6 +719,24 @@ public class ListOperations
     }
 
     [Test]
+    public void Contains_ContainedElement_ReturnsTrue()
+    {
+        int[] values = { 10, 11 };
+        ContextStateList<int> contextStateList = values;
+
+        Assert.IsTrue(contextStateList.Contains(10));
+    }
+
+    [Test]
+    public void Contains_NonContainedElement_ReturnsFalse()
+    {
+        int[] values = { 10, 11 };
+        ContextStateList<int> contextStateList = values;
+
+        Assert.IsFalse(contextStateList.Contains(12));
+    }
+
+    [Test]
     public void Getting_ProvidesExpectedElement()
     {
         int[] values = { 10, 11 };
