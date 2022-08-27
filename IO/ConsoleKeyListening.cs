@@ -109,7 +109,6 @@ public class ConsoleKeyListening
 
             keyInput.PressedKeys.Add(keyInfo);
             keyInput.PressedTicks.Value = 0;
-
         }
     }
 
