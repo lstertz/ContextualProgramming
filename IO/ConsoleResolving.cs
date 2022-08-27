@@ -7,7 +7,7 @@
 [Behavior]
 [Dependency<ConsoleInput>(Binding.Unique, Fulfillment.Existing, Input)]
 [Dependency<ConsoleOutput>(Binding.Unique, Fulfillment.Existing, Output)]
-public class ConsoleResolver
+public class ConsoleResolving
 {
     private const string Input = "input";
     private const string Output = "output";

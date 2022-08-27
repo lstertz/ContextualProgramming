@@ -2,14 +2,14 @@ using ContextualProgramming.IO;
 using ContextualProgramming.IO.Internal;
 using NUnit.Framework;
 
-namespace ConsoleResolverTests;
+namespace ConsoleResolvingTests;
 
 public class Resolving
 {
     private ConsoleInput? _input;
     private ConsoleOutput? _output;
 
-    private ConsoleResolver? _resolver;
+    private ConsoleResolving? _resolver;
 
 
     [SetUp]

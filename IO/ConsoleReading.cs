@@ -5,8 +5,8 @@
 /// </summary>
 [Behavior]
 [Dependency<ConsoleInput>(Binding.Unique, Fulfillment.Existing, Input)]
-[Dependency<KeyInput>(Binding.Unique, Fulfillment.SelfCreated, KeyInput)]
-public class ConsoleListener
+[Dependency<ConsoleKeyInput>(Binding.Unique, Fulfillment.SelfCreated, KeyInput)]
+public class ConsoleReading
 {
     private const string Input = "input";
     private const string KeyInput = "keyInput";
@@ -14,7 +14,7 @@ public class ConsoleListener
     /// <summary>
     /// Sets up the reader with the specified input settings.
     /// </summary>
-    public ConsoleListener(ConsoleInput input)
+    public ConsoleReading(ConsoleInput input)
     {
     }
 
@@ -27,10 +27,11 @@ public class ConsoleListener
     /// text input read from the console.</param>
     [Operation]
     [OnChange(KeyInput)]
-    public void EvaluateKeyInput(ConsoleInput input, KeyInput keyInput)
+    public void EvaluateKeyInput(ConsoleInput input, ConsoleKeyInput keyInput)
     {
-        // TODO :: Update as KeyInput changes for globalized inputs.
+        // TODO :: Update for ConsoleKeyInput changes for globalized inputs.
 
+        /*
         ConsoleKeyInfo info = keyInput.ActiveKey;
         if (info.Key == ConsoleKey.Enter)
         {
@@ -50,5 +51,6 @@ public class ConsoleListener
         }
         else
             input.Unsubmitted.Value += info.KeyChar;
+        */
     }
 }
