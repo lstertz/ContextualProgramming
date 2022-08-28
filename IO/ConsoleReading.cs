@@ -14,36 +14,36 @@ public class ConsoleReading
     /// <summary>
     /// Sets up the reader with the specified input settings.
     /// </summary>
-    public ConsoleReading(ConsoleInput input)
-    {
-    }
+    public ConsoleReading(ConsoleInput input) { }
 
     /// <summary>
     /// Evauates any available keyboard input as if read from the console and either 
-    /// alters the currenly unsubmitted input or submits the last known unsubmitted input.
+    /// alters the currently unsubmitted input or submits the last known unsubmitted input.
     /// </summary>
     /// <param name="input">The record for submitted and unsubmitted input.</param>
     /// <param name="keyInput">The current key input to be evaluated as 
     /// text input read from the console.</param>
     [Operation]
     [OnChange(KeyInput)]
-    public void EvaluateKeyInput(ConsoleInput input, ConsoleKeyInput keyInput)
+    public void ReadKeyInput(ConsoleInput input, ConsoleKeyInput keyInput)
     {
-        // TODO :: Update for ConsoleKeyInput changes for globalized inputs.
+        if (keyInput.PressedKeys.Count == 0)
+            return;
 
-        /*
-        ConsoleKeyInfo info = keyInput.ActiveKey;
+        ConsoleKeyInfo info;
+        if (!GetValidKey(keyInput, out info))
+            return;
+
         if (info.Key == ConsoleKey.Enter)
         {
-            string? line = input.Unsubmitted;
-            if (line != null)
-                input.Submitted.Add(line);
+            string line = input.Unsubmitted;
+            input.Submitted.Add(line);
 
             input.Unsubmitted.Value = string.Empty;
         }
-        else if (info.Key == ConsoleKey.Backspace)
+        else if (info.Key == ConsoleKey.Backspace || info.Key == ConsoleKey.Delete)
         {
-            string? line = input.Unsubmitted;
+            string line = input.Unsubmitted;
             if (line == null || line.Length == 0)
                 return;
 
@@ -51,6 +51,23 @@ public class ConsoleReading
         }
         else
             input.Unsubmitted.Value += info.KeyChar;
-        */
+    }
+
+    /// <summary>
+    /// Provides the key info from the current input and specifies whether it is 
+    /// valid to be read.
+    /// </summary>
+    /// <param name="keyInput">The current key input to be evaluated.</param>
+    /// <param name="info">The appropriate key info to possibly be read.</param>
+    /// <returns>Whether the current input is valid to be read.</returns>
+    private bool GetValidKey(ConsoleKeyInput keyInput, out ConsoleKeyInfo info)
+    {
+        info = keyInput.PressedKeys[^1];
+        if (info.Modifiers.HasFlag(ConsoleModifiers.Alt))
+            return false;
+        if (info.Modifiers.HasFlag(ConsoleModifiers.Control))
+            return false;
+
+        return true;
     }
 }
