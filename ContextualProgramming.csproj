@@ -35,12 +35,15 @@
 	<ItemGroup>
 		<Compile Remove="Concepts\**" />
 		<Compile Remove="Showcases\**" />
+		<Compile Remove="Showcase\**" />
 		<Compile Remove="Tests\**" />
 		<EmbeddedResource Remove="Concepts\**" />
 		<EmbeddedResource Remove="Showcases\**" />
+		<EmbeddedResource Remove="Showcase\**" />
 		<EmbeddedResource Remove="Tests\**" />
 		<None Remove="Concepts\**" />
 		<None Remove="Showcases\**" />
+		<None Remove="Showcase\**" />
 		<None Remove="Tests\**" />
 	</ItemGroup>
 
