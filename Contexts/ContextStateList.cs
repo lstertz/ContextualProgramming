@@ -21,7 +21,7 @@ namespace ContextualProgramming
         /// Implicitly converts a context state list to its underlying array of values.
         /// </summary>
         /// <param name="stateList">The context state list to be converted.</param>
-        public static implicit operator T[]?(ContextStateList<T> stateList) =>
+        public static implicit operator T[](ContextStateList<T> stateList) =>
             stateList.InternalValue.ToArray();
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace ContextualProgramming
         /// <summary>
         /// The encapsulated elements of the context state list.
         /// </summary>
-        public T[]? Elements
+        public T[] Elements
         {
             get => InternalValue.ToArray(); 
             set
