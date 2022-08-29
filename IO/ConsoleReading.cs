@@ -14,7 +14,10 @@ public class ConsoleReading
     /// <summary>
     /// Sets up the reader with the specified input settings.
     /// </summary>
-    public ConsoleReading(ConsoleInput input) { }
+    public ConsoleReading(ConsoleInput input, out ConsoleKeyInput keyInput) 
+    {
+        keyInput = new();
+    }
 
     /// <summary>
     /// Evauates any available keyboard input as if read from the console and either 
@@ -24,7 +27,8 @@ public class ConsoleReading
     /// <param name="keyInput">The current key input to be evaluated as 
     /// text input read from the console.</param>
     [Operation]
-    [OnChange(KeyInput)]
+    [OnChange(KeyInput, nameof(ConsoleKeyInput.PressedKeys))]
+    [OnChange(KeyInput, nameof(ConsoleKeyInput.PressedTicks))]
     public void ReadKeyInput(ConsoleInput input, ConsoleKeyInput keyInput)
     {
         if (keyInput.PressedKeys.Count == 0)
@@ -36,9 +40,7 @@ public class ConsoleReading
 
         if (info.Key == ConsoleKey.Enter)
         {
-            string line = input.Unsubmitted;
-            input.Submitted.Add(line);
-
+            input.Submitted.Add(input.Unsubmitted);
             input.Unsubmitted.Value = string.Empty;
         }
         else if (info.Key == ConsoleKey.Backspace || info.Key == ConsoleKey.Delete)

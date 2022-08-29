@@ -10,7 +10,7 @@ public class ConsoleOutput
     /// The current unsubmitted text that the user is manipulating, 
     /// essentially the user's input to the console.
     /// </summary>
-    public ContextState<string> ActiveText { get; set; } = string.Empty;
+    public ContextState<string> ActiveText { get; init; } = string.Empty;
 
     /// <summary>
     /// The lines of text to be displayed to the console.

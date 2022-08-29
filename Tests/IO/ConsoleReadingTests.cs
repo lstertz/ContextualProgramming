@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace ConsoleReadingTests;
 
-public class ReadConsole
+public class ReadKeyInput
 {
     private ConsoleReading _reading = null!;
 
@@ -12,7 +12,7 @@ public class ReadConsole
     [SetUp]
     public void SetUp()
     {
-        _reading = new(new());
+        _reading = new(new(), out ConsoleKeyInput _);
     }
 
 
