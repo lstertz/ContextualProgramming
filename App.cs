@@ -146,7 +146,11 @@ public class App : IBehaviorApp
     /// <summary>
     /// A record of context changes that have occurred since the last evaluation.
     /// </summary>
-    private readonly List<ContextChange> _contextChanges = new();
+    /// <remarks>
+    /// The record is maintained as a map of changed context instances to their 
+    /// changed states' names.
+    /// </remarks>
+    private readonly Dictionary<object, HashSet<string>> _contextChanges = new();
 
     /// <summary>
     /// A mapping of mutualist context instances to their host context instances.
@@ -422,15 +426,14 @@ public class App : IBehaviorApp
         if (_contextChanges.Count == 0)
             return false;
 
-        ContextChange[] contextChanges = _contextChanges.ToArray();
+        Dictionary<object, string[]> contextChanges = new(_contextChanges.Count);
+        foreach (object changedContext in _contextChanges.Keys)
+            contextChanges.Add(changedContext, _contextChanges[changedContext].ToArray());
         _contextChanges.Clear();
 
         bool hadChanges = false;
-        for (int c = 0, count = contextChanges.Length; c < count; c++)
+        foreach (object context in contextChanges.Keys)
         {
-            ContextChange change = contextChanges[c];
-            object context = change.Context;
-
             Type contextType = context.GetType();
             if (!_contexts.ContainsKey(contextType) || !_contexts[contextType].Contains(context))
                 continue;
@@ -450,10 +453,14 @@ public class App : IBehaviorApp
                 for (int co = 0, coCount = contextOperations.Length; co < coCount; co++)
                     InvokeOperation(bInstance, contextOperations[co]);
 
-                MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
-                    behaviorType, contextName, change.StateName);
-                for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
-                    InvokeOperation(bInstance, stateOperations[so]);
+                string[] stateChanges = contextChanges[context];
+                for (int c = 0, count = stateChanges.Length; c < count; c++)
+                {
+                    MethodInfo[] stateOperations = Evaluator.GetOnChangeOperations(
+                        behaviorType, contextName, stateChanges[c]);
+                    for (int so = 0, soCount = stateOperations.Length; so < soCount; so++)
+                        InvokeOperation(bInstance, stateOperations[so]);
+                }
             }
         }
 
@@ -595,7 +602,16 @@ public class App : IBehaviorApp
         if (!state.IsBound)
         {
             List<ContextChange> changes = new();
-            state.Bind(() => _contextChanges.AddRange(changes));
+            state.Bind(() =>
+            {
+                for (int c = 0, count = changes.Count; c < count; c++)
+                {
+                    object changedContext = changes[c].Context;
+                    if (!_contextChanges.ContainsKey(changedContext))
+                        _contextChanges.Add(changedContext, new());
+                    _contextChanges[changedContext].Add(changes[c].StateName);
+                }
+            });
             _stateContextChanges.Add(state, changes);
         }
 

@@ -419,6 +419,7 @@ namespace AppTests
         public int OnContextChangeIntValueFromBehaviorB { get; set; } = 0;
 
         public ContextState<int> Int { get; init; } = 0;
+        public ContextState<int> Int2 { get; init; } = 0;
     }
 
     public class TestContextB
@@ -1709,6 +1710,24 @@ namespace AppTests
 
             Assert.IsTrue(contextB.HasTornDown);
             Assert.IsTrue(contextC.HasTornDown);
+        }
+
+        [Test]
+        public void WithMultipleChangesRelevantToSameOperation_OperationsAreInvokedOnlyOnce()
+        {
+            TestContextA? contextA = _app.GetContext<TestContextA>() ??
+                throw new NullReferenceException();
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+
+            contextA.Int.Value = 11;
+            contextA.Int.Value = 12;
+            contextA.Int2.Value = 13;
+
+            _app.Update(); // Evaluate Context A's changes.
+
+            Assert.AreEqual(1, contextA.OnContextAChangeFromTestBehaviorACallCount);
+            Assert.AreEqual(1, contextA.OnContextAStateChangeFromTestBehaviorACallCount);
         }
 
         [Test]
