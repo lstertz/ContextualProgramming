@@ -360,6 +360,7 @@ namespace AppTests
         public void OnContextAIntChange(TestContextA contextA, TestContextB contextB)
         {
             contextA.OnStateChangeIntValueFromBehaviorA = contextA.Int;
+            contextA.OnContextAStateChangeFromTestBehaviorACallCount++;
             contextB.Int.Value = contextA.Int;
         }
 
@@ -409,6 +410,7 @@ namespace AppTests
         public int UpdateCount { get; set; } = 0;
 
         public int OnContextAChangeFromTestBehaviorACallCount { get; set; } = 0;
+        public int OnContextAStateChangeFromTestBehaviorACallCount { get; set; } = 0;
 
         public int OnStateChangeIntValueFromBehaviorA { get; set; } = 0;
         public int OnContextChangeIntValueFromBehaviorA { get; set; } = 0;
@@ -1524,10 +1526,12 @@ namespace AppTests
         {
             TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
 
             _app.Update();
 
-            Assert.AreEqual(0, contextA.OnContextChangeIntValueFromBehaviorA);
+            Assert.AreEqual(0, contextA.OnContextAChangeFromTestBehaviorACallCount);
         }
 
         [Test]
@@ -1535,6 +1539,8 @@ namespace AppTests
         {
             TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
 
             _app.Update();
 
@@ -1554,11 +1560,15 @@ namespace AppTests
         {
             TestContextA? contextA = _app.GetContext<TestContextA>() ??
                 throw new NullReferenceException();
+            AppTests.SetUp.BehaviorOperations<TestBehaviorA>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
+            AppTests.SetUp.BehaviorOperations<TestBehaviorB>(_app.Evaluator,
+                TestBehaviorA.ContextAName, nameof(TestContextA.Int));
 
             contextA.Int.Value = 11;
 
-            _app.Update(); // Evaluate Context A's changes, which change Context C.
-            _app.Update(); // Evaluate Context C's changes, which result in no new changes.
+            _app.Update(); // Evaluate Context A's changes, which change Context B.
+            _app.Update(); // Evaluate Context B's changes, which result in no new changes.
 
             Assert.IsFalse(_app.Update());
         }
